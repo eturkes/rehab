@@ -1,0 +1,86 @@
+# raw + processed data (NEVER commit patient data)
+ALL_SCIDATA.csv
+ALL_SCIDATA*.csv
+data/raw/
+data/processed/
+data/interim/
+data/external/
+*.parquet
+*.feather
+*.pkl
+*.pickle
+*.hdf5
+*.h5
+*.npy
+*.npz
+*.rds
+*.RData
+*.sqlite
+*.db
+
+# trained models containing patient information
+models/*.joblib
+models/*.pkl
+models/*.onnx
+models/*.bin
+models/*.pt
+models/*.pth
+models/*.h5
+models/*.keras
+
+# logs, caches, reports with real values
+logs/
+reports/figures/*.png
+reports/figures/*.svg
+reports/figures/*.html
+reports/figures/*.pdf
+reports/*.html
+reports/*.pdf
+*.log
+
+# python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+.venv/
+venv/
+env/
+.env
+.env.*
+!.env.example
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+.coverage
+.coverage.*
+htmlcov/
+*.egg-info/
+.ipynb_checkpoints/
+.python-version
+
+# uv
+uv.lock.bak
+.uv-cache/
+
+# node
+node_modules/
+dist/
+build/
+.parcel-cache/
+.next/
+.nuxt/
+
+# editor / OS
+.vscode/
+.idea/
+*.swp
+*.swo
+.DS_Store
+Thumbs.db
+
+# claude / agent state (local-only scratch)
+.claude/local/
+.aider*
+.specstory/

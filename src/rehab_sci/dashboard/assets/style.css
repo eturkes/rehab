@@ -1,0 +1,282 @@
+/* Medical-grade design system — clean, calm, trustworthy. */
+
+:root {
+  --ink-900: #0e1b2a;
+  --ink-700: #1c3147;
+  --ink-500: #3d566e;
+  --ink-300: #7d92a8;
+  --ink-200: #b6c4d2;
+  --ink-100: #d8e0e7;
+  --ink-50:  #eef2f5;
+  --paper:   #f7f9fb;
+  --card:    #ffffff;
+
+  --accent:        #117a8b;   /* deep teal — primary action */
+  --accent-soft:   #d6ecef;
+  --accent-700:    #0c5a66;
+
+  --warm:          #d4773c;   /* warm orange — highlights, not alarming */
+  --warm-soft:     #f8e6d5;
+
+  --good:          #2c8a6b;
+  --good-soft:     #d6efe4;
+  --bad:           #a3354e;
+  --bad-soft:      #f3dbe1;
+
+  --shadow-sm: 0 1px 2px rgba(14, 27, 42, 0.04), 0 1px 1px rgba(14, 27, 42, 0.03);
+  --shadow-md: 0 2px 6px rgba(14, 27, 42, 0.06), 0 4px 12px rgba(14, 27, 42, 0.04);
+
+  --radius: 6px;
+  --radius-lg: 10px;
+
+  --font-sans: "Inter", "Hiragino Sans", "Noto Sans JP", "Yu Gothic UI", system-ui, sans-serif;
+  --font-mono: "JetBrains Mono", "SF Mono", "Hiragino Sans", "Noto Sans Mono CJK JP", monospace;
+}
+
+html, body {
+  margin: 0;
+  padding: 0;
+  background: var(--paper);
+  color: var(--ink-900);
+  font-family: var(--font-sans);
+  font-size: 14.5px;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+}
+
+#react-entry-point { background: var(--paper); }
+
+.app-shell { max-width: 1320px; margin: 0 auto; padding: 24px 24px 64px; }
+
+/* --- top bar --- */
+.topbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  margin-bottom: 12px;
+  padding-bottom: 16px;
+  border-bottom: 1px solid var(--ink-100);
+}
+.topbar-left h1 {
+  margin: 0;
+  font-size: 22px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  color: var(--ink-900);
+}
+.topbar-left p {
+  margin: 4px 0 0;
+  font-size: 13px;
+  color: var(--ink-500);
+}
+.lang-toggle {
+  display: inline-flex;
+  border: 1px solid var(--ink-200);
+  background: var(--card);
+  border-radius: 999px;
+  overflow: hidden;
+  font-size: 12.5px;
+}
+.lang-toggle button {
+  padding: 6px 14px;
+  border: none;
+  background: transparent;
+  color: var(--ink-500);
+  cursor: pointer;
+  font: inherit;
+  letter-spacing: 0.02em;
+}
+.lang-toggle button.active {
+  background: var(--ink-900);
+  color: #fff;
+}
+
+/* --- tabs --- */
+.tabs-container { margin-top: 18px; }
+.dash-tabs {
+  border-bottom: 1px solid var(--ink-100) !important;
+}
+.dash-tab {
+  background: transparent !important;
+  border: none !important;
+  border-bottom: 2px solid transparent !important;
+  color: var(--ink-500) !important;
+  font-weight: 500 !important;
+  padding: 12px 20px !important;
+  font-size: 13.5px !important;
+}
+.dash-tab--selected {
+  color: var(--ink-900) !important;
+  border-bottom: 2px solid var(--accent) !important;
+  background: transparent !important;
+}
+
+.tab-body { padding-top: 24px; }
+
+/* --- cards --- */
+.card {
+  background: var(--card);
+  border: 1px solid var(--ink-100);
+  border-radius: var(--radius-lg);
+  padding: 18px 20px 14px;
+  box-shadow: var(--shadow-sm);
+}
+.card h3 {
+  margin: 0 0 4px;
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  color: var(--ink-500);
+  text-transform: uppercase;
+}
+.card .big-number {
+  font-size: 28px;
+  font-weight: 600;
+  color: var(--ink-900);
+}
+.card .subtitle { font-size: 12.5px; color: var(--ink-500); }
+
+.card-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 16px; }
+.chart-row {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(420px, 1fr));
+  gap: 18px;
+  margin-top: 18px;
+}
+.chart-card {
+  background: var(--card);
+  border: 1px solid var(--ink-100);
+  border-radius: var(--radius-lg);
+  padding: 18px 20px 16px;
+  box-shadow: var(--shadow-sm);
+}
+.chart-card h2 {
+  margin: 0 0 8px;
+  font-size: 14.5px;
+  font-weight: 600;
+  color: var(--ink-900);
+}
+.chart-card .chart-sub { font-size: 12px; color: var(--ink-500); margin-bottom: 8px; }
+
+/* --- simulator layout --- */
+.sim-grid { display: grid; grid-template-columns: 360px 1fr; gap: 22px; margin-top: 8px; }
+.sim-input-card {
+  background: var(--card);
+  border: 1px solid var(--ink-100);
+  border-radius: var(--radius-lg);
+  padding: 18px 18px 14px;
+  box-shadow: var(--shadow-sm);
+  max-height: calc(100vh - 240px);
+  overflow-y: auto;
+}
+.sim-result-card {
+  background: var(--card);
+  border: 1px solid var(--ink-100);
+  border-radius: var(--radius-lg);
+  padding: 18px 20px 16px;
+  box-shadow: var(--shadow-sm);
+}
+.sim-section-title {
+  font-size: 11.5px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--ink-500);
+  margin: 14px 0 6px;
+  border-bottom: 1px dashed var(--ink-100);
+  padding-bottom: 4px;
+}
+.sim-section-title:first-of-type { margin-top: 0; }
+.sim-field { margin: 8px 0 12px; }
+.sim-field label { display: block; font-size: 12.5px; color: var(--ink-700); margin-bottom: 4px; }
+.sim-readout {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  padding: 12px 0 18px;
+}
+.sim-readout .pred {
+  font-size: 56px;
+  font-weight: 700;
+  color: var(--accent-700);
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+}
+.sim-readout .pred-unit { font-size: 14px; color: var(--ink-500); margin-top: -6px; }
+.sim-readout .pi {
+  font-size: 13px;
+  color: var(--ink-500);
+  margin-top: 6px;
+}
+
+/* --- methods page --- */
+.methods-block { margin-bottom: 22px; }
+.methods-block h3 {
+  margin: 0 0 6px;
+  font-size: 13px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--ink-500);
+}
+.methods-block p { margin: 0; color: var(--ink-900); }
+
+/* --- shap waterfall list --- */
+.shap-list { list-style: none; padding: 0; margin: 0; font-size: 13px; }
+.shap-list li {
+  display: grid;
+  grid-template-columns: 1fr 60px;
+  align-items: center;
+  border-bottom: 1px solid var(--ink-100);
+  padding: 6px 4px;
+}
+.shap-list li:last-child { border-bottom: none; }
+.shap-list .shap-name { color: var(--ink-700); }
+.shap-list .shap-val {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+  font-family: var(--font-mono);
+}
+.shap-pos { color: var(--good); }
+.shap-neg { color: var(--bad); }
+
+/* --- footer --- */
+.footer-note {
+  margin-top: 36px;
+  padding-top: 14px;
+  border-top: 1px solid var(--ink-100);
+  font-size: 12px;
+  color: var(--ink-500);
+}
+
+/* --- plotly graph defaults --- */
+.js-plotly-plot .plotly { font-family: var(--font-sans) !important; }
+.dash-spinner * { color: var(--accent) !important; }
+
+/* --- form controls --- */
+input[type="number"], input[type="text"], select {
+  border: 1px solid var(--ink-200);
+  border-radius: var(--radius);
+  padding: 4px 8px;
+  font: inherit;
+  background: #fff;
+}
+input[type="number"]:focus, input[type="text"]:focus, select:focus {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px var(--accent-soft);
+}
+
+/* Dash dropdown overrides */
+.Select-control { border-radius: var(--radius) !important; border-color: var(--ink-200) !important; }
+.Select-menu-outer { border-radius: var(--radius) !important; }
+.is-focused:not(.is-open) > .Select-control {
+  border-color: var(--accent) !important;
+  box-shadow: 0 0 0 2px var(--accent-soft) !important;
+}
+
+/* Dash slider overrides */
+.rc-slider-track { background: var(--accent) !important; }
+.rc-slider-handle { border-color: var(--accent) !important; }
+.rc-slider-dot-active { border-color: var(--accent) !important; }

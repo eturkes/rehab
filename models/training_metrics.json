@@ -1,0 +1,132 @@
+{
+  "cv": {
+    "r2_mean": 0.6519737856209679,
+    "r2_std": 0.053748815016239036,
+    "rmse_mean": 20.791101861741605,
+    "rmse_std": 1.8617792903680541,
+    "mae_mean": 14.930004099093413,
+    "mae_std": 1.9667361866593223,
+    "folds": 5
+  },
+  "test": {
+    "r2": 0.6959219536710518,
+    "rmse": 18.915890613466257,
+    "mae": 13.70031928965046,
+    "conformal_q_half_width": 24.59446009941589,
+    "conformal_coverage_80": 0.83,
+    "raw_quantile_coverage_80": 0.86,
+    "n_train": 318,
+    "n_calib": 80,
+    "n_test": 100,
+    "n_dev_patients": 398,
+    "n_test_patients": 100
+  },
+  "global_importance_top25": [
+    {
+      "feature": "LEMS",
+      "abs_mean_shap": 10.527485465100545
+    },
+    {
+      "feature": "TotalMotor",
+      "abs_mean_shap": 9.145310798890547
+    },
+    {
+      "feature": "\u5e74\u9f62",
+      "abs_mean_shap": 8.397991553597441
+    },
+    {
+      "feature": "mFrankel_ord",
+      "abs_mean_shap": 2.5322682837474826
+    },
+    {
+      "feature": "LightTouchTotal",
+      "abs_mean_shap": 2.5236046244174624
+    },
+    {
+      "feature": "PinPrickTotal",
+      "abs_mean_shap": 1.8685755145431668
+    },
+    {
+      "feature": "UEMS",
+      "abs_mean_shap": 1.6019624599278943
+    },
+    {
+      "feature": "LeftSensoryLevel_ord",
+      "abs_mean_shap": 0.735520677594391
+    },
+    {
+      "feature": "SCIM_respiration_sphincter",
+      "abs_mean_shap": 0.7273682119541907
+    },
+    {
+      "feature": "RightSensoryLevel_ord",
+      "abs_mean_shap": 0.6754655211966762
+    },
+    {
+      "feature": "LeftMotorLevel_ord",
+      "abs_mean_shap": 0.6070827556889337
+    },
+    {
+      "feature": "\u4fdd\u967a",
+      "abs_mean_shap": 0.5417083840163223
+    },
+    {
+      "feature": "OPLL",
+      "abs_mean_shap": 0.5261237113416777
+    },
+    {
+      "feature": "DAP",
+      "abs_mean_shap": 0.3965887571332437
+    },
+    {
+      "feature": "RightMotorLevel_ord",
+      "abs_mean_shap": 0.3961267421787121
+    },
+    {
+      "feature": "NLI_ord",
+      "abs_mean_shap": 0.3646885545050236
+    },
+    {
+      "feature": "SCIM_mobility",
+      "abs_mean_shap": 0.3372260322462044
+    },
+    {
+      "feature": "AIS_ord",
+      "abs_mean_shap": 0.2814414910568285
+    },
+    {
+      "feature": "\u5bfe\u9ebb\u75fa_\u56db\u80a2\u9ebb\u75fa",
+      "abs_mean_shap": 0.27509693457432194
+    },
+    {
+      "feature": "SCIM_total",
+      "abs_mean_shap": 0.18586624965049725
+    },
+    {
+      "feature": "\u7cd6\u5c3f\u75c5",
+      "abs_mean_shap": 0.15788429141977894
+    },
+    {
+      "feature": "SCIM_self_care",
+      "abs_mean_shap": 0.13378343544914897
+    },
+    {
+      "feature": "Frankel_ord",
+      "abs_mean_shap": 0.1211642490937169
+    },
+    {
+      "feature": "\u5916\u50b7\u6027_\u975e\u5916\u50b7\u6027",
+      "abs_mean_shap": 0.08623410754381529
+    },
+    {
+      "feature": "\u6027\u5225",
+      "abs_mean_shap": 0.058713545462687276
+    }
+  ],
+  "outcome": "y_discharge_scim",
+  "n_features": 30,
+  "n_episodes_total": 1200,
+  "n_episodes_with_outcome": 498,
+  "n_patients_with_outcome": 498,
+  "random_state": 20260518
+}

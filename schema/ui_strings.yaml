@@ -1,0 +1,203 @@
+# All UI labels live here, NEVER hard-coded in Python. Dashboard reads ja/en at render time.
+
+app_title:
+  ja: "脊髄損傷リハビリ解析・予測スイート"
+  en: "SCI Rehabilitation Analytics & Prediction Suite"
+app_subtitle:
+  ja: "臨床データに基づく予後予測と要因分析"
+  en: "Outcome prediction and driver analysis from clinical data"
+language_toggle:
+  ja: "English"
+  en: "日本語"
+language_label_ja:
+  ja: "日本語"
+  en: "Japanese"
+language_label_en:
+  ja: "英語"
+  en: "English"
+loading:
+  ja: "読み込み中…"
+  en: "Loading…"
+no_data:
+  ja: "該当データがありません"
+  en: "No data"
+patients_n:
+  ja: "対象患者数"
+  en: "Patients (N)"
+episodes_n:
+  ja: "症例数 (エピソード)"
+  en: "Episodes (N)"
+timepoints_used:
+  ja: "使用評価時点"
+  en: "Timepoints used"
+
+# --- tabs ---
+tab_overview:
+  ja: "コホート概要"
+  en: "Cohort overview"
+tab_simulator:
+  ja: "患者シミュレーター"
+  en: "Patient simulator"
+tab_insights:
+  ja: "インサイト・エンジン"
+  en: "Insight engine"
+tab_methods:
+  ja: "解析手法"
+  en: "Methods"
+
+# --- overview ---
+card_demographics:
+  ja: "人口統計"
+  en: "Demographics"
+card_injury_profile:
+  ja: "損傷プロファイル"
+  en: "Injury profile"
+card_outcomes:
+  ja: "アウトカム分布"
+  en: "Outcome distributions"
+chart_age_dist:
+  ja: "年齢分布"
+  en: "Age distribution"
+chart_sex_dist:
+  ja: "性別構成"
+  en: "Sex distribution"
+chart_injury_sunburst:
+  ja: "損傷階層 (麻痺型 → AIS → 神経学的高位)"
+  en: "Injury hierarchy (paralysis type → AIS → NLI)"
+chart_mechanism:
+  ja: "受傷機転"
+  en: "Mechanism of injury"
+chart_discharge_scim:
+  ja: "退院時 SCIM-III 合計スコア"
+  en: "Discharge SCIM-III total score"
+chart_ais_admit_discharge:
+  ja: "入院時 → 退院時 AIS 遷移"
+  en: "Admission → discharge AIS transitions"
+chart_recovery_curves:
+  ja: "SCIM-III 回復曲線 (麻痺型別)"
+  en: "SCIM-III recovery curves (by paralysis type)"
+
+# --- simulator ---
+sim_intro:
+  ja: "入院時の状態を入力すると、退院時 SCIM-III 合計の予測と寄与要因が表示されます。"
+  en: "Enter admission characteristics to view predicted discharge SCIM-III total and the factors driving it."
+sim_input_demographics:
+  ja: "人口統計"
+  en: "Demographics"
+sim_input_injury:
+  ja: "損傷特性"
+  en: "Injury characteristics"
+sim_input_isncsci:
+  ja: "ISNCSCI / AIS"
+  en: "ISNCSCI / AIS"
+sim_input_motor:
+  ja: "運動スコア"
+  en: "Motor scores"
+sim_input_sensory:
+  ja: "感覚スコア"
+  en: "Sensory scores"
+sim_predict_button:
+  ja: "予測する"
+  en: "Predict"
+sim_predicted_label:
+  ja: "退院時 SCIM-III 予測合計"
+  en: "Predicted discharge SCIM-III total"
+sim_prediction_interval:
+  ja: "予測区間 (10%–90%)"
+  en: "Prediction interval (10–90%)"
+sim_local_explanation:
+  ja: "この症例の寄与要因 (SHAP)"
+  en: "Local feature contributions (SHAP)"
+sim_pushes_up:
+  ja: "予測を押し上げる要因"
+  en: "Factors pushing score higher"
+sim_pushes_down:
+  ja: "予測を押し下げる要因"
+  en: "Factors pushing score lower"
+sim_reset:
+  ja: "リセット"
+  en: "Reset"
+
+# --- insight engine ---
+insight_global_importance:
+  ja: "グローバル特徴量重要度"
+  en: "Global feature importance"
+insight_subgroup_compare:
+  ja: "サブグループ比較"
+  en: "Subgroup comparison"
+insight_pair_dependence:
+  ja: "特徴量依存プロット"
+  en: "Feature dependence plot"
+insight_effect_size:
+  ja: "効果量"
+  en: "Effect size"
+insight_recovery_trajectories:
+  ja: "回復軌跡"
+  en: "Recovery trajectories"
+insight_filter:
+  ja: "フィルター"
+  en: "Filter"
+insight_all:
+  ja: "全体"
+  en: "All"
+insight_choose_feature:
+  ja: "特徴量を選択"
+  en: "Choose feature"
+insight_choose_strata:
+  ja: "比較するサブグループ"
+  en: "Subgroup variable"
+
+# --- methods ---
+methods_outcome:
+  ja: "主要アウトカム"
+  en: "Primary outcome"
+methods_outcome_def:
+  ja: "退院時 SCIM-III 合計スコア (0–100)。値が高いほど ADL 自立度が高いことを示す。"
+  en: "Discharge SCIM-III total score (0–100). Higher = more ADL independence."
+methods_model:
+  ja: "モデル"
+  en: "Model"
+methods_model_def:
+  ja: "Gradient Boosted Trees (LightGBM)。クォンタイル回帰により 10%/50%/90% 予測区間を出力。"
+  en: "Gradient Boosted Trees (LightGBM) with quantile heads at 10/50/90% for prediction intervals."
+methods_features:
+  ja: "特徴量"
+  en: "Features"
+methods_features_def:
+  ja: "入院時 (0day) のみで取得される変数: 人口統計、損傷分類、AIS、NLI、UEMS/LEMS、感覚総和、ZPP、VAC/DAP、合併症 (糖尿病・OPLL・DISH)。"
+  en: "Admission-only (day 0) variables: demographics, injury classification, AIS, NLI, UEMS/LEMS, sensory totals, ZPP, VAC/DAP, comorbidities (diabetes, OPLL, DISH)."
+methods_split:
+  ja: "データ分割"
+  en: "Train / test split"
+methods_split_def:
+  ja: "患者単位のグループ分割: 80% 学習・20% テスト。クロスバリデーション (5-fold, GroupKFold)。"
+  en: "Patient-level group split: 80% train / 20% test. 5-fold GroupKFold cross-validation."
+methods_explainability:
+  ja: "説明可能性"
+  en: "Explainability"
+methods_explainability_def:
+  ja: "TreeSHAP によるグローバル・ローカル説明。連続量にはパーシャル依存も併用。"
+  en: "TreeSHAP for global & local explanations; partial dependence for continuous features."
+methods_subgroup:
+  ja: "サブグループ解析"
+  en: "Subgroup analysis"
+methods_subgroup_def:
+  ja: "Mann-Whitney U / Kruskal-Wallis H 検定と効果量 (Cliff's δ / Cohen's d)。FDR 補正済み。"
+  en: "Mann-Whitney U / Kruskal-Wallis H tests with effect sizes (Cliff's δ / Cohen's d); FDR-adjusted."
+
+# --- common ---
+button_download:
+  ja: "CSV をダウンロード"
+  en: "Download CSV"
+unit_years:
+  ja: "歳"
+  en: "years"
+unit_score:
+  ja: "点"
+  en: "pts"
+unit_days:
+  ja: "日"
+  en: "days"
+data_disclaimer:
+  ja: "本ダッシュボードは研究目的のデモであり、個別の臨床判断には用いられません。"
+  en: "This dashboard is a research demonstration; it is not intended for individual clinical decision-making."

@@ -1,0 +1,139 @@
+# Bilingual schema for ALL_SCIDATA.csv columns.
+# Per column:
+#   raw          : exact header in the CSV (cp932-decoded). Use placeholders <C2> etc. only in family templates below.
+#   ja / en      : human-readable display labels.
+#   short_ja/en  : compact labels used in dense charts (optional).
+#   group        : logical category (ID / demographics / injury / isncsci / scim / meta).
+#   role         : id | feature | outcome | meta.
+#   dtype        : numeric | categorical | datetime | ordinal.
+#   unit         : optional unit (years, cm, score, ...).
+#   range        : [min, max] expected range (for numeric / ordinal).
+#   levels       : reference to schema/categorical_levels.yaml key (for categorical).
+#   description  : short clinical description (English) — kept descriptive only.
+#
+# Per-dermatome ISNCSCI columns and per-level key-muscle columns are defined via FAMILIES below
+# to avoid copy-paste; the loader expands them.
+
+version: 1
+encoding: cp932
+missing_sentinels: ["_", "", "NA", "NT", "ND"]
+
+columns:
+  # ---------- identifiers / meta ----------
+  - { raw: KeyRecordNumber,     ja: "症例レコード番号",       en: "Case record number",     group: id,         role: id,   dtype: numeric }
+  - { raw: BusinessYear,        ja: "業務年度",               en: "Business year",          group: id,         role: meta, dtype: numeric }
+  - { raw: AnualCaseNumber,     ja: "年度内症例番号",         en: "Annual case number",     group: id,         role: meta, dtype: numeric }
+  - { raw: IDNumber,            ja: "患者ID",                 en: "Patient ID",             group: id,         role: id,   dtype: numeric }
+  - { raw: TIMESRecordNumber,   ja: "時点レコード番号",       en: "Timepoint record number", group: id,        role: id,   dtype: numeric }
+  - { raw: TIMES,               ja: "時点番号",               en: "Timepoint index",        group: id,         role: id,   dtype: ordinal, range: [1, 26] }
+  - { raw: TIME_Name,           ja: "評価時点",               en: "Assessment timepoint",   group: id,         role: id,   dtype: categorical, levels: time_name }
+  - { raw: STAMP,               ja: "記録日時",               en: "Record timestamp",       group: meta,       role: meta, dtype: datetime }
+
+  # ---------- demographics ----------
+  - { raw: "性別",              ja: "性別",                   en: "Sex",                    group: demographics, role: feature, dtype: categorical, levels: sex }
+  - { raw: "年齢",              ja: "年齢",                   en: "Age",                    group: demographics, role: feature, dtype: numeric, unit: "years", range: [0, 110] }
+
+  # ---------- injury characteristics ----------
+  - { raw: "外傷性_非外傷性",   ja: "外傷性／非外傷性",       en: "Traumatic / non-traumatic", group: injury, role: feature, dtype: categorical, levels: traumatic }
+  - { raw: "対麻痺_四肢麻痺",   ja: "対麻痺／四肢麻痺",       en: "Paraplegia / tetraplegia",  group: injury, role: feature, dtype: categorical, levels: para_tetra }
+  - { raw: "入院期間",          ja: "入院期間",               en: "Length of hospital stay", group: injury, role: feature, dtype: numeric, unit: "days", range: [0, 4000] }
+  - { raw: "糖尿病",            ja: "糖尿病",                 en: "Diabetes mellitus",      group: injury, role: feature, dtype: categorical, levels: yesno_ja }
+  - { raw: OPLL,                ja: "後縦靱帯骨化症 (OPLL)",  en: "OPLL (ossified posterior longitudinal ligament)", group: injury, role: feature, dtype: categorical, levels: yesno_ja }
+  - { raw: DISH,                ja: "びまん性特発性骨増殖症 (DISH)", en: "DISH (diffuse idiopathic skeletal hyperostosis)", group: injury, role: feature, dtype: categorical, levels: yesno_ja }
+  - { raw: "ALLEN分類",         ja: "Allen 分類 (頚椎)",      en: "Allen classification (cervical)", group: injury, role: feature, dtype: categorical, levels: allen }
+  - { raw: "骨傷レベル",        ja: "骨傷レベル",             en: "Bony injury level",      group: injury, role: feature, dtype: categorical, levels: bony_level }
+  - { raw: "骨傷",              ja: "骨傷の有無",             en: "Bony injury (Y/N)",      group: injury, role: feature, dtype: categorical, levels: yesno_ja }
+  - { raw: "損傷部位",          ja: "損傷部位",               en: "Injury site",            group: injury, role: feature, dtype: categorical, levels: injury_site }
+  - { raw: "受傷機転",          ja: "受傷機転",               en: "Mechanism of injury",    group: injury, role: feature, dtype: categorical, levels: mechanism }
+  - { raw: "保険",              ja: "保険種別",               en: "Insurance type",         group: injury, role: feature, dtype: categorical, levels: insurance }
+
+  # ---------- ISNCSCI / AIS (auto + manual) ----------
+  - { raw: mFrankel_Frankel,    ja: "mFrankel／Frankel 分類", en: "mFrankel / Frankel grade", group: isncsci, role: feature, dtype: categorical, levels: mfrankel_pair }
+  - { raw: WalkingIndex,        ja: "歩行指数 (WISCI II)",    en: "Walking Index for SCI (WISCI II)", group: isncsci, role: outcome, dtype: ordinal, range: [0, 20] }
+  - { raw: NLI,                 ja: "神経学的損傷高位 (NLI)", en: "Neurological level of injury", group: isncsci, role: feature, dtype: categorical, levels: cord_level }
+  - { raw: COMP_INCOMP,         ja: "完全／不全損傷",         en: "Complete / Incomplete",  group: isncsci, role: feature, dtype: categorical, levels: comp_incomp }
+  - { raw: AIS,                 ja: "ASIA 機能障害尺度 (AIS)", en: "ASIA Impairment Scale (AIS)", group: isncsci, role: outcome, dtype: categorical, levels: ais }
+  - { raw: RightSensoryLevel,   ja: "右感覚レベル",           en: "Right sensory level",    group: isncsci, role: feature, dtype: categorical, levels: cord_level }
+  - { raw: LeftSensoryLevel,    ja: "左感覚レベル",           en: "Left sensory level",     group: isncsci, role: feature, dtype: categorical, levels: cord_level }
+  - { raw: RightMotorLevel,     ja: "右運動レベル",           en: "Right motor level",      group: isncsci, role: feature, dtype: categorical, levels: cord_level }
+  - { raw: LeftMotorLevel,      ja: "左運動レベル",           en: "Left motor level",       group: isncsci, role: feature, dtype: categorical, levels: cord_level }
+  - { raw: RightSensoryZPP,     ja: "右感覚 ZPP",             en: "Right sensory ZPP",      group: isncsci, role: feature, dtype: categorical, levels: cord_level_zpp }
+  - { raw: LeftSensoryZPP,      ja: "左感覚 ZPP",             en: "Left sensory ZPP",       group: isncsci, role: feature, dtype: categorical, levels: cord_level_zpp }
+  - { raw: RightMotorZPP,       ja: "右運動 ZPP",             en: "Right motor ZPP",        group: isncsci, role: feature, dtype: categorical, levels: cord_level_zpp }
+  - { raw: LeftMotorZPP,        ja: "左運動 ZPP",             en: "Left motor ZPP",         group: isncsci, role: feature, dtype: categorical, levels: cord_level_zpp }
+  - { raw: NLI_manual,          ja: "NLI (手動補正)",         en: "NLI (manually corrected)", group: isncsci, role: feature, dtype: categorical, levels: cord_level }
+  - { raw: AIS_manual,          ja: "AIS (手動補正)",         en: "AIS (manually corrected)", group: isncsci, role: feature, dtype: categorical, levels: ais }
+  - { raw: RightSensoryLevel_manual, ja: "右感覚レベル (手動)", en: "Right sensory level (manual)", group: isncsci, role: feature, dtype: categorical, levels: cord_level }
+  - { raw: LeftSensoryLevel_manual,  ja: "左感覚レベル (手動)", en: "Left sensory level (manual)",  group: isncsci, role: feature, dtype: categorical, levels: cord_level }
+  - { raw: RightMotorLeveI_manual,   ja: "右運動レベル (手動)", en: "Right motor level (manual)",   group: isncsci, role: feature, dtype: categorical, levels: cord_level }
+  - { raw: LeftMotorLevel_manual,    ja: "左運動レベル (手動)", en: "Left motor level (manual)",    group: isncsci, role: feature, dtype: categorical, levels: cord_level }
+  - { raw: RightSensoryZPP_manual,   ja: "右感覚 ZPP (手動)",   en: "Right sensory ZPP (manual)",   group: isncsci, role: feature, dtype: categorical, levels: cord_level_zpp }
+  - { raw: LeftSensoryZPP_manual,    ja: "左感覚 ZPP (手動)",   en: "Left sensory ZPP (manual)",    group: isncsci, role: feature, dtype: categorical, levels: cord_level_zpp }
+  - { raw: RightMotorZPP_manual,     ja: "右運動 ZPP (手動)",   en: "Right motor ZPP (manual)",     group: isncsci, role: feature, dtype: categorical, levels: cord_level_zpp }
+  - { raw: LeftMotorZPP_manual,      ja: "左運動 ZPP (手動)",   en: "Left motor ZPP (manual)",      group: isncsci, role: feature, dtype: categorical, levels: cord_level_zpp }
+  - { raw: VAC,                 ja: "随意肛門収縮 (VAC)",     en: "Voluntary anal contraction (VAC)", group: isncsci, role: feature, dtype: categorical, levels: yn_yes_no }
+  - { raw: DAP,                 ja: "深部肛門圧覚 (DAP)",     en: "Deep anal pressure (DAP)",        group: isncsci, role: feature, dtype: categorical, levels: yn_yes_no }
+  - { raw: STAR,                ja: "S3 領域感覚残存 (STAR)", en: "Sacral sparing (STAR)",          group: isncsci, role: feature, dtype: categorical, levels: yn_yes_no }
+
+  # ---------- SCIM-III items (19 items + 1 redundant) — exact JP terms from official SCIM-III JP ----------
+  - { raw: Feeding,                 ja: "食事",                       en: "Feeding",                         group: scim, role: outcome, dtype: ordinal, range: [0, 3] }
+  - { raw: UpperBath,               ja: "入浴 (上半身)",              en: "Bathing — upper body",            group: scim, role: outcome, dtype: ordinal, range: [0, 3] }
+  - { raw: LowerBath,               ja: "入浴 (下半身)",              en: "Bathing — lower body",            group: scim, role: outcome, dtype: ordinal, range: [0, 3] }
+  - { raw: UpperClothes,            ja: "更衣 (上半身)",              en: "Dressing — upper body",           group: scim, role: outcome, dtype: ordinal, range: [0, 4] }
+  - { raw: LowerClothes,            ja: "更衣 (下半身)",              en: "Dressing — lower body",           group: scim, role: outcome, dtype: ordinal, range: [0, 4] }
+  - { raw: Grooming,                ja: "整容",                       en: "Grooming",                        group: scim, role: outcome, dtype: ordinal, range: [0, 3] }
+  - { raw: Respiration,             ja: "呼吸",                       en: "Respiration",                     group: scim, role: outcome, dtype: ordinal, range: [0, 10] }
+  - { raw: Bladder,                 ja: "膀胱括約筋管理",             en: "Sphincter management — bladder",  group: scim, role: outcome, dtype: ordinal, range: [0, 15] }
+  - { raw: Bowel,                   ja: "直腸括約筋管理",             en: "Sphincter management — bowel",    group: scim, role: outcome, dtype: ordinal, range: [0, 10] }
+  - { raw: Toilet,                  ja: "トイレ動作",                 en: "Use of toilet",                   group: scim, role: outcome, dtype: ordinal, range: [0, 5] }
+  - { raw: MobilityBED,             ja: "ベッド上動作と褥瘡予防",     en: "Mobility in bed & pressure-sore prevention", group: scim, role: outcome, dtype: ordinal, range: [0, 6] }
+  - { raw: TransferBED_WC,          ja: "移乗 (ベッド‒車椅子)",       en: "Transfer — bed ↔ wheelchair",     group: scim, role: outcome, dtype: ordinal, range: [0, 2] }
+  - { raw: TransferWC_TOILET,       ja: "移乗 (車椅子‒トイレ)",       en: "Transfer — wheelchair ↔ toilet",  group: scim, role: outcome, dtype: ordinal, range: [0, 2] }
+  - { raw: MobilityIndoor,          ja: "屋内移動",                   en: "Mobility — indoors",              group: scim, role: outcome, dtype: ordinal, range: [0, 8] }
+  - { raw: MobilityModerateDistance, ja: "中等距離移動 (10‒100m)",    en: "Mobility — moderate distance (10–100 m)", group: scim, role: outcome, dtype: ordinal, range: [0, 8] }
+  - { raw: MobilityOutdoor,         ja: "屋外移動 (>100m)",           en: "Mobility — outdoors (>100 m)",    group: scim, role: outcome, dtype: ordinal, range: [0, 8] }
+  - { raw: Stair,                   ja: "階段昇降",                   en: "Stair management",                group: scim, role: outcome, dtype: ordinal, range: [0, 3] }
+  - { raw: TransferWC_CAR,          ja: "移乗 (車椅子‒自動車)",       en: "Transfer — wheelchair ↔ car",     group: scim, role: outcome, dtype: ordinal, range: [0, 2] }
+  - { raw: TransferFLOOR_WC,        ja: "移乗 (床‒車椅子)",           en: "Transfer — ground ↔ wheelchair",  group: scim, role: outcome, dtype: ordinal, range: [0, 1] }
+
+# ---------- ISNCSCI dermatome / muscle families (auto-expanded) ----------
+families:
+  - id: light_touch
+    template_raw: "{side}LightTouch{level}"
+    ja_template: "{side_ja} {level} 軽触覚"
+    en_template: "{side_en} {level} light touch"
+    sides: { Right: { side_ja: "右", side_en: "Right" }, Left: { side_ja: "左", side_en: "Left" } }
+    levels: [C2,C3,C4,C5,C6,C7,C8,T1,T2,T3,T4,T5,T6,T7,T8,T9,T10,T11,T12,L1,L2,L3,L4,L5,S1,S2,S3,S45]
+    group: isncsci_sensory
+    dtype: ordinal
+    range: [0, 2]
+
+  - id: pin_prick
+    template_raw: "{side}PinPrick{level}"
+    ja_template: "{side_ja} {level} 痛覚 (ピン)"
+    en_template: "{side_en} {level} pin-prick"
+    sides: { Right: { side_ja: "右", side_en: "Right" }, Left: { side_ja: "左", side_en: "Left" } }
+    levels: [C2,C3,C4,C5,C6,C7,C8,T1,T2,T3,T4,T5,T6,T7,T8,T9,T10,T11,T12,L1,L2,L3,L4,L5,S1,S2,S3,S45]
+    group: isncsci_sensory
+    dtype: ordinal
+    range: [0, 2]
+
+  - id: key_muscle
+    template_raw: "{side}KeyMuscle{level}"
+    ja_template: "{side_ja} {level} 主要筋"
+    en_template: "{side_en} {level} key muscle"
+    sides: { Right: { side_ja: "右", side_en: "Right" }, Left: { side_ja: "左", side_en: "Left" } }
+    levels: [C5,C6,C7,C8,T1,L2,L3,L4,L5,S1]
+    group: isncsci_motor
+    dtype: ordinal
+    range: [0, 5]
+
+  - id: non_key_muscle
+    template_raw: "{side}NonKeyMuscle{level}"
+    ja_template: "{side_ja} {level} 補助筋"
+    en_template: "{side_en} {level} non-key muscle"
+    sides: { Right: { side_ja: "右", side_en: "Right" }, Left: { side_ja: "左", side_en: "Left" } }
+    levels: [C5,C6,C7,C8,T1,L2,L3,L4,L5,S1]
+    group: isncsci_motor
+    dtype: categorical
+    levels_ref: nonkey_muscle

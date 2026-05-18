@@ -1,0 +1,48 @@
+[project]
+name = "rehab-sci"
+version = "0.1.0"
+description = "Bilingual (JA/EN) rehabilitation analytics & prediction suite for spinal cord injury (SCI) data."
+requires-python = ">=3.12,<3.14"
+dependencies = [
+  # core data
+  "pandas>=2.2,<3",
+  "polars>=1.20,<2",
+  "numpy>=2.0,<3",
+  "pyarrow>=18,<22",
+  # stats
+  "scipy>=1.13,<2",
+  "statsmodels>=0.14,<0.16",
+  "pingouin>=0.5,<0.6",
+  # ML
+  "scikit-learn>=1.5,<2",
+  "lightgbm>=4.5,<5",
+  "shap>=0.46,<0.50",
+  # plotting / dashboard
+  "plotly>=5.24,<7",
+  "dash>=2.18,<4",
+  "dash-bootstrap-components>=1.6,<3",
+  # utility
+  "joblib>=1.4,<2",
+  "pyyaml>=6.0,<7",
+  "tqdm>=4.66,<5",
+  "rich>=13,<15",
+  "kaleido>=1.0,<2",
+]
+
+[dependency-groups]
+dev = [
+  "ruff>=0.6,<1",
+  "ipython>=8.20,<10",
+  "jupyterlab>=4.2,<5",
+]
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "B", "UP", "SIM", "RUF"]
+ignore = ["E501", "B008"]
+
+[tool.uv]
+package = false

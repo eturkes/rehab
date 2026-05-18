@@ -1,0 +1,33 @@
+# SCIM-III subscale composition. The loader sums each subscale + total.
+# Score ranges follow the validated SCIM-III scoring sheet (Catz & Itzkovich 2007).
+
+subscales:
+  self_care:
+    ja: "セルフケア"
+    en: "Self-care"
+    max: 20
+    items: [Feeding, UpperBath, LowerBath, UpperClothes, LowerClothes, Grooming]
+  respiration_sphincter:
+    ja: "呼吸・排泄管理"
+    en: "Respiration & sphincter management"
+    max: 40
+    items: [Respiration, Bladder, Bowel, Toilet]
+  mobility:
+    ja: "移動"
+    en: "Mobility"
+    max: 40
+    items:
+      - MobilityBED
+      - TransferBED_WC
+      - TransferWC_TOILET
+      - MobilityIndoor
+      - MobilityModerateDistance
+      - MobilityOutdoor
+      - Stair
+      - TransferWC_CAR
+      - TransferFLOOR_WC
+
+total:
+  ja: "SCIM-III 合計"
+  en: "SCIM-III total"
+  max: 100

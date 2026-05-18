@@ -1,0 +1,187 @@
+# Bilingual factor-level translations.
+# `display`: canonical key used internally after `normalize_level` cleans the raw value.
+# `ja` / `en`: human-readable labels.
+# `raw_aliases`: any raw strings (as they appear in the CSV) that should normalize to this `display`.
+#   Use this to absorb typos, leftover Excel artifacts (FALSE for 0), and slash/space variants.
+
+version: 1
+
+sex:
+  - { display: "M", ja: "男性", en: "Male",    raw_aliases: ["男"] }
+  - { display: "F", ja: "女性", en: "Female",  raw_aliases: ["女"] }
+
+yesno_ja:
+  - { display: "Y",  ja: "有り", en: "Yes",  raw_aliases: ["有", "あり", "有り"] }
+  - { display: "N",  ja: "無し", en: "No",   raw_aliases: ["無", "なし", "無し"] }
+
+yn_yes_no:
+  - { display: "Y",  ja: "あり",   en: "Yes",          raw_aliases: ["Y", "YS", "TES"] }
+  - { display: "N",  ja: "なし",   en: "No",           raw_aliases: ["N"] }
+  - { display: "NT", ja: "検査不能", en: "Not testable", raw_aliases: ["NT", "測定不可"] }
+
+traumatic:
+  - { display: "TRA",  ja: "外傷性",   en: "Traumatic",       raw_aliases: ["外傷性"] }
+  - { display: "NTRA", ja: "非外傷性", en: "Non-traumatic",   raw_aliases: ["非外傷性"] }
+  - { display: "NOMP", ja: "麻痺なし", en: "No paralysis",    raw_aliases: ["麻痺無", "麻痺なし"] }
+
+para_tetra:
+  - { display: "TETRA", ja: "四肢麻痺", en: "Tetraplegia",       raw_aliases: ["四肢麻痺"] }
+  - { display: "PARA",  ja: "対麻痺",   en: "Paraplegia",        raw_aliases: ["対麻痺"] }
+  - { display: "NONE",  ja: "麻痺なし", en: "No paralysis",      raw_aliases: ["麻痺無", "麻痺なし"] }
+
+comp_incomp:
+  - { display: "C",  ja: "完全損傷", en: "Complete",   raw_aliases: ["C"] }
+  - { display: "I",  ja: "不全損傷", en: "Incomplete", raw_aliases: ["I"] }
+
+ais:
+  - { display: "A",  ja: "AIS A (完全)",     en: "AIS A (Complete)",                    raw_aliases: ["A"] }
+  - { display: "B",  ja: "AIS B (感覚不全)", en: "AIS B (Sensory incomplete)",           raw_aliases: ["B"] }
+  - { display: "C",  ja: "AIS C (運動不全)", en: "AIS C (Motor incomplete, <half ≥3)",   raw_aliases: ["C"] }
+  - { display: "D",  ja: "AIS D (運動不全)", en: "AIS D (Motor incomplete, ≥half ≥3)",   raw_aliases: ["D", "D0", "D ", "d"] }
+  - { display: "E",  ja: "AIS E (正常)",     en: "AIS E (Normal)",                       raw_aliases: ["E"] }
+  - { display: "ND", ja: "判定不能",         en: "Not determinable",                     raw_aliases: ["ND", "NT"] }
+
+# Modified Frankel grade — the column packs mFrankel/Frankel as a pair.
+# Per Frankel: A,B,C,D,E. Per modified Frankel: A,B1,B2,B3,C1,C2,D0,D1,D2,D3,E.
+# We surface the *modified Frankel* (first token) as canonical since it's more granular.
+mfrankel_pair:
+  - { display: "A",   ja: "A: 完全麻痺",              en: "A: Complete",                                  raw_aliases: ["A/A", "A"] }
+  - { display: "B1",  ja: "B1: 感覚残存 (運動なし)",   en: "B1: Sensory only — no motor",                 raw_aliases: ["B1/B1", "B1"] }
+  - { display: "B2",  ja: "B2: 感覚残存 (非機能的)",   en: "B2: Sensory only — non-functional motor",     raw_aliases: ["B2/B2", "B2"] }
+  - { display: "B3",  ja: "B3: 感覚残存 (機能的)",     en: "B3: Sensory only — functional motor",         raw_aliases: ["B3/B3", "B3"] }
+  - { display: "B",   ja: "B: 感覚残存",              en: "B: Sensory incomplete",                       raw_aliases: ["B/B", "B"] }
+  - { display: "C1",  ja: "C1: 運動残存 (非機能的)",   en: "C1: Motor — non-functional",                  raw_aliases: ["C1/C1", "C1"] }
+  - { display: "C2",  ja: "C2: 運動残存 (中等度)",     en: "C2: Motor — intermediate function",           raw_aliases: ["C2/C2", "C2"] }
+  - { display: "C",   ja: "C: 運動残存",              en: "C: Motor incomplete",                          raw_aliases: ["C/C", "C"] }
+  - { display: "D0",  ja: "D0: 歩行可能 (制限あり)",   en: "D0: Walks with limitation",                   raw_aliases: ["D0/D0", "D0"] }
+  - { display: "D1",  ja: "D1: 屋内歩行可能",          en: "D1: Indoor ambulation",                       raw_aliases: ["D1/D1", "D1"] }
+  - { display: "D2",  ja: "D2: 屋外歩行 (補助あり)",   en: "D2: Outdoor ambulation, with aids",           raw_aliases: ["D2/D2", "D2"] }
+  - { display: "D3",  ja: "D3: 屋外歩行 (自立)",       en: "D3: Outdoor ambulation, independent",         raw_aliases: ["D3/D3", "D3"] }
+  - { display: "D",   ja: "D: 運動回復 (歩行可)",     en: "D: Motor incomplete, ambulatory",              raw_aliases: ["D/D", "D"] }
+  - { display: "E",   ja: "E: 正常",                  en: "E: Normal",                                    raw_aliases: ["E/E", "E"] }
+
+allen:
+  - { display: "CF-1", ja: "CF-1 圧迫屈曲 1度", en: "CF-1 Compressive flexion, stage 1" }
+  - { display: "CF-2", ja: "CF-2 圧迫屈曲 2度", en: "CF-2 Compressive flexion, stage 2" }
+  - { display: "CF-3", ja: "CF-3 圧迫屈曲 3度", en: "CF-3 Compressive flexion, stage 3" }
+  - { display: "CF-4", ja: "CF-4 圧迫屈曲 4度", en: "CF-4 Compressive flexion, stage 4" }
+  - { display: "CF-5", ja: "CF-5 圧迫屈曲 5度", en: "CF-5 Compressive flexion, stage 5" }
+  - { display: "DF-1", ja: "DF-1 牽引屈曲 1度", en: "DF-1 Distractive flexion, stage 1" }
+  - { display: "DF-2", ja: "DF-2 牽引屈曲 2度", en: "DF-2 Distractive flexion, stage 2" }
+  - { display: "DF-3", ja: "DF-3 牽引屈曲 3度", en: "DF-3 Distractive flexion, stage 3" }
+  - { display: "DF-4", ja: "DF-4 牽引屈曲 4度", en: "DF-4 Distractive flexion, stage 4" }
+  - { display: "CE-1", ja: "CE-1 圧迫伸展 1度", en: "CE-1 Compressive extension, stage 1" }
+  - { display: "CE-2", ja: "CE-2 圧迫伸展 2度", en: "CE-2 Compressive extension, stage 2" }
+  - { display: "CE-3", ja: "CE-3 圧迫伸展 3度", en: "CE-3 Compressive extension, stage 3" }
+  - { display: "CE-4", ja: "CE-4 圧迫伸展 4度", en: "CE-4 Compressive extension, stage 4" }
+  - { display: "CE-5", ja: "CE-5 圧迫伸展 5度", en: "CE-5 Compressive extension, stage 5" }
+  - { display: "DE-1", ja: "DE-1 牽引伸展 1度", en: "DE-1 Distractive extension, stage 1" }
+  - { display: "DE-2", ja: "DE-2 牽引伸展 2度", en: "DE-2 Distractive extension, stage 2" }
+  - { display: "VC-1", ja: "VC-1 垂直圧迫 1度", en: "VC-1 Vertical compression, stage 1" }
+  - { display: "VC-2", ja: "VC-2 垂直圧迫 2度", en: "VC-2 Vertical compression, stage 2" }
+  - { display: "LF-1", ja: "LF-1 側屈 1度",    en: "LF-1 Lateral flexion, stage 1" }
+  - { display: "LF-2", ja: "LF-2 側屈 2度",    en: "LF-2 Lateral flexion, stage 2" }
+  - { display: "OTHER", ja: "その他",          en: "Other",                              raw_aliases: ["その他"] }
+  - { display: "UNCL",  ja: "分類不能",        en: "Unclassifiable",                     raw_aliases: ["分類不能", "不明"] }
+
+# Bone-injury level — open-ended (C1..S5, plus paired "C3/4", "L1", "non-bony", etc.).
+# Keep canonical = raw token; loader normalizes spaces; uses cord_level map for paired-level display.
+bony_level:
+  - { display: "NONBONY", ja: "非骨傷性", en: "Non-bony",  raw_aliases: ["非骨傷性"] }
+  - { display: "UNK",     ja: "不明",     en: "Unknown",   raw_aliases: ["不明", "0"] }
+
+injury_site:
+  - { display: "CERV",  ja: "頚椎損傷",      en: "Cervical injury",          raw_aliases: ["頸椎損傷", "頚椎損傷"] }
+  - { display: "THLM",  ja: "胸腰椎損傷",    en: "Thoracolumbar injury",     raw_aliases: ["胸腰椎損傷"] }
+  - { display: "SACR",  ja: "仙椎損傷",      en: "Sacral injury",            raw_aliases: ["仙椎損傷"] }
+  - { display: "C5_6",  ja: "C5/6 損傷",     en: "C5/6 injury",              raw_aliases: ["C5/6"] }
+  - { display: "C6_7",  ja: "C6/7 損傷",     en: "C6/7 injury",              raw_aliases: ["C6/7"] }
+
+mechanism:
+  - { display: "FLAT_FALL",  ja: "平地転倒",                 en: "Fall on level ground",            raw_aliases: ["平地転倒"] }
+  - { display: "FALL_HIGH",  ja: "高所からの転落",           en: "Fall from height",                raw_aliases: ["高所からの転落"] }
+  - { display: "STAIR_FALL", ja: "階段転倒",                 en: "Fall down stairs",                raw_aliases: ["階段転倒"] }
+  - { display: "FALL_LOW",   ja: "低所からの転落",           en: "Fall from low height",            raw_aliases: ["低所からの転落"] }
+  - { display: "TRAFFIC",    ja: "交通事故",                 en: "Traffic accident",                raw_aliases: ["交通事故"] }
+  - { display: "SPORT",      ja: "スポーツ",                 en: "Sports",                          raw_aliases: ["スポーツ"] }
+  - { display: "HEAVY",      ja: "重量物の落下／下敷き",     en: "Heavy object — fall / crush",     raw_aliases: ["重量物の落下あるいは下敷き", "重量物の落下", "重量物下敷き"] }
+  - { display: "OTHER",      ja: "その他",                   en: "Other",                           raw_aliases: ["その他"] }
+  - { display: "UNK",        ja: "不明",                     en: "Unknown",                         raw_aliases: ["不明"] }
+
+insurance:
+  - { display: "GEN", ja: "一般保険", en: "General insurance",                       raw_aliases: ["一般"] }
+  - { display: "WC",  ja: "労災保険", en: "Workers' compensation",                   raw_aliases: ["労災"] }
+
+# Cord level — used for NLI, sensory/motor levels.
+cord_level:
+  - { display: "C1",  ja: "C1",  en: "C1" }
+  - { display: "C2",  ja: "C2",  en: "C2" }
+  - { display: "C3",  ja: "C3",  en: "C3" }
+  - { display: "C4",  ja: "C4",  en: "C4" }
+  - { display: "C5",  ja: "C5",  en: "C5" }
+  - { display: "C6",  ja: "C6",  en: "C6" }
+  - { display: "C7",  ja: "C7",  en: "C7" }
+  - { display: "C8",  ja: "C8",  en: "C8" }
+  - { display: "T1",  ja: "T1",  en: "T1" }
+  - { display: "T2",  ja: "T2",  en: "T2" }
+  - { display: "T3",  ja: "T3",  en: "T3" }
+  - { display: "T4",  ja: "T4",  en: "T4" }
+  - { display: "T5",  ja: "T5",  en: "T5" }
+  - { display: "T6",  ja: "T6",  en: "T6" }
+  - { display: "T7",  ja: "T7",  en: "T7" }
+  - { display: "T8",  ja: "T8",  en: "T8" }
+  - { display: "T9",  ja: "T9",  en: "T9" }
+  - { display: "T10", ja: "T10", en: "T10" }
+  - { display: "T11", ja: "T11", en: "T11" }
+  - { display: "T12", ja: "T12", en: "T12" }
+  - { display: "L1",  ja: "L1",  en: "L1" }
+  - { display: "L2",  ja: "L2",  en: "L2" }
+  - { display: "L3",  ja: "L3",  en: "L3" }
+  - { display: "L4",  ja: "L4",  en: "L4" }
+  - { display: "L5",  ja: "L5",  en: "L5" }
+  - { display: "S1",  ja: "S1",  en: "S1" }
+  - { display: "S2",  ja: "S2",  en: "S2" }
+  - { display: "S3",  ja: "S3",  en: "S3" }
+  - { display: "S45", ja: "S4‒5", en: "S4–5",     raw_aliases: ["S4_5", "S4-5", "S4/5"] }
+  - { display: "INT", ja: "完全 (損傷髄節間)", en: "Intact",                  raw_aliases: ["INT"] }
+
+# Sensory ZPP / Motor ZPP — NA means no ZPP (e.g. incomplete injuries).
+cord_level_zpp:
+  - { display: "NA",  ja: "該当なし",   en: "Not applicable", raw_aliases: ["NA"] }
+  - { display: "INT", ja: "完全 (損傷髄節間)", en: "Intact",  raw_aliases: ["INT"] }
+  # cord levels reused via cord_level
+
+# Non-key muscle column was Excel-coerced; FALSE → 0, TRUE → 1, NT → not-tested.
+nonkey_muscle:
+  - { display: "0",  ja: "0 (収縮なし)", en: "0 (no contraction)", raw_aliases: ["0", "FALSE", "False", "false"] }
+  - { display: "1",  ja: "1 (収縮あり)", en: "1 (contraction)",    raw_aliases: ["1", "TRUE", "True", "true"] }
+  - { display: "NT", ja: "検査不能",     en: "Not testable",       raw_aliases: ["NT"] }
+
+# Time-name labels for the dashboard.
+time_name:
+  - { display: "0day",      ja: "入院時 (0 日)",     en: "Admission (day 0)",       raw_aliases: ["0day"] }
+  - { display: "72h",       ja: "72 時間",            en: "72 hours",                raw_aliases: ["72h"] }
+  - { display: "2w",        ja: "2 週",               en: "2 weeks",                 raw_aliases: ["2w"] }
+  - { display: "4w",        ja: "4 週",               en: "4 weeks",                 raw_aliases: ["4w"] }
+  - { display: "6w",        ja: "6 週",               en: "6 weeks",                 raw_aliases: ["6w"] }
+  - { display: "2m",        ja: "2 か月",             en: "2 months",                raw_aliases: ["2m"] }
+  - { display: "3m",        ja: "3 か月",             en: "3 months",                raw_aliases: ["3m"] }
+  - { display: "4m",        ja: "4 か月",             en: "4 months",                raw_aliases: ["4m"] }
+  - { display: "5m",        ja: "5 か月",             en: "5 months",                raw_aliases: ["5m"] }
+  - { display: "6m",        ja: "6 か月",             en: "6 months",                raw_aliases: ["6m"] }
+  - { display: "7m",        ja: "7 か月",             en: "7 months",                raw_aliases: ["7m"] }
+  - { display: "8m",        ja: "8 か月",             en: "8 months",                raw_aliases: ["8m"] }
+  - { display: "9m",        ja: "9 か月",             en: "9 months",                raw_aliases: ["9m"] }
+  - { display: "10m",       ja: "10 か月",            en: "10 months",               raw_aliases: ["10m"] }
+  - { display: "11m",       ja: "11 か月",            en: "11 months",               raw_aliases: ["11m"] }
+  - { display: "1y",        ja: "1 年",               en: "1 year",                  raw_aliases: ["1y"] }
+  - { display: "2y",        ja: "2 年",               en: "2 years",                 raw_aliases: ["2y"] }
+  - { display: "3y",        ja: "3 年",               en: "3 years",                 raw_aliases: ["3y"] }
+  - { display: "4y",        ja: "4 年",               en: "4 years",                 raw_aliases: ["4y"] }
+  - { display: "5y",        ja: "5 年",               en: "5 years",                 raw_aliases: ["5y"] }
+  - { display: "6y",        ja: "6 年",               en: "6 years",                 raw_aliases: ["6y"] }
+  - { display: "7y",        ja: "7 年",               en: "7 years",                 raw_aliases: ["7y"] }
+  - { display: "8y",        ja: "8 年",               en: "8 years",                 raw_aliases: ["8y"] }
+  - { display: "9y",        ja: "9 年",               en: "9 years",                 raw_aliases: ["9y"] }
+  - { display: "10y",       ja: "10 年",              en: "10 years",                raw_aliases: ["10y"] }
+  - { display: "discharge", ja: "退院時",             en: "Discharge",               raw_aliases: ["discharge"] }
