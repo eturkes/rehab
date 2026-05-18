@@ -210,6 +210,181 @@ html, body {
   margin-top: 6px;
 }
 
+/* --- patient explorer --- */
+.patient-grid {
+  display: grid;
+  grid-template-columns: 320px 1fr;
+  gap: 22px;
+  margin-top: 8px;
+}
+.patient-picker-card {
+  background: var(--card);
+  border: 1px solid var(--ink-100);
+  border-radius: var(--radius-lg);
+  padding: 18px 18px 16px;
+  box-shadow: var(--shadow-sm);
+  align-self: start;
+  position: sticky;
+  top: 18px;
+}
+.patient-intro {
+  font-size: 12.5px;
+  color: var(--ink-500);
+  margin-bottom: 14px;
+  line-height: 1.45;
+}
+.patient-picker-field { margin-bottom: 14px; }
+.patient-picker-field label {
+  display: block;
+  font-size: 11.5px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--ink-500);
+  margin-bottom: 6px;
+}
+.patient-episode-radio label,
+.patient-strata-radio label {
+  display: inline-flex !important;
+  align-items: center;
+  margin-right: 12px;
+  font-size: 12.5px;
+  color: var(--ink-700);
+  text-transform: none;
+  letter-spacing: 0;
+  font-weight: 500;
+}
+.patient-episode-radio input[type="radio"],
+.patient-strata-radio input[type="radio"] { margin-right: 4px; }
+.patient-content {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+.patient-content .chart-row { margin-top: 0; }
+
+.patient-meta-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+.patient-meta-chip {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 6px;
+  background: var(--ink-50);
+  border-radius: 999px;
+  padding: 4px 12px;
+  font-size: 12px;
+}
+.patient-meta-chip-label {
+  font-size: 11px;
+  color: var(--ink-500);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+.patient-meta-chip-value {
+  color: var(--ink-900);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.patient-isncsci-wrapper {
+  overflow-x: auto;
+  max-width: 100%;
+}
+.patient-isncsci-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12.5px;
+  font-variant-numeric: tabular-nums;
+}
+.patient-isncsci-table th,
+.patient-isncsci-table td {
+  padding: 6px 10px;
+  text-align: center;
+  border-bottom: 1px solid var(--ink-100);
+}
+.patient-isncsci-table th {
+  background: var(--ink-50);
+  color: var(--ink-500);
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  font-weight: 600;
+}
+.patient-isncsci-table td.patient-isncsci-rowhead {
+  text-align: left;
+  font-weight: 600;
+  color: var(--ink-700);
+  background: #fff;
+}
+
+.patient-pred-readout {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  padding: 8px 0 14px;
+}
+.patient-pred-readout .pred {
+  font-size: 48px;
+  font-weight: 700;
+  color: var(--accent-700);
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+}
+.patient-pred-readout .pred-unit { font-size: 13px; color: var(--ink-500); margin-top: -4px; }
+.patient-pred-readout .pi { font-size: 12.5px; color: var(--ink-500); }
+.patient-pred-empty {
+  background: var(--warm-soft);
+  color: var(--ink-700);
+  border: 1px solid var(--warm);
+  border-radius: var(--radius);
+  padding: 10px 14px;
+  font-size: 12.5px;
+  margin-top: 4px;
+}
+.patient-pred-note { margin-top: 6px; }
+.patient-empty-note {
+  padding: 16px;
+  color: var(--ink-500);
+  font-size: 13px;
+  text-align: center;
+}
+
+/* Patient ID dropdown: 866 options, single-line each.  Forbid mid-character
+   wraps and give every option a hairline separator + clean focus background
+   so even a wrap is visually disambiguated. */
+.patient-picker-card .Select-menu-outer,
+.patient-picker-card .VirtualizedSelectOption {
+  z-index: 50;
+}
+.patient-picker-card .Select-menu-outer { font-size: 12.5px; }
+.patient-picker-card .VirtualizedSelectOption,
+.patient-picker-card .Select-option {
+  white-space: nowrap !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+  line-height: 1.25 !important;
+  padding: 8px 12px !important;
+  border-bottom: 1px solid var(--ink-100);
+}
+.patient-picker-card .VirtualizedSelectOption:last-child,
+.patient-picker-card .Select-option:last-child { border-bottom: 0; }
+.patient-picker-card .VirtualizedSelectFocusedOption,
+.patient-picker-card .Select-option.is-focused {
+  background: var(--accent-soft) !important;
+  color: var(--ink-900) !important;
+}
+.patient-picker-card .Select-control,
+.patient-picker-card .Select-value-label {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
 /* --- methods page --- */
 .methods-block { margin-bottom: 22px; }
 .methods-block h3 {

@@ -145,9 +145,15 @@ Tabs:
 2. **Patient simulator** — every admission feature is exposed as an
    input.  Live point prediction + 80% conformal interval + local
    SHAP bar chart (top-10 contributors for the current input).
-3. **Insight engine** — global SHAP importance; per-feature subgroup
+3. **Patient explorer** — pick a real patient by IDNumber and see
+   their observed SCIM-III trajectory (total + subscales) against
+   cohort 10–90 / 25–75 percentile bands stratified by paralysis ±
+   AIS; a longitudinal ISNCSCI / AIS table; the model's predicted
+   discharge SCIM with 80 % PI, observed value (if recorded), and
+   the local SHAP contributions for this episode.
+4. **Insight engine** — global SHAP importance; per-feature subgroup
    box plot with effect-size annotation; SHAP dependence plot.
-4. **Methods** — model card with population, target, training protocol,
+5. **Methods** — model card with population, target, training protocol,
    metrics, limitations.
 
 The top-right `日本語 / English` toggle drives a single `dcc.Store`;

@@ -8,7 +8,18 @@ import plotly.graph_objects as go
 
 from rehab_sci.dashboard.i18n import all_levels_in_order, col_label, level_label, t
 from rehab_sci.dashboard.theme import INK, PALETTE_AIS, PALETTE_CATEGORICAL, PALETTE_PARA
+from rehab_sci.data.episodes import (
+    PATIENT_TIMELINE,
+    cohort_percentile_bands,
+    patient_timeline,
+)
 from rehab_sci.schema import Schema
+
+
+def _hex_to_rgba(hex_color: str, alpha: float) -> str:
+    h = hex_color.lstrip("#")
+    r, g, b = int(h[0:2], 16), int(h[2:4], 16), int(h[4:6], 16)
+    return f"rgba({r},{g},{b},{alpha:.3f})"
 
 
 # ---------- KPI ----------
@@ -415,3 +426,266 @@ def fig_dependence(
     fig.add_hline(y=0, line=dict(color=INK["300"], dash="dash", width=1))
     fig.update_layout(height=360, margin=dict(l=60, r=20, t=10, b=44))
     return fig
+
+
+# ---------- Patient explorer tab ----------
+# Subscale traces share the timeline figure with SCIM_total.  Use distinct hues
+# but keep them muted so the total line stays the prominent signal.
+_SUBSCALE_STYLES: dict[str, dict[str, str]] = {
+    "SCIM_self_care": {"color": "#2c8a6b", "label_key": "scim_self_care"},
+    "SCIM_respiration_sphincter": {"color": "#d4773c", "label_key": "scim_respiration"},
+    "SCIM_mobility": {"color": "#6d4f78", "label_key": "scim_mobility"},
+}
+
+
+def _subscale_label(key: str, lang: str) -> str:
+    return {
+        "SCIM_self_care": ("自己ケア" if lang == "ja" else "Self-care"),
+        "SCIM_respiration_sphincter": (
+            "呼吸・括約筋" if lang == "ja" else "Respiration / sphincter"
+        ),
+        "SCIM_mobility": ("移動" if lang == "ja" else "Mobility"),
+    }[key]
+
+
+def fig_patient_scim_timeline(
+    long_df: pd.DataFrame,
+    ep: pd.DataFrame,
+    key_record: int,
+    strata: str,
+    schema: Schema,
+    lang: str,
+) -> go.Figure:
+    """SCIM-III timeline for a single episode against cohort percentile bands.
+
+    ``strata`` is ``"para"`` (paralysis-only) or ``"para_ais"`` (paralysis x AIS).
+    Band stratum is determined by the chosen episode's admission attributes;
+    if those attributes are missing in the episode row, the figure falls back
+    to the wider strata (paralysis-only → no band).
+    """
+    pt = patient_timeline(long_df, key_record)
+    pt_total = pt["SCIM_total"]
+
+    timeline_present = [tp for tp in PATIENT_TIMELINE if pt_total.loc[tp] == pt_total.loc[tp]]  # NaN-safe
+    x_labels = [level_label(schema, "time_name", tp, lang) for tp in PATIENT_TIMELINE]
+    x_pos = {tp: x_labels[i] for i, tp in enumerate(PATIENT_TIMELINE)}
+
+    ep_row = ep.loc[ep["KeyRecordNumber"] == key_record]
+    para_val = (
+        str(ep_row["対麻痺_四肢麻痺"].iloc[0])
+        if not ep_row.empty and pd.notna(ep_row["対麻痺_四肢麻痺"].iloc[0])
+        else None
+    )
+    ais_val = (
+        str(ep_row["AIS"].iloc[0])
+        if not ep_row.empty and pd.notna(ep_row["AIS"].iloc[0])
+        else None
+    )
+
+    # Decide stratification keys + a single band row to draw.
+    bands = pd.DataFrame()
+    band_label = ""
+    if strata == "para_ais" and para_val is not None and ais_val is not None:
+        all_bands = cohort_percentile_bands(
+            long_df, ep, "SCIM_total", ["対麻痺_四肢麻痺", "AIS"]
+        )
+        bands = all_bands[
+            (all_bands["対麻痺_四肢麻痺"] == para_val) & (all_bands["AIS"] == ais_val)
+        ]
+        band_label = (
+            level_label(schema, "para_tetra", para_val, lang)
+            + " · AIS "
+            + level_label(schema, "ais", ais_val, lang)
+        )
+    if bands.empty and para_val is not None:
+        all_bands = cohort_percentile_bands(long_df, ep, "SCIM_total", ["対麻痺_四肢麻痺"])
+        bands = all_bands[all_bands["対麻痺_四肢麻痺"] == para_val]
+        band_label = level_label(schema, "para_tetra", para_val, lang)
+
+    band_color = PALETTE_PARA.get(para_val, PALETTE_CATEGORICAL[3]) if para_val else PALETTE_CATEGORICAL[3]
+
+    fig = go.Figure()
+
+    # Cohort bands (drawn first so patient lines render on top)
+    if not bands.empty:
+        bands = bands.sort_values("TIME_Name")
+        bx = [x_pos[str(t)] for t in bands["TIME_Name"]]
+        p10 = bands["p10"].astype(float).tolist()
+        p25 = bands["p25"].astype(float).tolist()
+        p75 = bands["p75"].astype(float).tolist()
+        p90 = bands["p90"].astype(float).tolist()
+        p50 = bands["p50"].astype(float).tolist()
+        n = bands["n"].astype(int).tolist()
+
+        # Outer (10–90) ribbon
+        fig.add_trace(
+            go.Scatter(
+                x=bx + bx[::-1],
+                y=p90 + p10[::-1],
+                fill="toself",
+                fillcolor=_hex_to_rgba(band_color, 0.10),
+                line=dict(width=0),
+                hoverinfo="skip",
+                showlegend=True,
+                name=(
+                    ("コホート 10–90 パーセンタイル" if lang == "ja" else "Cohort 10–90 pct")
+                    + f" ({band_label})"
+                ),
+            )
+        )
+        # Inner (25–75) ribbon
+        fig.add_trace(
+            go.Scatter(
+                x=bx + bx[::-1],
+                y=p75 + p25[::-1],
+                fill="toself",
+                fillcolor=_hex_to_rgba(band_color, 0.18),
+                line=dict(width=0),
+                hoverinfo="skip",
+                showlegend=True,
+                name=("コホート 25–75 パーセンタイル" if lang == "ja" else "Cohort 25–75 pct"),
+            )
+        )
+        # Median dashed line
+        fig.add_trace(
+            go.Scatter(
+                x=bx,
+                y=p50,
+                mode="lines",
+                line=dict(color=band_color, width=1.5, dash="dash"),
+                name=("コホート中央値" if lang == "ja" else "Cohort median"),
+                customdata=np.array(n).reshape(-1, 1),
+                hovertemplate=(
+                    "<b>%{x}</b><br>"
+                    + ("中央値" if lang == "ja" else "Median")
+                    + ": %{y:.0f}<br>"
+                    + ("N" if lang == "en" else "症例数")
+                    + ": %{customdata[0]}<extra></extra>"
+                ),
+            )
+        )
+
+    # Subscale lines first (so the SCIM_total line sits on top)
+    for col, style in _SUBSCALE_STYLES.items():
+        if col not in pt.columns:
+            continue
+        y_vals = pt[col].astype(float).tolist()
+        if all(pd.isna(v) for v in y_vals):
+            continue
+        fig.add_trace(
+            go.Scatter(
+                x=x_labels,
+                y=y_vals,
+                mode="lines+markers",
+                line=dict(color=style["color"], width=1.6, dash="dot"),
+                marker=dict(size=6, color=style["color"], opacity=0.9),
+                name=_subscale_label(col, lang),
+                connectgaps=False,
+                hovertemplate=(
+                    f"<b>{_subscale_label(col, lang)}</b><br>"
+                    + ("時点" if lang == "ja" else "Timepoint") + ": %{x}<br>"
+                    + ("スコア" if lang == "ja" else "Score") + ": %{y:.0f}<extra></extra>"
+                ),
+                visible="legendonly",
+            )
+        )
+
+    # SCIM total — the headline line, always visible.
+    total_color = PALETTE_AIS["A"] if not para_val else (
+        "#0c5a66" if para_val == "TETRA" else "#a35225"
+    )
+    fig.add_trace(
+        go.Scatter(
+            x=x_labels,
+            y=pt_total.astype(float).tolist(),
+            mode="lines+markers",
+            line=dict(color=total_color, width=3),
+            marker=dict(size=10, color=total_color, line=dict(color="#fff", width=1.5)),
+            name="SCIM-III " + ("合計" if lang == "ja" else "total"),
+            connectgaps=False,
+            hovertemplate=(
+                "<b>SCIM-III " + ("合計" if lang == "ja" else "total") + "</b><br>"
+                + ("時点" if lang == "ja" else "Timepoint") + ": %{x}<br>"
+                + ("スコア" if lang == "ja" else "Score") + ": %{y:.0f}<extra></extra>"
+            ),
+        )
+    )
+
+    fig.update_layout(
+        height=420,
+        xaxis_title=("評価時点" if lang == "ja" else "Timepoint"),
+        yaxis_title="SCIM-III (0–100)",
+        yaxis=dict(range=[0, 102]),
+        legend=dict(
+            orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1, font=dict(size=11),
+        ),
+        margin=dict(l=56, r=24, t=20, b=48),
+    )
+    # Force x-axis to show every canonical timepoint, even those the patient lacks.
+    fig.update_xaxes(categoryorder="array", categoryarray=x_labels)
+    return fig
+
+
+def fig_patient_prediction(
+    pred: float | None,
+    lo: float | None,
+    hi: float | None,
+    observed: float | None,
+    schema: Schema,
+    lang: str,
+) -> go.Figure:
+    """Predicted discharge SCIM-III with 80% PI and the observed value (if any)."""
+    fig = go.Figure()
+    band_label = t(schema, "sim_prediction_interval", lang)
+    pred_label = ("予測中央値" if lang == "ja" else "Predicted median")
+    obs_label = ("実測値" if lang == "ja" else "Observed")
+
+    if pred is not None and lo is not None and hi is not None:
+        fig.add_trace(
+            go.Bar(
+                x=[hi - lo],
+                base=[lo],
+                y=[band_label],
+                orientation="h",
+                marker=dict(color="rgba(17,122,139,0.18)", line=dict(width=0)),
+                hovertemplate=f"{lo:.0f}–{hi:.0f}<extra></extra>",
+                showlegend=False,
+            )
+        )
+        fig.add_trace(
+            go.Scatter(
+                x=[pred],
+                y=[band_label],
+                mode="markers",
+                marker=dict(color="#0c5a66", size=14, symbol="diamond"),
+                hovertemplate=f"{pred_label}: %{{x:.0f}}<extra></extra>",
+                name=pred_label,
+                showlegend=False,
+            )
+        )
+    if observed is not None:
+        fig.add_trace(
+            go.Scatter(
+                x=[observed],
+                y=[band_label],
+                mode="markers",
+                marker=dict(
+                    color="#a3354e",
+                    size=16,
+                    symbol="x-thin-open",
+                    line=dict(color="#a3354e", width=3),
+                ),
+                hovertemplate=f"{obs_label}: %{{x:.0f}}<extra></extra>",
+                name=obs_label,
+                showlegend=False,
+            )
+        )
+    fig.update_layout(
+        height=140,
+        margin=dict(l=130, r=20, t=10, b=30),
+        xaxis=dict(range=[0, 100], title="SCIM-III (0–100)"),
+        yaxis=dict(showticklabels=True, tickfont=dict(size=12), showgrid=False),
+        showlegend=False,
+    )
+    return fig
+

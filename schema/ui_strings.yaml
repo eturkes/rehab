@@ -41,6 +41,9 @@ tab_simulator:
 tab_insights:
   ja: "インサイト・エンジン"
   en: "Insight engine"
+tab_patient:
+  ja: "患者エクスプローラー"
+  en: "Patient explorer"
 tab_methods:
   ja: "解析手法"
   en: "Methods"
@@ -146,6 +149,83 @@ insight_choose_feature:
 insight_choose_strata:
   ja: "比較するサブグループ"
   en: "Subgroup variable"
+
+# --- patient explorer ---
+patient_intro:
+  ja: "症例 ID を選択すると、その患者の SCIM-III 軌跡をコホート分布と並べて確認できます。入院時データがあれば予測値と寄与要因も表示されます。"
+  en: "Pick a patient by ID number to view their SCIM-III trajectory alongside the cohort distribution. If admission data is available, the model's prediction and local drivers are shown as well."
+patient_picker_label:
+  ja: "患者 ID (IDNumber)"
+  en: "Patient ID (IDNumber)"
+patient_episode_label:
+  ja: "症例 (KeyRecordNumber)"
+  en: "Episode (KeyRecordNumber)"
+patient_strata_label:
+  ja: "コホート比較軸"
+  en: "Cohort stratification"
+patient_strata_para:
+  ja: "麻痺型のみ"
+  en: "Paralysis type only"
+patient_strata_para_ais:
+  ja: "麻痺型 × AIS"
+  en: "Paralysis × AIS"
+patient_meta_title:
+  ja: "症例情報"
+  en: "Episode summary"
+patient_meta_age:
+  ja: "年齢"
+  en: "Age"
+patient_meta_sex:
+  ja: "性別"
+  en: "Sex"
+patient_meta_paralysis:
+  ja: "麻痺型"
+  en: "Paralysis"
+patient_meta_ais_admit:
+  ja: "入院時 AIS"
+  en: "Admission AIS"
+patient_meta_nli_admit:
+  ja: "入院時 NLI"
+  en: "Admission NLI"
+patient_meta_los:
+  ja: "在院日数"
+  en: "Length of stay"
+patient_meta_discharge_scim:
+  ja: "退院時 SCIM"
+  en: "Discharge SCIM"
+patient_meta_discharge_ais:
+  ja: "退院時 AIS"
+  en: "Discharge AIS"
+patient_timeline_title:
+  ja: "SCIM-III 軌跡 (この症例)"
+  en: "SCIM-III trajectory (this episode)"
+patient_isncsci_title:
+  ja: "経時 ISNCSCI / AIS"
+  en: "Longitudinal ISNCSCI / AIS"
+patient_prediction_title:
+  ja: "モデル予測 (退院時 SCIM-III)"
+  en: "Model prediction (discharge SCIM-III)"
+patient_prediction_observed:
+  ja: "実測値"
+  en: "Observed"
+patient_prediction_predicted:
+  ja: "予測中央値"
+  en: "Predicted median"
+patient_prediction_residual:
+  ja: "残差 (予測 − 実測)"
+  en: "Residual (pred − observed)"
+patient_no_admission_note:
+  ja: "入院時データが不足しているため、この症例の予測は表示できません。"
+  en: "Admission data is incomplete for this episode; prediction is unavailable."
+patient_no_outcome_note:
+  ja: "退院時 SCIM が記録されていません (予測との比較不可)。"
+  en: "Discharge SCIM not recorded for this episode (no observed comparison)."
+patient_local_drivers:
+  ja: "この症例の寄与要因 (SHAP)"
+  en: "Local feature contributions (SHAP)"
+patient_no_data:
+  ja: "この症例には縦断データがありません。"
+  en: "No longitudinal data available for this episode."
 
 # --- methods ---
 methods_outcome:

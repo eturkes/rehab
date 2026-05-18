@@ -31,6 +31,13 @@ from rehab_sci.data.dataset import (
     NUMERIC_FEATURES,
     build_analysis_dataset,
 )
+from rehab_sci.data.episodes import (
+    PATIENT_TIMELINE,
+    episode_admission_features,
+    list_patient_options,
+    patient_meta,
+    patient_timeline,
+)
 from rehab_sci.schema import load_schema
 
 ROOT = Path(__file__).resolve().parents[3]
@@ -56,6 +63,11 @@ SHAP_PACK = joblib.load(MODELS_DIR / "shap_test.joblib")
 
 with (MODELS_DIR / "subgroups.json").open(encoding="utf-8") as f:
     SUBGROUPS = json.load(f)
+
+# Patient-tab picker options (one entry per IDNumber).  Built once at startup;
+# the list is small (~866 patients) and stable per process.
+PATIENT_OPTIONS = list_patient_options(EP)
+PATIENT_OPTIONS_BY_ID = {p.id_number: p for p in PATIENT_OPTIONS}
 
 
 # ---------- helpers ----------
@@ -335,6 +347,282 @@ def render_simulator(lang: str) -> html.Div:
     return html.Div([html.Div([input_panel, result_panel], className="sim-grid")])
 
 
+# ---------- TAB: patient explorer ----------
+def _patient_picker_options(lang: str) -> list[dict]:
+    """Render the IDNumber dropdown options.
+
+    Each label encodes age / sex / paralysis / AIS so a clinician can scan-pick.
+    Labels are kept on a single line — we use AIS letter only (no parenthetical
+    expansion) and short paralysis tokens so 866 entries all stay readable.
+    """
+    para_short = {
+        "TETRA": ("四麻" if lang == "ja" else "Tetra"),
+        "PARA": ("対麻" if lang == "ja" else "Para"),
+        "NONE": ("無" if lang == "ja" else "None"),
+    }
+    opts: list[dict] = []
+    for p in PATIENT_OPTIONS:
+        bits: list[str] = [f"#{p.id_number}"]
+        if p.age is not None:
+            bits.append(
+                (f"{p.age:.0f}歳" if lang == "ja" else f"{p.age:.0f}y")
+            )
+        if p.sex:
+            sex_short = {"M": "M", "F": "F"}.get(p.sex, p.sex)
+            bits.append(sex_short)
+        if p.paralysis:
+            bits.append(para_short.get(p.paralysis, p.paralysis))
+        if p.ais_admit:
+            bits.append(f"AIS {p.ais_admit}")
+        if p.n_episodes > 1:
+            bits.append(
+                (f"×{p.n_episodes}症例" if lang == "ja" else f"×{p.n_episodes}ep")
+            )
+        opts.append({"label": " · ".join(bits), "value": p.id_number})
+    return opts
+
+
+def _episode_options_for_patient(id_number: int | None, lang: str) -> list[dict]:
+    if id_number is None or id_number not in PATIENT_OPTIONS_BY_ID:
+        return []
+    p = PATIENT_OPTIONS_BY_ID[id_number]
+    return [
+        {"label": (f"症例 #{kr}" if lang == "ja" else f"Episode #{kr}"), "value": int(kr)}
+        for kr in p.key_records
+    ]
+
+
+def _meta_strip(meta: dict, lang: str) -> html.Div:
+    """One-line summary chips above the timeline."""
+    if not meta:
+        return html.Div()
+
+    def chip(label: str, value: str) -> html.Span:
+        return html.Span(
+            className="patient-meta-chip",
+            children=[html.Span(label, className="patient-meta-chip-label"),
+                      html.Span(value, className="patient-meta-chip-value")],
+        )
+
+    age = ("–" if meta["age"] is None else f"{meta['age']:.0f}")
+    sex = ("–" if meta["sex"] is None else level_label(SCHEMA, "sex", meta["sex"], lang))
+    para = (
+        "–" if meta["paralysis"] is None
+        else level_label(SCHEMA, "para_tetra", meta["paralysis"], lang)
+    )
+    ais = (
+        "–" if meta["ais_admit"] is None
+        else level_label(SCHEMA, "ais", meta["ais_admit"], lang)
+    )
+    nli = (
+        "–" if meta["nli_admit"] is None
+        else level_label(SCHEMA, "cord_level", meta["nli_admit"], lang)
+    )
+    los = ("–" if meta["los_days"] is None else f"{meta['los_days']:.0f} "
+           + t(SCHEMA, "unit_days", lang))
+    discharge_scim = (
+        "–" if meta["y_discharge_scim"] is None
+        else f"{meta['y_discharge_scim']:.0f}"
+    )
+    ais_letter_map = {1: "A", 2: "B", 3: "C", 4: "D", 5: "E"}
+    discharge_ais = (
+        "–" if meta["y_discharge_ais"] is None
+        else level_label(
+            SCHEMA, "ais",
+            ais_letter_map.get(int(meta["y_discharge_ais"]), "?"),
+            lang,
+        )
+    )
+    return html.Div(
+        className="patient-meta-row",
+        children=[
+            chip(t(SCHEMA, "patient_meta_age", lang), age),
+            chip(t(SCHEMA, "patient_meta_sex", lang), sex),
+            chip(t(SCHEMA, "patient_meta_paralysis", lang), para),
+            chip(t(SCHEMA, "patient_meta_ais_admit", lang), ais),
+            chip(t(SCHEMA, "patient_meta_nli_admit", lang), nli),
+            chip(t(SCHEMA, "patient_meta_los", lang), los),
+            chip(t(SCHEMA, "patient_meta_discharge_scim", lang), discharge_scim),
+            chip(t(SCHEMA, "patient_meta_discharge_ais", lang), discharge_ais),
+        ],
+    )
+
+
+def _isncsci_table(long_df: pd.DataFrame, key_record: int, lang: str) -> html.Table:
+    """Per-timepoint snapshot of AIS / NLI / motor / sensory totals."""
+    pt = patient_timeline(long_df, key_record)
+    # Only show timepoints where at least one of these fields has data.
+    fields = ["AIS", "NLI", "UEMS", "LEMS", "LightTouchTotal", "PinPrickTotal"]
+    nonempty = [tp for tp in PATIENT_TIMELINE if any(
+        pd.notna(pt.loc[tp].get(f)) for f in fields if f in pt.columns
+    )]
+    if not nonempty:
+        return html.Div(t(SCHEMA, "patient_no_data", lang), className="patient-empty-note")
+
+    def cell(v: object, fmt: str = "{:.0f}") -> str:
+        if v is None or (isinstance(v, float) and np.isnan(v)) or pd.isna(v):
+            return "–"
+        try:
+            return fmt.format(float(v))
+        except (TypeError, ValueError):
+            return str(v)
+
+    head = [html.Th("")] + [
+        html.Th(level_label(SCHEMA, "time_name", tp, lang)) for tp in nonempty
+    ]
+    rows = [html.Tr(head)]
+    label_map = {
+        "AIS": "AIS",
+        "NLI": ("NLI" if lang == "en" else "神経学的高位 (NLI)"),
+        "UEMS": "UEMS",
+        "LEMS": "LEMS",
+        "LightTouchTotal": ("LT total" if lang == "en" else "軽触 (LT) 合計"),
+        "PinPrickTotal": ("PP total" if lang == "en" else "ピンプリック (PP) 合計"),
+    }
+    for field in fields:
+        if field not in pt.columns:
+            continue
+        tds = [html.Td(label_map.get(field, field), className="patient-isncsci-rowhead")]
+        for tp in nonempty:
+            v = pt.loc[tp].get(field)
+            if field in ("AIS",):
+                disp = "–" if pd.isna(v) else level_label(SCHEMA, "ais", str(v), lang)
+            elif field in ("NLI",):
+                disp = "–" if pd.isna(v) else level_label(SCHEMA, "cord_level", str(v), lang)
+            else:
+                disp = cell(v)
+            tds.append(html.Td(disp))
+        rows.append(html.Tr(tds))
+    return html.Table(rows, className="patient-isncsci-table")
+
+
+def _episode_row_for_model(key_record: int) -> pd.DataFrame:
+    """Build a one-row model input from an episode's admission features."""
+    feat = episode_admission_features(EP, key_record, FEATURE_SPEC["feature_cols"])
+    # Fall back to simulator defaults for any feature missing on this episode.
+    for c in FEATURE_SPEC["feature_cols"]:
+        if feat.get(c) is None:
+            feat[c] = SIM_DEFAULTS.get(c)
+    X = pd.DataFrame([{c: feat.get(c) for c in FEATURE_SPEC["feature_cols"]}])
+    for c in FEATURE_SPEC["categorical_cols"]:
+        if c in X.columns:
+            X[c] = X[c].astype("category")
+    for c in FEATURE_SPEC["numeric_cols"]:
+        if c in X.columns:
+            X[c] = pd.to_numeric(X[c], errors="coerce")
+    return X
+
+
+def _episode_has_admission(key_record: int) -> bool:
+    """True if the patient has any non-null admission signal for the model."""
+    feat = episode_admission_features(EP, key_record, FEATURE_SPEC["feature_cols"])
+    return any(v is not None for v in feat.values())
+
+
+def render_patient(lang: str) -> html.Div:
+    default_pid = PATIENT_OPTIONS[0].id_number if PATIENT_OPTIONS else None
+
+    picker_card = html.Div(
+        className="patient-picker-card",
+        children=[
+            html.Div(t(SCHEMA, "patient_intro", lang), className="patient-intro"),
+            html.Div(
+                className="patient-picker-field",
+                children=[
+                    html.Label(t(SCHEMA, "patient_picker_label", lang)),
+                    dcc.Dropdown(
+                        id="patient-id-dropdown",
+                        options=_patient_picker_options(lang),
+                        value=default_pid,
+                        clearable=False,
+                        searchable=True,
+                        optionHeight=36,
+                    ),
+                ],
+            ),
+            html.Div(
+                className="patient-picker-field",
+                children=[
+                    html.Label(t(SCHEMA, "patient_episode_label", lang)),
+                    dcc.RadioItems(
+                        id="patient-episode-radio",
+                        options=_episode_options_for_patient(default_pid, lang),
+                        value=(
+                            int(PATIENT_OPTIONS_BY_ID[default_pid].key_records[0])
+                            if default_pid is not None
+                            else None
+                        ),
+                        inline=True,
+                        className="patient-episode-radio",
+                    ),
+                ],
+            ),
+            html.Div(
+                className="patient-picker-field",
+                children=[
+                    html.Label(t(SCHEMA, "patient_strata_label", lang)),
+                    dcc.RadioItems(
+                        id="patient-strata-radio",
+                        options=[
+                            {"label": t(SCHEMA, "patient_strata_para", lang), "value": "para"},
+                            {"label": t(SCHEMA, "patient_strata_para_ais", lang), "value": "para_ais"},
+                        ],
+                        value="para_ais",
+                        inline=True,
+                        className="patient-strata-radio",
+                    ),
+                ],
+            ),
+        ],
+    )
+
+    timeline_card = chart_card(
+        t(SCHEMA, "patient_timeline_title", lang),
+        html.Div(
+            [
+                html.Div(id="patient-meta-strip"),
+                dcc.Graph(id="patient-timeline-graph", config={"displayModeBar": False}),
+            ]
+        ),
+    )
+
+    isncsci_card = chart_card(
+        t(SCHEMA, "patient_isncsci_title", lang),
+        html.Div(id="patient-isncsci-table", className="patient-isncsci-wrapper"),
+    )
+
+    prediction_card = chart_card(
+        t(SCHEMA, "patient_prediction_title", lang),
+        html.Div(
+            [
+                html.Div(id="patient-pred-readout", className="patient-pred-readout"),
+                dcc.Graph(id="patient-pred-graph", config={"displayModeBar": False}),
+                html.H2(
+                    t(SCHEMA, "patient_local_drivers", lang),
+                    style={"marginTop": "16px", "fontSize": "14px",
+                           "fontWeight": 600, "color": INK["900"]},
+                ),
+                dcc.Graph(id="patient-shap-graph", config={"displayModeBar": False}),
+                html.Div(id="patient-pred-note", className="patient-pred-note"),
+            ]
+        ),
+    )
+
+    return html.Div(
+        className="patient-grid",
+        children=[
+            picker_card,
+            html.Div(
+                className="patient-content",
+                children=[
+                    timeline_card,
+                    html.Div(className="chart-row", children=[isncsci_card, prediction_card]),
+                ],
+            ),
+        ],
+    )
+
+
 # ---------- TAB: insight engine ----------
 def render_insights(lang: str) -> html.Div:
     importance_card = chart_card(
@@ -493,6 +781,8 @@ def create_app() -> Dash:
                                     selected_className="dash-tab--selected"),
                             dcc.Tab(value="simulator", id="tab-simulator", className="dash-tab",
                                     selected_className="dash-tab--selected"),
+                            dcc.Tab(value="patient", id="tab-patient", className="dash-tab",
+                                    selected_className="dash-tab--selected"),
                             dcc.Tab(value="insights", id="tab-insights", className="dash-tab",
                                     selected_className="dash-tab--selected"),
                             dcc.Tab(value="methods", id="tab-methods", className="dash-tab",
@@ -527,6 +817,7 @@ def update_lang(_n_ja, _n_en, _cur):  # noqa: ANN001
     Output("topbar-container", "children"),
     Output("tab-overview", "label"),
     Output("tab-simulator", "label"),
+    Output("tab-patient", "label"),
     Output("tab-insights", "label"),
     Output("tab-methods", "label"),
     Output("footer-note", "children"),
@@ -537,6 +828,7 @@ def update_chrome(lang):  # noqa: ANN001
         topbar(lang),
         t(SCHEMA, "tab_overview", lang),
         t(SCHEMA, "tab_simulator", lang),
+        t(SCHEMA, "tab_patient", lang),
         t(SCHEMA, "tab_insights", lang),
         t(SCHEMA, "tab_methods", lang),
         t(SCHEMA, "data_disclaimer", lang),
@@ -553,6 +845,8 @@ def update_tab(tab, lang):  # noqa: ANN001
         return render_overview(lang)
     if tab == "simulator":
         return render_simulator(lang)
+    if tab == "patient":
+        return render_patient(lang)
     if tab == "insights":
         return render_insights(lang)
     return render_methods(lang)
@@ -690,6 +984,117 @@ def simulate(num_vals, cat_vals, num_ids, cat_ids, lang):  # noqa: ANN001
         _fig_prediction_interval(pred, lo, hi, lang),
         _fig_shap_local(shap_vals, X, base, lang),
     )
+
+
+# ---------- patient explorer callbacks ----------
+@callback(
+    Output("patient-id-dropdown", "options"),
+    Output("patient-episode-radio", "options"),
+    Input("patient-id-dropdown", "value"),
+    Input("lang-store", "data"),
+)
+def update_patient_picker(id_number, lang):  # noqa: ANN001
+    return (
+        _patient_picker_options(lang),
+        _episode_options_for_patient(id_number, lang),
+    )
+
+
+@callback(
+    Output("patient-episode-radio", "value"),
+    Input("patient-id-dropdown", "value"),
+    State("patient-episode-radio", "value"),
+)
+def reset_episode_on_patient_change(id_number, current):  # noqa: ANN001
+    if id_number is None or id_number not in PATIENT_OPTIONS_BY_ID:
+        return None
+    krs = [int(k) for k in PATIENT_OPTIONS_BY_ID[id_number].key_records]
+    if current in krs:
+        return current
+    return krs[0]
+
+
+def _compute_patient_tab(key_record, strata, lang):  # noqa: ANN001
+    """Pure-function payload for the patient tab. Returns a 7-tuple matching the callback's Outputs.
+
+    Split out from the @callback so it is directly callable for tests and probes.
+    """
+    if key_record is None:
+        empty = go.Figure()
+        return html.Div(), empty, html.Div(), [], empty, empty, ""
+    key_record = int(key_record)
+
+    meta = patient_meta(EP, key_record)
+    meta_strip = _meta_strip(meta, lang)
+    timeline_fig = fg.fig_patient_scim_timeline(LONG, EP, key_record, strata, SCHEMA, lang)
+    isncsci_table = _isncsci_table(LONG, key_record, lang)
+
+    if not _episode_has_admission(key_record):
+        return (
+            meta_strip,
+            timeline_fig,
+            isncsci_table,
+            [html.Div(t(SCHEMA, "patient_no_admission_note", lang),
+                      className="patient-pred-empty")],
+            go.Figure(),
+            go.Figure(),
+            "",
+        )
+
+    X = _episode_row_for_model(key_record)
+    pred = float(MEDIAN_MODEL.predict(X)[0])
+    pred_p10 = float(P10_MODEL.predict(X)[0])
+    pred_p90 = float(P90_MODEL.predict(X)[0])
+    q = float(FEATURE_SPEC.get("conformal_half_width", 0.0))
+    lo = max(0.0, min(pred - q, pred_p10))
+    hi = min(100.0, max(pred + q, pred_p90))
+    observed = meta.get("y_discharge_scim")
+
+    readout_children: list = [
+        html.Div(t(SCHEMA, "patient_prediction_predicted", lang),
+                 style={"color": INK["500"], "fontSize": "13px"}),
+        html.Div(f"{pred:.0f}", className="pred"),
+        html.Div("/ 100 " + t(SCHEMA, "unit_score", lang), className="pred-unit"),
+        html.Div(
+            f"{t(SCHEMA, 'sim_prediction_interval', lang)} : {lo:.0f} – {hi:.0f}",
+            className="pi",
+        ),
+    ]
+    note: list = []
+    if observed is None:
+        note.append(html.Div(t(SCHEMA, "patient_no_outcome_note", lang),
+                             className="patient-pred-empty"))
+    else:
+        residual = pred - observed
+        readout_children.append(
+            html.Div(
+                f"{t(SCHEMA, 'patient_prediction_observed', lang)} : {observed:.0f} · "
+                f"{t(SCHEMA, 'patient_prediction_residual', lang)} : {residual:+.0f}",
+                className="pi",
+            )
+        )
+
+    pred_fig = fg.fig_patient_prediction(pred, lo, hi, observed, SCHEMA, lang)
+    shap_vals, base = _shap_for_row(X)
+    shap_fig = _fig_shap_local(shap_vals, X, base, lang)
+
+    return meta_strip, timeline_fig, isncsci_table, readout_children, pred_fig, shap_fig, note
+
+
+@callback(
+    Output("patient-meta-strip", "children"),
+    Output("patient-timeline-graph", "figure"),
+    Output("patient-isncsci-table", "children"),
+    Output("patient-pred-readout", "children"),
+    Output("patient-pred-graph", "figure"),
+    Output("patient-shap-graph", "figure"),
+    Output("patient-pred-note", "children"),
+    Input("patient-episode-radio", "value"),
+    Input("patient-strata-radio", "value"),
+    Input("lang-store", "data"),
+)
+def update_patient_tab(key_record, strata, lang):  # noqa: ANN001
+    return _compute_patient_tab(key_record, strata, lang)
 
 
 # ---------- insight engine callbacks ----------

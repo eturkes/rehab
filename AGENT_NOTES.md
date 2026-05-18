@@ -30,8 +30,20 @@ bottom of each section as new lessons land; do **not** delete prior entries.
   `mFrankel_ord` (5-grade A–E with substages) and `Frankel_ord` (5-grade).
 * **Shape after clean** — long format: 31 200 rows × 219 cols, 1 200
   episodes (`KeyRecordNumber`), 867 patients (`IDNumber`).
+* **Patient-count correction (session 5)** — the live frame reports
+  **866** distinct non-null `IDNumber` values; the "867" above counted
+  the NaN bucket as one extra unique.  **328 episodes** have NaN
+  `IDNumber` (~27 %).  These are silently filtered out of the patient
+  explorer's picker by `list_patient_options()`, leaving 872 episodes
+  across 866 patients (6 patients have 2 episodes each).
 * **Outcome cardinality** — only 498 episodes have a `discharge` SCIM total.
   The remaining 702 episodes are still useful for cohort visuals.
+* **Model-input cardinality (session 5)** — **301 episodes** have *all*
+  admission-feature columns null (per `FEATURE_SPEC["feature_cols"]`),
+  so the patient explorer cannot show a prediction or local SHAP for
+  them and falls through to the "admission data incomplete" note.
+  Worth investigating in a later session whether these are truly
+  feature-less or whether the loader is dropping signal.
 
 ## 2. Schema (`schema/*.yaml`) — the source of truth
 
@@ -126,6 +138,78 @@ pkill -f 'rehab_sci.dashboard.app'               # stop stale dashboard
 ```
 
 ## 7. Session log (most recent first)
+
+### 2026-05-18 (session 5, F1 patient explorer shipped)
+
+* Shipped **F1 Patient explorer tab** end-to-end.  New tab between
+  the simulator and insight engine; bilingual; user-driven picker.
+* New module `src/rehab_sci/data/episodes.py` with:
+  - `PATIENT_TIMELINE` (the 11-point sequence `0day → discharge`,
+    matching `fig_recovery_curves`; later timepoints are too sparse).
+  - `list_patient_options(ep)` → ordered patient picker rows
+    (`PatientOption` with id_number, n_episodes, age, sex, paralysis,
+    ais_admit, key_records).
+  - `patient_timeline(long_df, key_record)` → per-timepoint frame
+    re-indexed to `PATIENT_TIMELINE` (so gaps render as gaps).
+  - `patient_meta(ep, key_record)` → demographics + admission + outcome
+    summary dict used by the meta-chip strip.
+  - `episode_admission_features(ep, key_record, feature_cols)` →
+    dict-of-features for building the model input row.
+  - `cohort_percentile_bands(long_df, ep, value_col, group_keys, min_n=5)`
+    → per-(timepoint × admission-strata) p10/p25/p50/p75/p90 + n.
+    **Key gotcha:** the long frame carries per-row copies of demographics
+    /injury fields, so the inner-join is renamed to `_band_<key>` before
+    merging to avoid `_x`/`_y` suffix collisions.
+* New figure factories in `dashboard/figures.py`:
+  - `fig_patient_scim_timeline(long_df, ep, key_record, strata, schema, lang)`
+    — SCIM-III total + subscale lines (subscales `visible="legendonly"`
+    by default so they don't clutter), overlaid on cohort `p10–p90` +
+    `p25–p75` ribbons and a dashed cohort median.  Falls back from
+    `para_ais` → `para` if the patient's admission AIS is null.
+  - `fig_patient_prediction(pred, lo, hi, observed, ...)` — PI bar +
+    predicted-median diamond + observed crimson X.
+  - `_hex_to_rgba(hex_color, alpha)` helper (was inlined elsewhere).
+* `dashboard/app.py`:
+  - New tab `dcc.Tab(value="patient", ...)` and `render_patient(lang)`.
+  - `_compute_patient_tab(key_record, strata, lang)` is a plain
+    function the `@callback` delegates to — keeps the business logic
+    directly callable for tests/probes.  Handy because Dash's
+    `@callback`-wrapped functions can't be invoked from Python without
+    a Dash request context.
+  - Callbacks: `update_patient_picker` (refreshes options on lang
+    change), `reset_episode_on_patient_change` (auto-picks the first
+    episode of the chosen patient), `update_patient_tab` (renders the
+    7 outputs: meta strip + timeline + ISNCSCI table + prediction
+    readout + prediction figure + SHAP figure + footer note).
+* New UI strings in `schema/ui_strings.yaml` (`tab_patient`,
+  `patient_*`).  AIS in the picker label is shown as the letter only
+  (e.g. `AIS D`) — using the level_label gives `AIS D (運動不全)`
+  which double-prefixes when concatenated.  Picker labels were also
+  shortened (TETRA→四麻/Tetra, age suffix dropped to 歳/y) so all 866
+  entries fit on one line at 320 px sidebar width.
+* CSS additions to `assets/style.css`: `.patient-grid` (sticky picker
+  card + content column), `.patient-meta-chip`, `.patient-isncsci-table`,
+  `.patient-pred-readout/.patient-pred-empty`, dropdown menu
+  hardening (`white-space:nowrap`, hairline row separator, focused-row
+  accent-soft background, `optionHeight=36` on the Dropdown component).
+* Browser verification: user drove the tab in a real browser; **single
+  defect surfaced** — clicking the patient ID dropdown produced
+  multi-line option wraps that blended into each other.  Root cause:
+  default Dash Dropdown row height (35 px) is shorter than a wrapped
+  long Japanese+ASCII label, so adjacent rows overlapped.  Fix: short
+  one-line labels + `optionHeight=36` + the CSS hardening above.
+* Behavioural observations recorded in §1 invariants (866 patients,
+  328 NaN-id episodes, 301 all-NaN-admission episodes).
+* Open items rolled forward:
+  - **F2 Multi-outcome prediction** (subscales + AIS + WISCI + LOS) —
+    next default-work item.
+  - **F3 Mondrian per-AIS / per-paralysis conformal calibration** —
+    third in the §8 backlog.
+  - Investigate the 328 NaN-id and 301 all-NaN-admission episodes —
+    are they truly feature-less or is the loader dropping signal?
+  - Pytest smoke suite (still un-done; the QA loop continues to catch
+    real bugs that tests would not have caught, so this remains low
+    priority for now per user direction).
 
 ### 2026-05-18 (session 4, pivot to feature backlog)
 
@@ -222,7 +306,7 @@ Default-work pool for fresh sessions.  Propose from this list unless the
 user redirects.  Each entry: **what / why / effort / files / data
 dependency**.  Ordered by recommended start order (F1 first).
 
-### F1. Patient explorer tab
+### F1. Patient explorer tab — **STATUS: shipped (session 5, 2026-05-18)**
 
 * **What:** New dashboard tab.  Pick a `KeyRecordNumber` (or `IDNumber`
   for multi-episode patients) and see that patient's observed timeline —
