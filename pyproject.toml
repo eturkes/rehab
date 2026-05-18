@@ -1,3 +1,7 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
 [project]
 name = "rehab-sci"
 version = "0.1.0"
@@ -44,5 +48,5 @@ target-version = "py312"
 select = ["E", "F", "I", "B", "UP", "SIM", "RUF"]
 ignore = ["E501", "B008"]
 
-[tool.uv]
-package = false
+[tool.hatch.build.targets.wheel]
+packages = ["src/rehab_sci"]

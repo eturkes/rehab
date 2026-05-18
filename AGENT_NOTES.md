@@ -88,14 +88,15 @@ bottom of each section as new lessons land; do **not** delete prior entries.
   `__slots__` for this reason; do not "modernize" it.
 * **`kaleido<1`** has no Linux x86_64 wheel under current resolver.  Keep
   `kaleido>=1.0,<2`.
-* **`python -m rehab_sci.*` needs `PYTHONPATH=src`** — `pyproject.toml`
-  declares `[tool.uv] package = false`, so the `src/rehab_sci/` layout is
-  not installed into the venv.  Always prefix launch commands with
-  `PYTHONPATH=src`, e.g.
-  `PYTHONPATH=src uv run python -m rehab_sci.dashboard.app`.  A cleaner
-  long-term fix is to convert to a real packaged project (add a
-  build-system + `package = true` so editable install happens during
-  `uv sync`), but that is a deferred refactor.
+* **`python -m rehab_sci.*` needs `PYTHONPATH=src`** — **RESOLVED
+  2026-05-18 (session 3)**: project is now a real packaged uv project
+  (hatchling build-system + `[tool.hatch.build.targets.wheel] packages =
+  ["src/rehab_sci"]`).  `uv sync` installs `rehab-sci` editable into the
+  venv, so `uv run python -m rehab_sci.*` works without any
+  `PYTHONPATH` prefix.  Historical context preserved: previously
+  `pyproject.toml` declared `[tool.uv] package = false`, which made the
+  `src/rehab_sci/` layout invisible to the venv and forced every launch
+  command to be prefixed with `PYTHONPATH=src`.
 * **Background dashboard from inside a bash one-liner** — `nohup … &`
   inside the harness's wrapper sometimes does not survive the wrapper's
   exit (parent shell exit code 144 = SIGTERM bookkeeping).  Use the Bash
@@ -121,6 +122,36 @@ pkill -f 'rehab_sci.dashboard.app'               # stop stale dashboard
 ```
 
 ## 7. Session log (most recent first)
+
+### 2026-05-18 (session 3, packaging refactor)
+
+* Converted the project to a real packaged uv project, eliminating the
+  `PYTHONPATH=src` launch quirk that had been carried since session 1.
+* `pyproject.toml` changes:
+  - Added `[build-system] requires = ["hatchling"]` /
+    `build-backend = "hatchling.build"`.
+  - Replaced `[tool.uv] package = false` with
+    `[tool.hatch.build.targets.wheel] packages = ["src/rehab_sci"]`
+    (explicit src-layout target — hatchling auto-detection would also
+    work for `rehab-sci` → `rehab_sci`, but explicit is safer).
+* `uv.lock` flipped `rehab-sci`'s source from `virtual = "."` to
+  `editable = "."`.  No transitive dep churn.
+* Verified all modules import without `PYTHONPATH=src`
+  (`rehab_sci.schema`, `data.loader`, `data.dataset`, `models.train`,
+  `models.subgroups`, `dashboard.{app,figures,theme,i18n}`); dashboard
+  serves HTTP 200 on `:8050` via plain
+  `uv run python -m rehab_sci.dashboard.app`.
+* §5 gotcha marked **RESOLVED**, historical wording preserved per the
+  "append; never delete" policy.
+* Open items rolled forward (unchanged from session 2):
+  - Pytest smoke + invariants suite (schema round-trip, ISNCSCI sums,
+    episode-frame shape 1200×N + 867 patients, `build_analysis_dataset()`
+    end-to-end, loadability of `models/*.joblib`, shape of
+    `subgroups.json`).  Now the highest-priority deferred work.
+  - CI (after tests exist).
+  - Mondrian per-AIS conformal for per-subgroup coverage.
+  - Second browser-QA pass for other Plotly silent-failure traps and
+    JA/EN parity bugs.
 
 ### 2026-05-18 (session 2, first browser QA pass)
 
