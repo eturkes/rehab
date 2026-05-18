@@ -11,6 +11,10 @@ bottom of each section as new lessons land; do **not** delete prior entries.
   user approval to modify.
 * `README.md` is the human-facing entry point.  Keep in sync with code.
 * This file is the agent-facing scratchpad.  Always read it before planning.
+* **Default-work pool for fresh sessions: §8 Feature backlog (F1–F3).**
+  Propose work from §8 unless the user redirects.  Historical "Open items
+  rolled forward" lists inside prior §7 session entries are **superseded**
+  by user decision in session 4 — treat them as history, not as a to-do.
 
 ## 1. Data invariants (do not rediscover)
 
@@ -123,6 +127,22 @@ pkill -f 'rehab_sci.dashboard.app'               # stop stale dashboard
 
 ## 7. Session log (most recent first)
 
+### 2026-05-18 (session 4, pivot to feature backlog)
+
+* User redirected the project's default-work pool away from maintenance
+  tasks (pytest suite, CI, second exhaustive browser-QA pass) and toward
+  features.  Per user decision, the historical "Open items rolled
+  forward" lists from sessions 1–3 are now **superseded**; future fresh
+  sessions must propose work from §8 unless the user redirects.
+* Added §8 "Feature backlog" with three Tier-A candidates, in priority
+  order:
+  - **F1** Patient explorer tab.
+  - **F2** Multi-outcome prediction (subscales + AIS + WISCI + LOS).
+  - **F3** Mondrian per-AIS / per-paralysis conformal calibration.
+* Added a §0 "Read-first" pointer naming §8 as the default-work pool and
+  explicitly marking the older rolled-forward open items as history.
+* No code changes this session — pure roadmap edit.
+
 ### 2026-05-18 (session 3, packaging refactor)
 
 * Converted the project to a real packaged uv project, eliminating the
@@ -195,3 +215,67 @@ pkill -f 'rehab_sci.dashboard.app'               # stop stale dashboard
   - No CI yet.
   - Conformal calibration on n=80 is small; a larger calibration set or
     Mondrian per-AIS conformal could give per-subgroup coverage.
+
+## 8. Feature backlog
+
+Default-work pool for fresh sessions.  Propose from this list unless the
+user redirects.  Each entry: **what / why / effort / files / data
+dependency**.  Ordered by recommended start order (F1 first).
+
+### F1. Patient explorer tab
+
+* **What:** New dashboard tab.  Pick a `KeyRecordNumber` (or `IDNumber`
+  for multi-episode patients) and see that patient's observed timeline —
+  SCIM total + subscales, AIS, ISNCSCI summaries at every timepoint —
+  overlaid on cohort percentile bands stratified by paralysis / AIS.
+  For episodes with an admission row, also overlay the model's predicted
+  discharge SCIM ± 80 % PI and the local SHAP attribution for this
+  patient.
+* **Why:** The dashboard today is cohort + hypothetical-patient.
+  Clinicians' first question is *"what does this tool say about my real
+  patient X?"*  Largest UX gap.
+* **Effort:** medium (~1 session).
+* **Files:** `dashboard/app.py` (new tab + callbacks),
+  `dashboard/figures.py` (timeline + percentile bands), possibly new
+  `data/episodes.py::patient_view()` to aggregate one patient's rows.
+* **Data dependency:** existing long + episode frames; no new ingestion.
+
+### F2. Multi-outcome prediction (subscales + AIS + WISCI + LOS)
+
+* **What:** Today `train.py` trains only on `y_discharge_scim`.  Extend
+  the outcome set to:
+  - Per-subscale SCIM: self-care (0–20), respiration / sphincter (0–40),
+    mobility (0–40).
+  - `y_discharge_ais` — ordinal classification (LightGBM `multiclass`
+    or an ordinal-logit head).
+  - `y_discharge_wisci` — regression.
+  - `y_los_days` — regression; **verify** timepoint date columns exist
+    before committing to this outcome.
+* **Why:** Each subscale is independently actionable for clinical goal
+  setting; AIS is the headline ordinal outcome in SCI literature.
+* **Effort:** medium.  Mostly a refactor of `train.py` to loop over a
+  list of outcome specs and persist a dict-of-models.  Dashboard
+  simulator gains an outcome selector.
+* **Files:** `models/train.py`, `models/__init__.py`, `dashboard/app.py`
+  (simulator outcome selector + PI/SHAP rendering), `dashboard/figures.py`.
+* **Data dependency:** `y_discharge_*` outcomes already in episode frame
+  (per `data/dataset.py`).  Verify LOS computability from timepoint
+  date columns before scoping it in.
+
+### F3. Mondrian per-AIS / per-paralysis conformal calibration
+
+* **What:** Replace the single marginal conformal quantile with a
+  Mondrian taxonomy — separate calibration per AIS grade (A/B/C/D/E)
+  and per paralysis class (TETRA / PARA / NONE).  PI half-width is
+  chosen by the test patient's group at inference time.
+* **Why:** AIS-A and AIS-D residual distributions differ substantially;
+  the marginal 83 % coverage hides per-grade under/over-coverage.
+  Per-group conformal restores a per-group guarantee.
+* **Effort:** small (~½ session).
+* **Files:** `models/train.py` (calibration block + persisted artifact —
+  store a dict of half-widths keyed by `(ais, paralysis)` with a
+  marginal fallback for empty cells), `dashboard/app.py` (simulator
+  PI lookup uses the simulated patient's group),
+  `models/training_metrics.json` (per-group coverage report for the
+  Methods tab).
+* **Data dependency:** AIS / paralysis columns already in episode frame.
