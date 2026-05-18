@@ -62,6 +62,20 @@ bottom of each section as new lessons land; do **not** delete prior entries.
 * **Outcome cardinality (post-filter, 899-episode universe)** —
   `y_discharge_scim`: 507; `y_discharge_ais`: 638; `y_discharge_wisci`:
   **50 only — too sparse for F2 regression**; `LOS_days`: 682.
+* **Subscale outcomes share SCIM-total's universe** — the three
+  subscale outcomes `y_discharge_scim_{self_care,resp_sphincter,mobility}`
+  are pulled from the same `discharge` rows as `y_discharge_scim`, so
+  they have identical n=507.  Training n=498 after dropping
+  IDNumber-null partial-orphans.  Effective ranges: self-care 0–20,
+  resp/sphincter 0–40, mobility 0–40, total 0–100.
+* **AIS class imbalance (n=638)** — D=377 (59 %), C=105, A=63, E=62,
+  B=31.  After training-time `dropna(IDNumber, target)` this becomes
+  D=371, C=103, A=63, E=61, B=30 (n=628).  We use LightGBM
+  `multiclass` with `class_weight="balanced"` because B and E are
+  ~5 % each — without weighting they would never be predicted.
+* **LOS distribution** — n=682, min=1, median=139.5, max=788; heavy
+  right tail.  Modelled on `log1p` scale; conformal q computed in
+  log-space and back-transformed.
 
 ## 2. Schema (`schema/*.yaml`) — the source of truth
 
@@ -82,12 +96,48 @@ bottom of each section as new lessons land; do **not** delete prior entries.
 * **Random state:** `20260518`.  Embedded in `models/training_metrics.json`.
 * **Group split** by `IDNumber` (patient ID) — never by row — to prevent
   same-patient leakage.
+* **Outcome registry** — `src/rehab_sci/models/outcomes.py` defines the
+  6 outcomes the pipeline trains.  `OUTCOMES` is an ordered tuple of
+  `OutcomeSpec` records; `train.py` iterates it; the dashboard imports
+  the same list so the simulator selector and the Methods tab stay in
+  lockstep with the training side.  To add an outcome: extend
+  `OUTCOMES`, ensure the target column is on the episode frame, add a
+  `ui_strings.yaml` entry under `outcome_{key}`.
+* **Per-outcome artifact layout** — `models/{spec.key}/` holds
+  `lgbm_median.joblib` + `lgbm_p10.joblib` + `lgbm_p90.joblib` for
+  regression heads (or `lgbm_multiclass.joblib` for AIS), plus a
+  `feature_spec.joblib` (with `conformal_q_transformed`, `transform`,
+  `clip_min`, `clip_max`) and `shap_test.joblib`.  The top-level
+  `models/feature_spec.joblib` is the *shared* feature universe
+  (feature_cols, ranges, categories) — no model-specific fields.
+  `models/training_metrics.json` is `{"outcomes": {key: …}, "outcome_keys": […]}`.
 * **80% conformal interval** = (1−α)-quantile of `|y − ŷ|` on a held-out
-  calibration fold, then clipped to `[0, 100]`.  Coverage on n=100 test
-  is currently 0.83.  LightGBM quantile heads alone give ~0.41 coverage
-  on this dataset — *do not remove the conformal layer*.
+  calibration fold.  Computed on the *transformed* scale (identity for
+  SCIM/AIS, log1p for LOS) so bounds remain symmetric on the modelling
+  scale; back-transformed and then clipped to `[clip_min, clip_max]`.
+  Coverage on n≈100 test is 81–83 % for all four regression heads.
+  LightGBM quantile heads alone give ~0.41 coverage on SCIM total —
+  *do not remove the conformal layer*.  At inference, the PI is the
+  *union* of the conformal interval and the raw quantile interval
+  (`lo = min(lo_conf, lo_q10)`, `hi = max(hi_conf, hi_q90)`) so the
+  user always sees the more conservative bound.
+* **AIS (multiclass) head** — LightGBM multiclass with
+  `class_weight="balanced"`.  Classes are encoded by severity
+  (A=index 0 … E=index 4), so the `predict_proba` columns and the
+  cached SHAP last axis are ordinally sorted.  Reported metrics:
+  accuracy, quadratic-weighted Cohen κ, MAE-on-ordinal-code (1–5).
+  *No conformal sets this session* — revisit alongside F3 Mondrian.
+* **LOS (log1p) head** — same LightGBM regression machinery as SCIM,
+  but `transform="log1p"` is applied to `y` before fitting and the
+  conformal q is computed in log-space.  Predictions, PI bounds, and
+  raw quantile heads are all back-transformed via `expm1` and clipped
+  to `[0, ∞)` before display.  CV/test metrics are reported in days
+  (raw scale) so they are human-interpretable.
 * **TreeSHAP** is run on the held-out test set only, never the training
-  set (would be optimistic).  Cached in `shap_test.joblib`.
+  set (would be optimistic).  Cached in `shap_test.joblib`.  For
+  multiclass AIS the SHAP cache is a 3-D `(n, p, K=5)` tensor with the
+  AIS axis last; at inference the simulator shows SHAP for the
+  predicted class.
 * **Holm correction**: running **max** over sorted p × (n−k+1), not
   running min.  (Fixed 2026-05-18; previous values were ~10⁻⁵⁵ for every
   test.)
@@ -156,6 +206,84 @@ pkill -f 'rehab_sci.dashboard.app'               # stop stale dashboard
 ```
 
 ## 7. Session log (most recent first)
+
+### 2026-05-18 (session 7, F2 multi-outcome prediction shipped)
+
+* Shipped **F2 multi-outcome prediction** — `train.py` now trains six
+  heads in a single run; the simulator gets an outcome selector; the
+  Methods tab reports per-outcome metrics.  WISCI stays dropped
+  (n=50 too sparse, decided session 6).
+* Six heads, in registry order:
+  - **SCIM-III total** (regression, 0–100) — R²=0.696, RMSE=18.92,
+    conformal80=83 % (identical to the pre-refactor single-outcome
+    run — confirms the refactor preserves invariants).
+  - **SCIM self-care** (0–20) — R²=0.666, RMSE=4.08, conformal80=77 %.
+  - **SCIM resp/sphincter** (0–40) — R²=0.618, RMSE=8.10, conformal80=81 %.
+  - **SCIM mobility** (0–40) — R²=0.695, RMSE=8.39, conformal80=82 %.
+  - **AIS at discharge** (multiclass A→E, n=628) — accuracy=0.714,
+    quadratic-weighted κ=0.772 ("substantial" by Landis-Koch),
+    ordinal-MAE=0.365 (most errors within ±0 or ±1 grade).
+  - **LOS in days** (regression, log1p transform, n=668) — R²=0.215,
+    RMSE=110 d, conformal80=81 %.  Genuinely hard outcome at admission;
+    the calibrated PI is the operational deliverable, not the point R².
+* New module `src/rehab_sci/models/outcomes.py` with `OutcomeSpec`
+  dataclass + `OUTCOMES` ordered tuple.  Single source of truth: both
+  `train.py` and `dashboard/app.py` import this.
+* `train.py` rewritten as `_train_regression(spec, …)` and
+  `_train_multiclass(spec, …)` over a shared `_prep` + helper
+  surface.  Regression path: CV → grouped holdout → calibration
+  fold → split conformal → final refit on all data → TreeSHAP on
+  test set.  Multiclass path: CV → grouped holdout (no separate
+  calibration — no conformal sets this session) → final refit →
+  multiclass TreeSHAP (3-D tensor `(n, p, K=5)`).
+* `data/dataset.py::build_episode_frame()` now pulls SCIM subscales
+  at the `discharge` timepoint (`y_discharge_scim_{self_care,
+  resp_sphincter, mobility}`) the same way it pulls `y_discharge_scim`.
+* Artifacts re-organized to per-outcome subdirectories
+  (`models/scim_total/…`, `models/ais_discharge/…`, etc.).  The
+  top-level `models/feature_spec.joblib` is now the *shared* feature
+  universe only (no model-specific fields).  `training_metrics.json`
+  is `{"outcomes": {key: {cv, test, …}}, "outcome_keys": […]}`.
+* Dashboard simulator gets a `dcc.Dropdown(id="sim-outcome")` above
+  the readout.  The callback dispatches on `bundle["task"]` — the
+  regression branch renders the existing horizontal PI bar
+  (re-parametrized with the outcome's display label / units / clip
+  range / transform); the multiclass branch renders a 5-bar
+  class-probability chart and a SHAP plot for the predicted class.
+* Methods tab now loops over outcomes and renders a per-outcome
+  performance card.  Six new `outcome_*` keys + `sim_outcome_label`
+  + `sim_class_probabilities` + `sim_predicted_class_label` +
+  `methods_per_outcome_heading` in `ui_strings.yaml`.  Both JA and
+  EN labels.
+* Patient explorer continues to predict SCIM-III total only.
+  Extending it to all outcomes is a clean follow-up (see new §8 F4
+  candidate) but out of F2 scope.
+* Insight engine (global SHAP, dependence) is anchored on
+  SCIM-total.  Per-outcome variant also deferred to F4 candidate.
+* CSS additions to `assets/style.css`: `.sim-outcome-selector`
+  (dropdown above readout with hairline divider) and
+  `.methods-perf-card` (per-outcome perf block).
+* `subgroups.py` was *not* touched this session — it still compares
+  every feature against `y_discharge_scim`.  Extending it to all
+  outcomes is also out of F2 scope; subgroup discovery against AIS
+  or LOS would be a useful F4-tier follow-up.
+* Verification: full pipeline `uv run python -m rehab_sci.models.train`
+  produced metrics in the table above; dashboard `uv run python -m
+  rehab_sci.dashboard.app` serves HTTP 200 on `/`, `/_dash-layout`,
+  and `/_dash-dependencies`.  Python-level dispatch smoke test
+  confirms all six heads return plausible predictions on the
+  default-feature row (e.g., LOS=208 d with PI 82–468, AIS=D 71 %).
+* Open items rolled forward:
+  - **F3 Mondrian per-AIS / per-paralysis conformal calibration** —
+    now top of the §8 default-work pool.
+  - **F4 candidate: extend insight engine + patient explorer to
+    multi-outcome.**  Insight global SHAP + subgroup box + SHAP
+    dependence should accept an outcome selector; patient explorer
+    should let the clinician pick which outcome to predict for the
+    chosen episode.  Estimated medium effort (UI surface).
+  - **F5 candidate: APS / RAPS conformal classification sets for
+    AIS.**  Multiclass head currently returns probabilities only.
+  - Pytest smoke suite (still un-done, still low priority).
 
 ### 2026-05-18 (session 6, loader sanity check + ghost-episode filter)
 
@@ -408,48 +536,82 @@ dependency**.  Ordered by recommended start order (F1 first).
   `data/episodes.py::patient_view()` to aggregate one patient's rows.
 * **Data dependency:** existing long + episode frames; no new ingestion.
 
-### F2. Multi-outcome prediction (subscales + AIS + LOS; WISCI dropped)
+### F2. Multi-outcome prediction — **STATUS: shipped (session 7, 2026-05-18)**
 
-* **What:** Today `train.py` trains only on `y_discharge_scim`.  Extend
-  the outcome set to:
-  - Per-subscale SCIM: self-care (0–20), respiration / sphincter (0–40),
-    mobility (0–40).
-  - `y_discharge_ais` — ordinal classification (LightGBM `multiclass`
-    or an ordinal-logit head).
-  - `LOS_days` — regression; the column is already on the episode
-    frame (sourced from `入院期間`), n=682 / 899 episodes post-ghost-filter.
-  - ~~`y_discharge_wisci` — regression.~~ **DROPPED (session 6):**
-    only 50 episodes have a discharge WISCI, below any reasonable
-    regression-power threshold.  Reconsider as a walker-vs-non-walker
-    classification proxy if requested.
-* **Why:** Each subscale is independently actionable for clinical goal
-  setting; AIS is the headline ordinal outcome in SCI literature.
-* **Effort:** medium.  Mostly a refactor of `train.py` to loop over a
-  list of outcome specs and persist a dict-of-models.  Dashboard
-  simulator gains an outcome selector.
-* **Files:** `models/train.py`, `models/__init__.py`, `dashboard/app.py`
-  (simulator outcome selector + PI/SHAP rendering), `dashboard/figures.py`.
-* **Data dependency:** all four remaining outcomes (`y_discharge_scim`,
-  3 subscales already computable via `SCIM_self_care` /
-  `SCIM_respiration_sphincter` / `SCIM_mobility` at the discharge
-  timepoint — needs the same `discharge.set_index(KR)` trick used for
-  the total — plus `y_discharge_ais` and `LOS_days`) are on the
-  episode frame already.
+* **What was built:** Six prediction heads driven by a single outcome
+  registry (`models/outcomes.py::OUTCOMES`).  SCIM-III total + the three
+  subscales (self-care 0–20, resp/sphincter 0–40, mobility 0–40) +
+  AIS at discharge (multiclass A→E with `class_weight="balanced"`) +
+  LOS in days (regression with `log1p` transform).  `train.py`
+  iterates the registry; each head writes its own subdirectory under
+  `models/{spec.key}/` (median + p10/p90 + feature_spec + shap_test,
+  or the multiclass equivalent).  Dashboard simulator gains an
+  outcome dropdown; multiclass renders a class-probability bar chart
+  instead of a PI bar.  Methods tab loops over outcomes.
+* **Metrics summary** (test split):
+  - scim_total: R²=0.696, RMSE=18.92, conformal80=83 %
+  - scim_self_care: R²=0.666, RMSE=4.08, conformal80=77 %
+  - scim_resp_sphincter: R²=0.618, RMSE=8.10, conformal80=81 %
+  - scim_mobility: R²=0.695, RMSE=8.39, conformal80=82 %
+  - ais_discharge: accuracy=0.714, κ_quad=0.772, ordMAE=0.365
+  - los_days: R²=0.215, RMSE=110 d, conformal80=81 %
+* **WISCI** stayed dropped (50 episodes — below regression power).
+* **Out of scope for F2 (rolled forward as F4 / F5):** patient
+  explorer multi-outcome support, insight engine multi-outcome
+  support, conformal classification sets for AIS, subgroup discovery
+  for non-SCIM outcomes.
 
 ### F3. Mondrian per-AIS / per-paralysis conformal calibration
 
+* **Status:** next default-work item (top of the §8 pool).
 * **What:** Replace the single marginal conformal quantile with a
   Mondrian taxonomy — separate calibration per AIS grade (A/B/C/D/E)
   and per paralysis class (TETRA / PARA / NONE).  PI half-width is
-  chosen by the test patient's group at inference time.
+  chosen by the test patient's group at inference time.  With six
+  outcomes now in flight, F3 needs to extend to *every regression
+  outcome*, not just SCIM-III total — the per-outcome
+  `feature_spec.joblib` should carry a `conformal_q_by_group` dict
+  with a marginal fallback for empty cells.
 * **Why:** AIS-A and AIS-D residual distributions differ substantially;
   the marginal 83 % coverage hides per-grade under/over-coverage.
-  Per-group conformal restores a per-group guarantee.
+  Per-group conformal restores a per-group guarantee.  Likely larger
+  effect on LOS (which is intrinsically AIS-stratified) than on SCIM.
 * **Effort:** small (~½ session).
-* **Files:** `models/train.py` (calibration block + persisted artifact —
-  store a dict of half-widths keyed by `(ais, paralysis)` with a
-  marginal fallback for empty cells), `dashboard/app.py` (simulator
-  PI lookup uses the simulated patient's group),
+* **Files:** `models/train.py` (calibration block + per-outcome
+  artifact), `dashboard/app.py` (simulator PI lookup uses the
+  simulated patient's group),
   `models/training_metrics.json` (per-group coverage report for the
   Methods tab).
 * **Data dependency:** AIS / paralysis columns already in episode frame.
+
+### F4. Multi-outcome insight engine + patient explorer
+
+* **What:** Add an outcome selector to the patient explorer (predict
+  whichever outcome the clinician picks for the chosen episode) and
+  to the insight engine (global SHAP, subgroup box, dependence
+  scatter all keyed off the selected outcome).
+* **Why:** Today both tabs are anchored on SCIM-III total — fine as
+  the headline, but the F2 selector creates a UX inconsistency.
+* **Effort:** medium.
+* **Files:** `dashboard/app.py` (selectors + callbacks),
+  `dashboard/figures.py` (`fig_global_shap_importance`,
+  `fig_subgroup_box`, `fig_dependence` all accept the outcome's
+  target column), `models/subgroups.py` (run subgroup discovery for
+  every regression outcome, not just SCIM total — produces a
+  `subgroups.json` keyed by outcome).
+* **Data dependency:** none new; everything is on the episode frame.
+
+### F5. APS / RAPS conformal classification sets for AIS
+
+* **What:** Replace AIS point-prediction + probability bar with an
+  80 %-coverage *set* of AIS grades produced by adaptive prediction
+  sets (APS) or regularized APS (RAPS).  Sets respect ordinality if
+  classes are sorted by severity (which they already are in
+  `class_codes`).
+* **Why:** Clinicians often want "could be C *or* D" — a calibrated
+  set is more honest than the argmax + probability.  Pairs naturally
+  with F3 Mondrian (per-paralysis calibration of the classification
+  sets).
+* **Effort:** small once the calibration plumbing for F3 lands.
+* **Files:** `models/train.py` (extra calibration block for the AIS
+  head), `dashboard/app.py` (render predicted set, not point).

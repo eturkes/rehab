@@ -163,9 +163,12 @@ def build_episode_frame(longitudinal: pd.DataFrame) -> pd.DataFrame:
             else:
                 feat[col] = feat[col].where(feat[col].notna(), s)
 
-    # outcome: SCIM total at discharge (and a backup: max SCIM_total per episode)
+    # outcomes at discharge: SCIM total + 3 subscales + AIS ordinal + (sparse) WISCI.
     discharge = longitudinal[longitudinal["TIME_Name"] == "discharge"].set_index("KeyRecordNumber")
     feat["y_discharge_scim"] = discharge["SCIM_total"].reindex(episode_idx)
+    feat["y_discharge_scim_self_care"] = discharge["SCIM_self_care"].reindex(episode_idx)
+    feat["y_discharge_scim_resp_sphincter"] = discharge["SCIM_respiration_sphincter"].reindex(episode_idx)
+    feat["y_discharge_scim_mobility"] = discharge["SCIM_mobility"].reindex(episode_idx)
     feat["y_discharge_ais"] = discharge["AIS_ord"].reindex(episode_idx)
     feat["y_discharge_wisci"] = discharge["WalkingIndex"].reindex(episode_idx)
     max_scim = grouped["SCIM_total"].max().reindex(episode_idx)

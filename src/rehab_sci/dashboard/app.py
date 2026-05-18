@@ -38,6 +38,7 @@ from rehab_sci.data.episodes import (
     patient_meta,
     patient_timeline,
 )
+from rehab_sci.models.outcomes import OUTCOMES, OutcomeSpec
 from rehab_sci.schema import load_schema
 
 ROOT = Path(__file__).resolve().parents[3]
@@ -55,11 +56,32 @@ with (MODELS_DIR / "training_metrics.json").open(encoding="utf-8") as f:
     METRICS = json.load(f)
 with (MODELS_DIR / "simulator_defaults.json").open(encoding="utf-8") as f:
     SIM_DEFAULTS = json.load(f)
+# Shared feature universe — same admission features for every outcome.
 FEATURE_SPEC = joblib.load(MODELS_DIR / "feature_spec.joblib")
-MEDIAN_MODEL = joblib.load(MODELS_DIR / "lgbm_median.joblib")
-P10_MODEL = joblib.load(MODELS_DIR / "lgbm_p10.joblib")
-P90_MODEL = joblib.load(MODELS_DIR / "lgbm_p90.joblib")
-SHAP_PACK = joblib.load(MODELS_DIR / "shap_test.joblib")
+
+
+def _load_outcome_bundle(spec: OutcomeSpec) -> dict:
+    od = MODELS_DIR / spec.key
+    bundle: dict = {
+        "key": spec.key,
+        "spec": spec,
+        "task": spec.task,
+        "feature_spec": joblib.load(od / "feature_spec.joblib"),
+        "shap": joblib.load(od / "shap_test.joblib"),
+        "metrics": METRICS["outcomes"][spec.key],
+    }
+    if spec.task == "regression":
+        bundle["median"] = joblib.load(od / "lgbm_median.joblib")
+        bundle["p10"] = joblib.load(od / "lgbm_p10.joblib")
+        bundle["p90"] = joblib.load(od / "lgbm_p90.joblib")
+    elif spec.task == "multiclass":
+        bundle["clf"] = joblib.load(od / "lgbm_multiclass.joblib")
+    return bundle
+
+
+OUTCOME_BUNDLES: dict[str, dict] = {s.key: _load_outcome_bundle(s) for s in OUTCOMES}
+DEFAULT_OUTCOME = "scim_total"
+SCIM_TOTAL_BUNDLE = OUTCOME_BUNDLES[DEFAULT_OUTCOME]
 
 with (MODELS_DIR / "subgroups.json").open(encoding="utf-8") as f:
     SUBGROUPS = json.load(f)
@@ -328,9 +350,28 @@ def render_simulator(lang: str) -> html.Div:
 
     input_panel = html.Div(className="sim-input-card", children=sections)
 
+    outcome_options = [
+        {"label": t(SCHEMA, s.display_key, lang), "value": s.key}
+        for s in OUTCOMES
+    ]
+    outcome_selector = html.Div(
+        className="sim-outcome-selector",
+        children=[
+            html.Label(t(SCHEMA, "sim_outcome_label", lang)),
+            dcc.Dropdown(
+                id="sim-outcome",
+                options=outcome_options,
+                value=DEFAULT_OUTCOME,
+                clearable=False,
+                searchable=False,
+            ),
+        ],
+    )
+
     result_panel = html.Div(
         className="sim-result-card",
         children=[
+            outcome_selector,
             html.Div(id="sim-readout", className="sim-readout"),
             html.Div(
                 id="sim-pi-fig",
@@ -625,9 +666,13 @@ def render_patient(lang: str) -> html.Div:
 
 # ---------- TAB: insight engine ----------
 def render_insights(lang: str) -> html.Div:
+    # Insight engine is anchored on the headline outcome (SCIM-III total).  A
+    # per-outcome variant is on the F4 backlog — until then the global SHAP /
+    # dependence plots reflect the SCIM-total model.
+    scim_metrics = METRICS["outcomes"][DEFAULT_OUTCOME]
     importance_card = chart_card(
         t(SCHEMA, "insight_global_importance", lang),
-        dcc.Graph(figure=fg.fig_global_shap_importance(METRICS, SCHEMA, lang),
+        dcc.Graph(figure=fg.fig_global_shap_importance(scim_metrics, SCHEMA, lang),
                   config={"displayModeBar": False}),
     )
 
@@ -670,7 +715,9 @@ def render_insights(lang: str) -> html.Div:
     )
 
     feat_options = [
-        {"label": col_label(SCHEMA, c, lang), "value": c} for c in METRICS["global_importance_top25"][:15] for c in [c["feature"]]
+        {"label": col_label(SCHEMA, c, lang), "value": c}
+        for c in scim_metrics["global_importance_top25"][:15]
+        for c in [c["feature"]]
     ]
     # collapse to unique while preserving order
     seen, feat_opts_unique = set(), []
@@ -711,23 +758,24 @@ def render_insights(lang: str) -> html.Div:
 
 
 # ---------- TAB: methods ----------
-def render_methods(lang: str) -> html.Div:
-    cv = METRICS["cv"]
-    te = METRICS["test"]
-    perf_block = html.Div(
-        className="methods-block",
+def _perf_block_regression(spec: OutcomeSpec, info: dict, lang: str) -> html.Div:
+    cv = info["cv"]
+    te = info["test"]
+    units = (" " + t(SCHEMA, spec.unit_key, lang)) if spec.unit_key else ""
+    return html.Div(
+        className="methods-perf-card",
         children=[
-            html.H3(("性能" if lang == "ja" else "Performance")),
+            html.H4(t(SCHEMA, spec.display_key, lang)),
             html.P(
                 f"CV  R²={cv['r2_mean']:.3f} ± {cv['r2_std']:.3f}   "
-                f"RMSE={cv['rmse_mean']:.2f}   MAE={cv['mae_mean']:.2f}"
+                f"RMSE={cv['rmse_mean']:.2f}{units}   "
+                f"MAE={cv['mae_mean']:.2f}{units}"
             ),
             html.P(
-                f"TEST  R²={te['r2']:.3f}   RMSE={te['rmse']:.2f}   MAE={te['mae']:.2f}   "
+                f"TEST  R²={te['r2']:.3f}   RMSE={te['rmse']:.2f}{units}   "
+                f"MAE={te['mae']:.2f}{units}   "
                 + ("80%予測区間カバレッジ" if lang == "ja" else "80% PI coverage")
-                + f"={te['conformal_coverage_80']:.0%}   "
-                + ("予測区間半幅" if lang == "ja" else "PI half-width")
-                + f"=±{te['conformal_q_half_width']:.1f}"
+                + f"={te['conformal_coverage_80']:.0%}"
             ),
             html.P(
                 ("患者数" if lang == "ja" else "Patients")
@@ -735,6 +783,44 @@ def render_methods(lang: str) -> html.Div:
             ),
         ],
     )
+
+
+def _perf_block_multiclass(spec: OutcomeSpec, info: dict, lang: str) -> html.Div:
+    cv = info["cv"]
+    te = info["test"]
+    ord_lbl = "順序MAE" if lang == "ja" else "ordinal MAE"
+    return html.Div(
+        className="methods-perf-card",
+        children=[
+            html.H4(t(SCHEMA, spec.display_key, lang)),
+            html.P(
+                f"CV  acc={cv['accuracy_mean']:.3f} ± {cv['accuracy_std']:.3f}   "
+                f"κ_quad={cv['kappa_quadratic_mean']:.3f} ± {cv['kappa_quadratic_std']:.3f}   "
+                f"{ord_lbl}={cv['ordinal_mae_mean']:.3f}"
+            ),
+            html.P(
+                f"TEST  acc={te['accuracy']:.3f}   κ_quad={te['kappa_quadratic']:.3f}   "
+                f"{ord_lbl}={te['ordinal_mae']:.3f}"
+            ),
+            html.P(
+                ("患者数" if lang == "ja" else "Patients")
+                + f": train={te['n_train']}+val={te['n_val']}, test={te['n_test']}"
+            ),
+        ],
+    )
+
+
+def render_methods(lang: str) -> html.Div:
+    perf_children: list = [
+        html.H3(t(SCHEMA, "methods_per_outcome_heading", lang)),
+    ]
+    for spec in OUTCOMES:
+        info = METRICS["outcomes"][spec.key]
+        if info["task"] == "regression":
+            perf_children.append(_perf_block_regression(spec, info, lang))
+        else:
+            perf_children.append(_perf_block_multiclass(spec, info, lang))
+    perf_block = html.Div(className="methods-block", children=perf_children)
 
     blocks = [
         ("methods_outcome", "methods_outcome_def"),
@@ -873,10 +959,10 @@ def _collect_sim_inputs(num_vals, num_ids, cat_vals, cat_ids) -> pd.DataFrame:
     return X
 
 
-def _shap_for_row(X: pd.DataFrame) -> tuple[np.ndarray, float]:
+def _shap_for_row_regression(X: pd.DataFrame, model) -> tuple[np.ndarray, float]:  # noqa: ANN001
     import shap
 
-    expl = shap.TreeExplainer(MEDIAN_MODEL)
+    expl = shap.TreeExplainer(model)
     values = expl.shap_values(X)
     base = (
         float(expl.expected_value)
@@ -884,6 +970,46 @@ def _shap_for_row(X: pd.DataFrame) -> tuple[np.ndarray, float]:
         else float(expl.expected_value[0])
     )
     return values[0], base
+
+
+def _shap_for_row_class(X: pd.DataFrame, clf, class_idx: int, n_classes: int) -> tuple[np.ndarray, float]:  # noqa: ANN001
+    import shap
+
+    expl = shap.TreeExplainer(clf)
+    raw = expl.shap_values(X)
+    if isinstance(raw, list):
+        per_class = np.asarray(raw[class_idx])[0]
+        base_arr = expl.expected_value
+        base = (
+            float(base_arr)
+            if np.isscalar(base_arr)
+            else float(np.asarray(base_arr).ravel()[class_idx])
+        )
+    else:
+        arr = np.asarray(raw)
+        if arr.ndim == 3 and arr.shape[0] == n_classes and arr.shape[-1] != n_classes:
+            arr = np.transpose(arr, (1, 2, 0))
+        per_class = arr[0, :, class_idx]
+        base_arr = expl.expected_value
+        if np.isscalar(base_arr):
+            base = float(base_arr)
+        else:
+            base = float(np.asarray(base_arr).ravel()[class_idx])
+    return per_class, base
+
+
+def _inv_transform_scalar(x: float, transform: str | None) -> float:
+    if transform == "log1p":
+        return float(np.expm1(x))
+    return float(x)
+
+
+def _clip_scalar(x: float, lo: float | None, hi: float | None) -> float:
+    if lo is not None and x < lo:
+        x = lo
+    if hi is not None and x > hi:
+        x = hi
+    return x
 
 
 def _fig_shap_local(values: np.ndarray, X: pd.DataFrame, base: float, lang: str) -> go.Figure:
@@ -919,7 +1045,11 @@ def _fig_shap_local(values: np.ndarray, X: pd.DataFrame, base: float, lang: str)
     return fig
 
 
-def _fig_prediction_interval(pred: float, lo: float, hi: float, lang: str) -> go.Figure:
+def _fig_prediction_interval(
+    pred: float, lo: float, hi: float, spec: OutcomeSpec, lang: str
+) -> go.Figure:
+    label = t(SCHEMA, spec.display_key, lang)
+    unit = t(SCHEMA, spec.unit_key, lang) if spec.unit_key else ""
     fig = go.Figure()
     fig.add_trace(
         go.Bar(
@@ -938,17 +1068,119 @@ def _fig_prediction_interval(pred: float, lo: float, hi: float, lang: str) -> go
             y=[t(SCHEMA, "sim_prediction_interval", lang)],
             mode="markers",
             marker=dict(color="#0c5a66", size=14, symbol="diamond"),
-            hovertemplate=("予測中央値: %{x:.0f}" if lang == "ja" else "Predicted median: %{x:.0f}") + "<extra></extra>",
+            hovertemplate=(
+                ("予測中央値: %{x:.0f}" if lang == "ja" else "Predicted median: %{x:.0f}")
+                + "<extra></extra>"
+            ),
+            showlegend=False,
+        )
+    )
+    # x-axis: anchor at clip_min if known; clip_max if known, else stretch around the PI.
+    x_lo = float(spec.clip_min) if spec.clip_min is not None else min(0.0, lo)
+    if spec.clip_max is not None:
+        x_hi = float(spec.clip_max)
+    else:
+        x_hi = float(max(hi, pred) * 1.1 + 1.0)
+    axis_title = f"{label} ({unit})" if unit else label
+    fig.update_layout(
+        height=120,
+        margin=dict(l=110, r=20, t=10, b=30),
+        xaxis=dict(range=[x_lo, x_hi], title=axis_title),
+        yaxis=dict(showticklabels=True, tickfont=dict(size=12), showgrid=False),
+    )
+    return fig
+
+
+def _fig_class_probabilities(
+    proba: np.ndarray, class_labels: list[str], spec: OutcomeSpec, lang: str
+) -> go.Figure:
+    label = t(SCHEMA, spec.display_key, lang)
+    bar_labels = [f"AIS {c}" for c in class_labels]
+    fig = go.Figure(
+        go.Bar(
+            x=bar_labels,
+            y=proba,
+            marker=dict(color=PALETTE_CATEGORICAL[0]),
+            text=[f"{p:.0%}" for p in proba],
+            textposition="outside",
+            hovertemplate="%{x}: %{y:.1%}<extra></extra>",
             showlegend=False,
         )
     )
     fig.update_layout(
-        height=120,
-        margin=dict(l=110, r=20, t=10, b=30),
-        xaxis=dict(range=[0, 100], title="SCIM-III (0–100)"),
-        yaxis=dict(showticklabels=True, tickfont=dict(size=12), showgrid=False),
+        height=240,
+        margin=dict(l=60, r=20, t=30, b=44),
+        yaxis=dict(range=[0, 1.05], tickformat=".0%",
+                   title=t(SCHEMA, "sim_class_probabilities", lang)),
+        xaxis=dict(title=label),
     )
     return fig
+
+
+def _simulate_regression(bundle: dict, X: pd.DataFrame, lang: str):
+    spec: OutcomeSpec = bundle["spec"]
+    fspec = bundle["feature_spec"]
+    transform = fspec.get("transform")
+    q_t = float(fspec.get("conformal_q_transformed", 0.0))
+    clip_min = fspec.get("clip_min")
+    clip_max = fspec.get("clip_max")
+
+    pred_t = float(bundle["median"].predict(X)[0])
+    pred_p10_t = float(bundle["p10"].predict(X)[0])
+    pred_p90_t = float(bundle["p90"].predict(X)[0])
+    pred = _clip_scalar(_inv_transform_scalar(pred_t, transform), clip_min, clip_max)
+    lo_conf = _clip_scalar(_inv_transform_scalar(pred_t - q_t, transform), clip_min, clip_max)
+    hi_conf = _clip_scalar(_inv_transform_scalar(pred_t + q_t, transform), clip_min, clip_max)
+    lo_q = _clip_scalar(_inv_transform_scalar(pred_p10_t, transform), clip_min, clip_max)
+    hi_q = _clip_scalar(_inv_transform_scalar(pred_p90_t, transform), clip_min, clip_max)
+    # widen with raw quantile head if it sits outside the conformal half-width
+    lo = min(lo_conf, lo_q)
+    hi = max(hi_conf, hi_q)
+
+    shap_vals, base = _shap_for_row_regression(X, bundle["median"])
+    label = t(SCHEMA, spec.display_key, lang)
+    unit = t(SCHEMA, spec.unit_key, lang) if spec.unit_key else ""
+    pi_label = t(SCHEMA, "sim_prediction_interval", lang)
+    range_suffix = ""
+    if spec.clip_max is not None and spec.clip_min is not None:
+        range_suffix = f"/ {spec.clip_max:.0f}"
+    readout = [
+        html.Div(label, style={"color": INK["500"], "fontSize": "13px"}),
+        html.Div(f"{pred:.0f}", className="pred"),
+        html.Div(f"{range_suffix}  {unit}".strip(), className="pred-unit"),
+        html.Div(f"{pi_label} : {lo:.0f} – {hi:.0f}", className="pi"),
+    ]
+    return (
+        readout,
+        _fig_prediction_interval(pred, lo, hi, spec, lang),
+        _fig_shap_local(shap_vals, X, base, lang),
+    )
+
+
+def _simulate_multiclass(bundle: dict, X: pd.DataFrame, lang: str):
+    spec: OutcomeSpec = bundle["spec"]
+    fspec = bundle["feature_spec"]
+    class_labels = list(fspec.get("class_labels", spec.class_labels))
+    clf = bundle["clf"]
+    proba = np.asarray(clf.predict_proba(X)[0], dtype=float)
+    pred_idx = int(np.argmax(proba))
+    pred_class = class_labels[pred_idx]
+    pred_prob = float(proba[pred_idx])
+
+    shap_vals, base = _shap_for_row_class(X, clf, pred_idx, len(class_labels))
+    label = t(SCHEMA, spec.display_key, lang)
+    pcls_label = t(SCHEMA, "sim_predicted_class_label", lang)
+    readout = [
+        html.Div(label, style={"color": INK["500"], "fontSize": "13px"}),
+        html.Div(f"AIS {pred_class}", className="pred"),
+        html.Div(f"{pred_prob:.0%}", className="pred-unit"),
+        html.Div(f"{pcls_label} : AIS {pred_class}", className="pi"),
+    ]
+    return (
+        readout,
+        _fig_class_probabilities(proba, class_labels, spec, lang),
+        _fig_shap_local(shap_vals, X, base, lang),
+    )
 
 
 @callback(
@@ -959,31 +1191,17 @@ def _fig_prediction_interval(pred: float, lo: float, hi: float, lang: str) -> go
     Input({"type": "cat", "col": dash.ALL}, "value"),
     State({"type": "num", "col": dash.ALL}, "id"),
     State({"type": "cat", "col": dash.ALL}, "id"),
+    Input("sim-outcome", "value"),
     Input("lang-store", "data"),
 )
-def simulate(num_vals, cat_vals, num_ids, cat_ids, lang):  # noqa: ANN001
+def simulate(num_vals, cat_vals, num_ids, cat_ids, outcome_key, lang):  # noqa: ANN001
     if not num_ids and not cat_ids:
         return [], go.Figure(), go.Figure()
+    bundle = OUTCOME_BUNDLES.get(outcome_key) or SCIM_TOTAL_BUNDLE
     X = _collect_sim_inputs(num_vals, num_ids, cat_vals, cat_ids)
-    pred = float(MEDIAN_MODEL.predict(X)[0])
-    pred_p10 = float(P10_MODEL.predict(X)[0])
-    pred_p90 = float(P90_MODEL.predict(X)[0])
-    q = float(FEATURE_SPEC.get("conformal_half_width", 0.0))
-    lo = max(0.0, min(pred - q, pred_p10))
-    hi = min(100.0, max(pred + q, pred_p90))
-
-    shap_vals, base = _shap_for_row(X)
-    readout = [
-        html.Div(t(SCHEMA, "sim_predicted_label", lang), style={"color": INK["500"], "fontSize": "13px"}),
-        html.Div(f"{pred:.0f}", className="pred"),
-        html.Div("/ 100  " + t(SCHEMA, "unit_score", lang), className="pred-unit"),
-        html.Div(f"{t(SCHEMA, 'sim_prediction_interval', lang)} : {lo:.0f} – {hi:.0f}", className="pi"),
-    ]
-    return (
-        readout,
-        _fig_prediction_interval(pred, lo, hi, lang),
-        _fig_shap_local(shap_vals, X, base, lang),
-    )
+    if bundle["task"] == "regression":
+        return _simulate_regression(bundle, X, lang)
+    return _simulate_multiclass(bundle, X, lang)
 
 
 # ---------- patient explorer callbacks ----------
@@ -1042,10 +1260,12 @@ def _compute_patient_tab(key_record, strata, lang):  # noqa: ANN001
         )
 
     X = _episode_row_for_model(key_record)
-    pred = float(MEDIAN_MODEL.predict(X)[0])
-    pred_p10 = float(P10_MODEL.predict(X)[0])
-    pred_p90 = float(P90_MODEL.predict(X)[0])
-    q = float(FEATURE_SPEC.get("conformal_half_width", 0.0))
+    b = SCIM_TOTAL_BUNDLE
+    bfspec = b["feature_spec"]
+    q = float(bfspec.get("conformal_q_transformed", 0.0))
+    pred = float(b["median"].predict(X)[0])
+    pred_p10 = float(b["p10"].predict(X)[0])
+    pred_p90 = float(b["p90"].predict(X)[0])
     lo = max(0.0, min(pred - q, pred_p10))
     hi = min(100.0, max(pred + q, pred_p90))
     observed = meta.get("y_discharge_scim")
@@ -1075,7 +1295,7 @@ def _compute_patient_tab(key_record, strata, lang):  # noqa: ANN001
         )
 
     pred_fig = fg.fig_patient_prediction(pred, lo, hi, observed, SCHEMA, lang)
-    shap_vals, base = _shap_for_row(X)
+    shap_vals, base = _shap_for_row_regression(X, SCIM_TOTAL_BUNDLE["median"])
     shap_fig = _fig_shap_local(shap_vals, X, base, lang)
 
     return meta_strip, timeline_fig, isncsci_table, readout_children, pred_fig, shap_fig, note
@@ -1128,7 +1348,8 @@ def update_subgroup(feature, lang):  # noqa: ANN001
     Input("lang-store", "data"),
 )
 def update_dependence(feature, lang):  # noqa: ANN001
-    return fg.fig_dependence(SHAP_PACK, SHAP_PACK["X_test"], feature, SCHEMA, lang)
+    shap_pack = SCIM_TOTAL_BUNDLE["shap"]
+    return fg.fig_dependence(shap_pack, shap_pack["X_test"], feature, SCHEMA, lang)
 
 
 if __name__ == "__main__":

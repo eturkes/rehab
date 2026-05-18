@@ -27,6 +27,9 @@ models/*.pt
 models/*.pth
 models/*.h5
 models/*.keras
+# F2 multi-outcome bundles: every per-outcome subdirectory is binary
+# joblib artifacts derived from row-level patient data — never commit.
+models/*/
 
 # logs, caches, reports with real values
 logs/

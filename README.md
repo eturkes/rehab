@@ -98,37 +98,63 @@ Admission features are taken from the `0day` timepoint with backfill from
 `72h → 2w → 4w` (first-non-null wins) so that patients with a missing
 day-0 baseline are not silently dropped.
 
-Outcomes:
-| column | meaning |
-|---|---|
-| `y_discharge_scim` | SCIM-III total at the `discharge` timepoint (primary) |
-| `y_discharge_ais`  | AIS ordinal at discharge |
-| `y_discharge_wisci`| WISCI II at discharge |
-| `y_max_scim`       | best SCIM during the stay |
-| `y_last_scim` / `y_last_timepoint` | last observed SCIM + which timepoint |
+Outcomes (predicted heads in **bold**; auxiliary columns below):
+| column | meaning | n | task |
+|---|---|---|---|
+| **`y_discharge_scim`** | SCIM-III total at discharge | 507 | regression |
+| **`y_discharge_scim_self_care`** | SCIM-III self-care subscale (0–20) | 507 | regression |
+| **`y_discharge_scim_resp_sphincter`** | SCIM-III respiration / sphincter (0–40) | 507 | regression |
+| **`y_discharge_scim_mobility`** | SCIM-III mobility subscale (0–40) | 507 | regression |
+| **`y_discharge_ais`**  | AIS grade at discharge (A → E) | 638 | multiclass |
+| **`LOS_days`** | Length of stay in days (log1p-modelled) | 682 | regression |
+| `y_discharge_wisci`| WISCI II at discharge | 50 | *dropped — too sparse* |
+| `y_max_scim`       | best SCIM during the stay | — | auxiliary |
+| `y_last_scim` / `y_last_timepoint` | last observed SCIM + which timepoint | — | auxiliary |
 
-### 3. Prediction model (`models/train.py`)
+### 3. Prediction models (`models/train.py` + `models/outcomes.py`)
 
-- **Estimator:** LightGBM (median + 10% / 90% quantile heads).
+The outcome registry in `models/outcomes.py` declares the six prediction
+heads.  `train.py` iterates that registry; each head writes its own
+bundle under `models/{spec.key}/` (median model + p10 / p90 quantile
+heads + `feature_spec.joblib` + `shap_test.joblib` for regression heads,
+or `lgbm_multiclass.joblib` + the same support files for the AIS head).
+
+- **Estimator:** LightGBM regression (median + 10 % / 90 % quantile
+  heads) for the five regression heads; LightGBM multiclass with
+  `class_weight="balanced"` for AIS.
 - **Group split by patient** (`IDNumber`) prevents leakage between
   multiple episodes of the same patient.
-- **5-fold GroupKFold** CV for the median model with early stopping on
-  an inner validation slice.
-- **Split conformal prediction**: 20% of the dev set is held out as a
-  calibration fold; the 80% PI half-width is the 0.80-quantile of the
-  absolute residuals on that fold, then clipped to `[0, 100]`.  This
-  produces a *marginal* 80%-coverage guarantee even when the quantile
-  heads themselves overfit.
-- **TreeSHAP** values are cached on the held-out test set for the
-  dashboard's Insight Engine.
+- **5-fold GroupKFold CV** for every head, reporting metrics on the
+  human-interpretable scale (back-transformed for LOS).
+- **Split conformal prediction** (regression only): 20 % of the dev
+  set is held out as a calibration fold; the 80 % PI half-width is the
+  0.80-quantile of `|y − ŷ|` on the modelling scale (log1p for LOS,
+  identity otherwise).  Bounds are back-transformed and clipped to the
+  outcome's range.  This yields a *marginal* 80 % coverage guarantee
+  even when the LightGBM quantile heads overfit on small calibration
+  folds.
+- **LOS log-transform:** length of stay is fitted on `log1p(y_days)` so
+  the conformal residuals are symmetric on the modelling scale; the
+  reported R² / RMSE / MAE / PI are all in raw days.
+- **AIS ordinal-aware metrics:** alongside accuracy we report
+  quadratic-weighted Cohen κ and MAE on the ordinal code 1–5 so we
+  monitor *how far off* misclassifications are — not just how often.
+  Conformal classification sets for AIS are deferred to a follow-up
+  (see AGENT_NOTES §8 F5).
+- **TreeSHAP** values are cached on the held-out test set.  Multiclass
+  AIS stores a 3-D `(n, p, K=5)` tensor; the simulator surfaces SHAP
+  for the *predicted* class.
 
-Current scores on this dataset (n_episodes = 498, n_patients = 498,
-random_state = 20260518):
+Current test-split scores (random_state = 20260518):
 
-| split | R² | RMSE | MAE | coverage(80%) |
-|---|---|---|---|---|
-| 5-fold CV (median) | 0.652 ± 0.054 | 20.79 ± 1.86 | 14.93 ± 1.97 | — |
-| held-out test      | 0.696         | 18.92         | 13.70         | 83% (conformal) |
+| outcome | n_train | n_calib | n_test | metric₁ | metric₂ | coverage(80 %) |
+|---|---|---|---|---|---|---|
+| SCIM-III total | 318 | 80 | 100 | R²=0.696 | RMSE=18.92 | 83 % (conformal) |
+| SCIM self-care | 318 | 80 | 100 | R²=0.666 | RMSE=4.08 | 77 % |
+| SCIM resp/sphincter | 318 | 80 | 100 | R²=0.618 | RMSE=8.10 | 81 % |
+| SCIM mobility | 318 | 80 | 100 | R²=0.695 | RMSE=8.39 | 82 % |
+| AIS discharge | 452 | n_val=50 | 126 | accuracy=0.714 | κ_quad=0.772 | — (point + probs) |
+| LOS days | 426 | 108 | 134 | R²=0.215 | RMSE=110 d | 81 % |
 
 ### 4. Subgroup discovery (`models/subgroups.py`)
 
@@ -152,8 +178,12 @@ Tabs:
    (paralysis → AIS → NLI); AIS admit→discharge Sankey; SCIM recovery
    curves with IQR ribbons by paralysis type.
 2. **Patient simulator** — every admission feature is exposed as an
-   input.  Live point prediction + 80% conformal interval + local
-   SHAP bar chart (top-10 contributors for the current input).
+   input; an outcome dropdown selects which of the six prediction
+   heads to render.  Regression heads (SCIM total / 3 subscales /
+   LOS) show a live point prediction + 80 % conformal interval; the
+   AIS head shows the predicted class + a class-probability bar
+   chart.  A local SHAP bar (top contributors for the current input)
+   accompanies whichever head is selected.
 3. **Patient explorer** — pick a real patient by IDNumber and see
    their observed SCIM-III trajectory (total + subscales) against
    cohort 10–90 / 25–75 percentile bands stratified by paralysis ±

@@ -281,3 +281,33 @@ unit_days:
 data_disclaimer:
   ja: "本ダッシュボードは研究目的のデモであり、個別の臨床判断には用いられません。"
   en: "This dashboard is a research demonstration; it is not intended for individual clinical decision-making."
+outcome_scim_total:
+  ja: "SCIM-III 総合点 (退院時)"
+  en: "SCIM-III total (discharge)"
+outcome_scim_self_care:
+  ja: "SCIM-III 自己管理 (退院時)"
+  en: "SCIM-III self-care (discharge)"
+outcome_scim_resp_sphincter:
+  ja: "SCIM-III 呼吸・括約筋管理 (退院時)"
+  en: "SCIM-III respiration & sphincter (discharge)"
+outcome_scim_mobility:
+  ja: "SCIM-III 移動 (退院時)"
+  en: "SCIM-III mobility (discharge)"
+outcome_ais_discharge:
+  ja: "AIS グレード (退院時)"
+  en: "AIS grade (discharge)"
+outcome_los_days:
+  ja: "在院日数"
+  en: "Length of stay"
+sim_outcome_label:
+  ja: "予測対象"
+  en: "Predicted outcome"
+sim_class_probabilities:
+  ja: "クラス別予測確率"
+  en: "Class probabilities"
+sim_predicted_class_label:
+  ja: "予測クラス"
+  en: "Predicted class"
+methods_per_outcome_heading:
+  ja: "アウトカム別性能"
+  en: "Per-outcome performance"

@@ -209,6 +209,20 @@ html, body {
   color: var(--ink-500);
   margin-top: 6px;
 }
+.sim-outcome-selector {
+  margin: 0 0 14px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--ink-100);
+}
+.sim-outcome-selector label {
+  display: block;
+  font-size: 11.5px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--ink-500);
+  margin-bottom: 6px;
+}
 
 /* --- patient explorer --- */
 .patient-grid {
@@ -387,6 +401,25 @@ html, body {
 
 /* --- methods page --- */
 .methods-block { margin-bottom: 22px; }
+.methods-perf-card {
+  background: var(--ink-50, #f7f8fa);
+  border: 1px solid var(--ink-100);
+  border-radius: var(--radius-md, 8px);
+  padding: 10px 14px;
+  margin-top: 10px;
+}
+.methods-perf-card h4 {
+  margin: 0 0 6px;
+  font-size: 13.5px;
+  font-weight: 600;
+  color: var(--ink-900);
+}
+.methods-perf-card p {
+  margin: 2px 0;
+  font-size: 12.5px;
+  font-variant-numeric: tabular-nums;
+  color: var(--ink-700);
+}
 .methods-block h3 {
   margin: 0 0 6px;
   font-size: 13px;
