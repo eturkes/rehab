@@ -121,38 +121,45 @@ def fig_injury_sunburst(ep: pd.DataFrame, schema: Schema, lang: str) -> go.Figur
         .size()
         .reset_index(name="n")
     )
-    # Build sunburst path; assign para colors at the inner ring, then derive inside.
+    # Build sunburst nodes; with branchvalues="total" each parent's value MUST
+    # equal the sum of its children, so we accumulate leaf counts into every
+    # ancestor as we go.
     ids, labels, parents, values, colors = [], [], [], [], []
     para_palette = list(PALETTE_PARA.values())
-    para_label_to_color = {}
+    para_label_to_color: dict[str, str] = {}
+    idx_by_id: dict[str, int] = {}
+
+    def _upsert(node_id: str, label: str, parent: str, color: str) -> int:
+        i = idx_by_id.get(node_id)
+        if i is not None:
+            return i
+        idx_by_id[node_id] = len(ids)
+        ids.append(node_id)
+        labels.append(label)
+        parents.append(parent)
+        values.append(0)
+        colors.append(color)
+        return idx_by_id[node_id]
 
     for _, r in grouped.iterrows():
         para = r["para_label"]
         ais = r["ais_label"]
         nli = r["nli_label"]
+        n = int(r["n"])
         para_id = para
         ais_id = f"{para}|{ais}"
         nli_id = f"{para}|{ais}|{nli}"
-        if para_id not in ids:
-            ids.append(para_id)
-            labels.append(para)
-            parents.append("")
-            values.append(0)
-            c = para_palette[len(para_label_to_color) % len(para_palette)]
-            para_label_to_color[para_id] = c
-            colors.append(c)
-        if ais_id not in ids:
-            ids.append(ais_id)
-            labels.append(ais)
-            parents.append(para_id)
-            values.append(0)
-            colors.append(para_label_to_color[para_id])
-        if nli_id not in ids:
-            ids.append(nli_id)
-            labels.append(nli)
-            parents.append(ais_id)
-            values.append(int(r["n"]))
-            colors.append(para_label_to_color[para_id])
+        if para_id not in para_label_to_color:
+            para_label_to_color[para_id] = para_palette[
+                len(para_label_to_color) % len(para_palette)
+            ]
+        c = para_label_to_color[para_id]
+        i_para = _upsert(para_id, para, "", c)
+        i_ais = _upsert(ais_id, ais, para_id, c)
+        i_nli = _upsert(nli_id, nli, ais_id, c)
+        values[i_para] += n
+        values[i_ais] += n
+        values[i_nli] += n
 
     fig = go.Figure(
         go.Sunburst(

@@ -88,6 +88,26 @@ bottom of each section as new lessons land; do **not** delete prior entries.
   `__slots__` for this reason; do not "modernize" it.
 * **`kaleido<1`** has no Linux x86_64 wheel under current resolver.  Keep
   `kaleido>=1.0,<2`.
+* **`python -m rehab_sci.*` needs `PYTHONPATH=src`** — `pyproject.toml`
+  declares `[tool.uv] package = false`, so the `src/rehab_sci/` layout is
+  not installed into the venv.  Always prefix launch commands with
+  `PYTHONPATH=src`, e.g.
+  `PYTHONPATH=src uv run python -m rehab_sci.dashboard.app`.  A cleaner
+  long-term fix is to convert to a real packaged project (add a
+  build-system + `package = true` so editable install happens during
+  `uv sync`), but that is a deferred refactor.
+* **Background dashboard from inside a bash one-liner** — `nohup … &`
+  inside the harness's wrapper sometimes does not survive the wrapper's
+  exit (parent shell exit code 144 = SIGTERM bookkeeping).  Use the Bash
+  tool's `run_in_background: true` flag, or run the command as the
+  *last* statement of the bash command so it inherits the wrapper's
+  lifetime.
+* **Plotly `Sunburst(branchvalues="total")` requires parent value = sum
+  of children**.  Setting parent values to `0` silently renders a blank
+  chart (no JS error, no log line).  Either accumulate leaf counts into
+  every ancestor (see `fig_injury_sunburst`) or switch to
+  `branchvalues="remainder"`.  The accumulate-into-ancestor pattern is
+  preferred — Plotly hover then shows the true subtotal at each ring.
 
 ## 6. Commands cheat sheet
 
@@ -101,6 +121,34 @@ pkill -f 'rehab_sci.dashboard.app'               # stop stale dashboard
 ```
 
 ## 7. Session log (most recent first)
+
+### 2026-05-18 (session 2, first browser QA pass)
+
+* User drove the dashboard in a real browser (JA + EN).  Single defect
+  surfaced: **Cohort overview → Injury hierarchy** sunburst rendered as
+  blank white space in both languages.
+* Root cause: `fig_injury_sunburst` used `branchvalues="total"` but
+  assigned `value=0` to every parent ring (para, AIS) and only the leaf
+  count to the NLI ring.  Plotly's "total" mode requires parent =
+  Σchildren, so it silently refused to draw.  Fix accumulates each
+  leaf count into all three ancestors via an `_upsert` helper; verified
+  by hand: 122 nodes, top-ring totals 699/139/4 = 842 (= `sub.shape[0]`
+  after `dropna`), zero parent/child mismatches.
+* Documented two new recurring gotchas in §5: the `PYTHONPATH=src`
+  launch requirement (because `pyproject.toml` has
+  `[tool.uv] package = false`) and the Plotly sunburst `branchvalues`
+  trap.
+* Open items rolled forward:
+  - Convert the project to a real packaged uv project so
+    `PYTHONPATH=src` is no longer needed.  Deferred — touches build
+    system, low urgency.
+  - Pytest smoke + invariants (schema round-trip, ISNCSCI sums,
+    episode-frame shape 1200×N + 867 patients, `build_analysis_dataset()`
+    end-to-end).  Still un-done; the QA session uncovered a defect a
+    test would not have caught (Plotly visual), so the test suite is
+    still worth doing as a separate session.
+  - CI (after tests exist).
+  - Mondrian per-AIS conformal for per-subgroup coverage.
 
 ### 2026-05-18 (session 1, initial build)
 
