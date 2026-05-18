@@ -21,29 +21,47 @@ bottom of each section as new lessons land; do **not** delete prior entries.
 * **Raw file** — `ALL_SCIDATA.csv` at repo root.  Never commit; gitignored.
 * **Encoding** — `cp932` (Shift-JIS superset).  UTF-8 will silently mangle
   half the column names.
-* **Missing sentinels** in raw file: `""`, `"_"`, `"NT"`, `"NA"`, `"ND"`.
-  All mapped to `pd.NA` in `loader.py::_apply_missing_sentinels`.
+* **Missing sentinels** in raw file: `""`, `"_"`, `"NA"` are parsed to NaN
+  directly via `pd.read_csv(na_values=...)` in `loader.py::load_raw`.
+  `"NT"` and `"ND"` are *not* listed there but are NaN'd as a side effect
+  of `pd.to_numeric(errors="coerce")` for numeric/ordinal columns and of
+  `schema.normalize_level()` returning `pd.NA` for unknown categorical
+  levels.  (Earlier sessions referred to a `_apply_missing_sentinels`
+  helper — no such function exists; the effect is the same but the path
+  is the two mechanisms just described.)
 * **Excel booleans** — many bool-like columns arrive as the literal strings
   `"FALSE"` / `"TRUE"` (note: uppercase).  Coerced to `0`/`1` then to `Y`/`N`
   via the schema's level mapping.
 * **mFrankel/Frankel** — single combined raw column; split on slash into
   `mFrankel_ord` (5-grade A–E with substages) and `Frankel_ord` (5-grade).
-* **Shape after clean** — long format: 31 200 rows × 219 cols, 1 200
-  episodes (`KeyRecordNumber`), 867 patients (`IDNumber`).
-* **Patient-count correction (session 5)** — the live frame reports
-  **866** distinct non-null `IDNumber` values; the "867" above counted
-  the NaN bucket as one extra unique.  **328 episodes** have NaN
-  `IDNumber` (~27 %).  These are silently filtered out of the patient
-  explorer's picker by `list_patient_options()`, leaving 872 episodes
-  across 866 patients (6 patients have 2 episodes each).
-* **Outcome cardinality** — only 498 episodes have a `discharge` SCIM total.
-  The remaining 702 episodes are still useful for cohort visuals.
-* **Model-input cardinality (session 5)** — **301 episodes** have *all*
-  admission-feature columns null (per `FEATURE_SPEC["feature_cols"]`),
-  so the patient explorer cannot show a prediction or local SHAP for
-  them and falls through to the "admission data incomplete" note.
-  Worth investigating in a later session whether these are truly
-  feature-less or whether the loader is dropping signal.
+* **Raw shape** — long format: 31 200 rows × 219 cols, 1 200
+  `KeyRecordNumber`s × 26 timepoint slots (`0day`, `72h`, `2w`, `4w`,
+  `6w`, `2m..11m`, `1y..10y`, `discharge`).  **The grid is perfectly
+  rectangular** — every episode has a row at every timepoint slot.
+* **Ghost-episode filter (session 6, 2026-05-18)** — 301 of the 1 200
+  raw episodes are pure placeholder rows: `IDNumber` is null AND every
+  admission feature is null AND every outcome is null.  Across their
+  7 826 long-frame rows, only `BusinessYear`, `AnualCaseNumber`, and
+  `mFrankel_Frankel` (= `_/_`) are populated; everything else is null.
+  `build_analysis_dataset()` filters them out via
+  `_identify_ghost_episodes(ep, ADMISSION_FEATURES)`, dropping the
+  matching `KeyRecordNumber`s from both the episode frame and the long
+  frame.  **Post-filter universe: 899 episodes / 866 unique patients.**
+  The long frame is 23 374 rows (= 899 × 26).
+* **Partial-id orphans (27 episodes)** — have admission features but
+  null `IDNumber`.  They survive the ghost filter (they have data) but
+  are excluded from training by `dropna(subset=["IDNumber", outcome])`
+  in `_prep()` and from the patient-explorer picker by
+  `list_patient_options(ep)`'s `dropna(subset=["IDNumber"])`.  They
+  contribute to cohort-level aggregates.  Among these 27: 9 have a
+  discharge SCIM, 10 have a discharge AIS, 14 have a `LOS_days`.
+* **IDNumber 1-off (raw 867 → clean 866)** — `KeyRecord 446` has the
+  literal string `'6641/10/15'` (a malformed date in the ID field) as
+  its IDNumber in the raw CSV; the schema declares `IDNumber: numeric`,
+  so `pd.to_numeric(errors="coerce")` correctly NaN's it.
+* **Outcome cardinality (post-filter, 899-episode universe)** —
+  `y_discharge_scim`: 507; `y_discharge_ais`: 638; `y_discharge_wisci`:
+  **50 only — too sparse for F2 regression**; `LOS_days`: 682.
 
 ## 2. Schema (`schema/*.yaml`) — the source of truth
 
@@ -138,6 +156,72 @@ pkill -f 'rehab_sci.dashboard.app'               # stop stale dashboard
 ```
 
 ## 7. Session log (most recent first)
+
+### 2026-05-18 (session 6, loader sanity check + ghost-episode filter)
+
+* User redirected from F2 to first investigate the two §1 anomalies
+  flagged at end-of-session-5: the 328 NaN-`IDNumber` episodes and the
+  301 all-NaN-admission episodes.  Goal: decide whether they are a
+  loader bug or a data-quality artefact, then act accordingly.
+* Probe ran in two passes (no on-disk artefacts; everything via
+  `uv run python -` heredoc).  Findings:
+  - **Loader is correct.**  The raw CSV ships 8 502 rows with
+    `IDNumber = '_'` (correctly parsed to NaN by the loader's
+    `na_values=["", "_", "NA"]`).  8 502 / 26 = 327 episodes; the +1
+    drift to 328 traces to `KeyRecord 446` whose raw `IDNumber` is the
+    literal `'6641/10/15'` — coerced to NaN by
+    `pd.to_numeric(errors="coerce")` because the schema declares
+    `IDNumber: numeric`.
+  - **The 301 all-NaN-admission episodes are pure placeholder rows.**
+    Strict subset of the 328 NaN-id set.  Across their 7 826
+    long-frame rows, only 25 of 234 non-structural columns ever hold a
+    value, and 22 of those 25 have a total of 26 non-null cells across
+    7 826 rows (rounding error).  The only consistently populated
+    columns are `BusinessYear`, `AnualCaseNumber`, `mFrankel_Frankel`
+    (= `_/_`).  Zero of these 301 have a discharge SCIM / AIS / WISCI
+    or a `LOS_days`.  Unusable for any task.
+  - **27 partial-id orphans** have admission features but no IDNumber.
+    Training already drops them via `dropna(IDNumber)`; the patient
+    explorer's picker already drops them via the same.
+  - **`LOS_days` is real and well-covered**: 682 / 1 200 episodes
+    (median 139 d, range 1–788), already pulled directly from
+    `入院期間`.  F2 LOS outcome viable.
+  - **WISCI is too sparse for F2**: only 50 episodes have a discharge
+    WISCI (`y_discharge_wisci`).  F2 should drop or de-prioritize it.
+* User chose "filter at loader, document".  Implemented as
+  `_identify_ghost_episodes(ep, ADMISSION_FEATURES)` inside
+  `data/dataset.py`; called by `build_analysis_dataset()` after
+  `build_episode_frame()` to drop matching `KeyRecordNumber`s from
+  both `ep` and `long_df` (`reset_index(drop=True)` on both).  Module
+  docstring updated to describe the rule.
+* Re-ran `models.subgroups` and `models.train` on the filtered
+  dataset.  **Training metrics identical** (training rows = 498,
+  R²=0.696, RMSE=18.92, MAE=13.70, conformal-80 = 83 %, top SHAP
+  features unchanged) — confirming the ghosts were already excluded
+  via `dropna(IDNumber, outcome)` and the filter only fixes the
+  cohort-level n.  `n_episodes_total` in `training_metrics.json` will
+  now read 899 instead of 1 200.
+* Dashboard served HTTP 200 on `:8050` post-filter; `_dash-layout` and
+  `_dash-dependencies` endpoints both 200; no tracebacks in the
+  server log.  Cohort `episodes_n` value sourced from `len(EP)` will
+  now display 899.
+* §1 invariants rewritten to reflect the post-filter universe and to
+  correct the prior session's bogus `_apply_missing_sentinels`
+  reference (no such function — sentinels are NaN'd via two real
+  mechanisms documented inline).
+* README §2 episode-frame paragraph rewritten to explain the
+  ghost-filter rule and the 899/866 post-filter counts.  README
+  trained-model n (498) unchanged.
+* Open items rolled forward:
+  - **F2 multi-outcome prediction** — still next default work.
+    **Caveat from this session:** WISCI's n=50 is below any reasonable
+    regression power; F2 should drop WISCI from the outcome set, or
+    treat it as a classification-of-walker-status proxy if we want it
+    at all.  AIS (n=638), per-subscale SCIM (≈507), and LOS (n=682)
+    remain viable.
+  - **F3 Mondrian per-AIS / per-paralysis conformal** — third in §8.
+  - Pytest smoke suite (still low priority per session-5 user
+    direction).
 
 ### 2026-05-18 (session 5, F1 patient explorer shipped)
 
@@ -324,7 +408,7 @@ dependency**.  Ordered by recommended start order (F1 first).
   `data/episodes.py::patient_view()` to aggregate one patient's rows.
 * **Data dependency:** existing long + episode frames; no new ingestion.
 
-### F2. Multi-outcome prediction (subscales + AIS + WISCI + LOS)
+### F2. Multi-outcome prediction (subscales + AIS + LOS; WISCI dropped)
 
 * **What:** Today `train.py` trains only on `y_discharge_scim`.  Extend
   the outcome set to:
@@ -332,9 +416,12 @@ dependency**.  Ordered by recommended start order (F1 first).
     mobility (0–40).
   - `y_discharge_ais` — ordinal classification (LightGBM `multiclass`
     or an ordinal-logit head).
-  - `y_discharge_wisci` — regression.
-  - `y_los_days` — regression; **verify** timepoint date columns exist
-    before committing to this outcome.
+  - `LOS_days` — regression; the column is already on the episode
+    frame (sourced from `入院期間`), n=682 / 899 episodes post-ghost-filter.
+  - ~~`y_discharge_wisci` — regression.~~ **DROPPED (session 6):**
+    only 50 episodes have a discharge WISCI, below any reasonable
+    regression-power threshold.  Reconsider as a walker-vs-non-walker
+    classification proxy if requested.
 * **Why:** Each subscale is independently actionable for clinical goal
   setting; AIS is the headline ordinal outcome in SCI literature.
 * **Effort:** medium.  Mostly a refactor of `train.py` to loop over a
@@ -342,9 +429,12 @@ dependency**.  Ordered by recommended start order (F1 first).
   simulator gains an outcome selector.
 * **Files:** `models/train.py`, `models/__init__.py`, `dashboard/app.py`
   (simulator outcome selector + PI/SHAP rendering), `dashboard/figures.py`.
-* **Data dependency:** `y_discharge_*` outcomes already in episode frame
-  (per `data/dataset.py`).  Verify LOS computability from timepoint
-  date columns before scoping it in.
+* **Data dependency:** all four remaining outcomes (`y_discharge_scim`,
+  3 subscales already computable via `SCIM_self_care` /
+  `SCIM_respiration_sphincter` / `SCIM_mobility` at the discharge
+  timepoint — needs the same `discharge.set_index(KR)` trick used for
+  the total — plus `y_discharge_ais` and `LOS_days`) are on the
+  episode frame already.
 
 ### F3. Mondrian per-AIS / per-paralysis conformal calibration
 

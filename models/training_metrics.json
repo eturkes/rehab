@@ -125,7 +125,7 @@
   ],
   "outcome": "y_discharge_scim",
   "n_features": 30,
-  "n_episodes_total": 1200,
+  "n_episodes_total": 899,
   "n_episodes_with_outcome": 498,
   "n_patients_with_outcome": 498,
   "random_state": 20260518

@@ -1,6 +1,13 @@
 """Construct the analysis-ready frame: one row per patient-episode.
 
-The unit of analysis is ``KeyRecordNumber`` (1200 episodes total).
+The unit of analysis is ``KeyRecordNumber``.  The raw CSV ships a perfect
+1200 × 26 grid (1200 episodes × 26 timepoint slots = 31,200 rows), but 301 of
+those episodes are pure placeholder rows: ``IDNumber`` is null AND every
+admission feature is null AND every outcome is null.  They contribute nothing
+to modelling or cohort statistics, so :func:`build_analysis_dataset` filters
+them out at load time.  The post-filter universe is 899 episodes (the trained
+model already excluded them via ``dropna(IDNumber, outcome)``; this filter
+just makes the cohort counts honest too).
 
 Admission features are taken from the ``0day`` timepoint, with backfill from later
 acute-phase timepoints (72h, 2w, 4w) so that missing baseline rows do not silently
@@ -179,10 +186,31 @@ def build_episode_frame(longitudinal: pd.DataFrame) -> pd.DataFrame:
     return feat.reset_index()
 
 
+def _identify_ghost_episodes(ep: pd.DataFrame, admission_features: list[str]) -> set[int]:
+    """Return KeyRecordNumbers of pure placeholder episodes.
+
+    A ghost episode is one where ``IDNumber`` is null AND every admission
+    feature is null.  Empirically, the 301 episodes matching this rule also
+    have null outcomes (SCIM / AIS / WISCI / LOS) across every timepoint, so
+    they contribute nothing modellable or visualizable.  The trained model
+    already excludes them via ``dropna(IDNumber, outcome)``; filtering them
+    here additionally fixes the cohort-level episode counts.
+    """
+    cols = [c for c in admission_features if c in ep.columns]
+    if not cols:
+        return set()
+    is_ghost = ep["IDNumber"].isna() & ep[cols].isna().all(axis=1)
+    return set(ep.loc[is_ghost, "KeyRecordNumber"].tolist())
+
+
 def build_analysis_dataset() -> AnalysisFrame:
     schema = load_schema()
     long_df = load_clean(schema=schema)
     ep = build_episode_frame(long_df)
+    ghost_krs = _identify_ghost_episodes(ep, ADMISSION_FEATURES)
+    if ghost_krs:
+        ep = ep[~ep["KeyRecordNumber"].isin(ghost_krs)].reset_index(drop=True)
+        long_df = long_df[~long_df["KeyRecordNumber"].isin(ghost_krs)].reset_index(drop=True)
     feature_cols = ADMISSION_FEATURES.copy()
     # ensure no leakage: outcome columns are not in feature_cols
     feature_cols = [c for c in feature_cols if c in ep.columns]
