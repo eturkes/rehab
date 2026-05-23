@@ -85,5 +85,6 @@ Thumbs.db
 
 # claude / agent state (local-only scratch)
 .claude/local/
+.claude/settings.local.json
 .aider*
 .specstory/
