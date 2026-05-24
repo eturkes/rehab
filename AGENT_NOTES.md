@@ -16,10 +16,11 @@ bottom of each section as new lessons land; do **not** delete prior entries.
   Keep it accurate: update sections after every session; prune obsolete
   entries when they conflict with current state.
 * **Default-work pool for fresh sessions: §8 Feature backlog.**
-  F1–F10 shipped as of session 16.  Propose new feature candidates or
-  maintenance work unless the user redirects.  Historical "Open items
-  rolled forward" lists inside prior §7 session entries are
-  **superseded** by user decision in session 4 — treat them as history.
+  F1–F10 shipped as of session 16; F13 shipped session 18.  Propose new
+  feature candidates or maintenance work unless the user redirects.
+  Historical "Open items rolled forward" lists inside prior §7 session
+  entries are **superseded** by user decision in session 4 — treat them
+  as history.
 
 ## 0b. Lessons & mistakes (append here; prune when superseded)
 
@@ -60,6 +61,13 @@ bottom of each section as new lessons land; do **not** delete prior entries.
   unconstrained transitive deps, always verify the resolved versions
   in `uv.lock` and add explicit lower bounds for any that resolve
   below the Python-version-compatible threshold.
+* **Session 18: `shap_interaction_values` rejects category-dtype columns**
+  — `TreeExplainer.shap_values()` internally handles LightGBM's
+  categorical features, but `shap_interaction_values()` requires a pure
+  numeric DataFrame.  Fix: encode category columns to integer codes
+  via `cat.codes.astype(float)` before calling.  *Takeaway:*
+  `shap_interaction_values` has a stricter input contract than
+  `shap_values` — always encode categoricals to numeric first.
 
 ## 1. Data invariants (do not rediscover)
 
@@ -203,6 +211,17 @@ bottom of each section as new lessons land; do **not** delete prior entries.
   predicted class.  The insight engine's SHAP dependence panel (F6)
   slices this tensor by a user-selected class via `class_idx` kwarg to
   `fig_dependence`.
+* **SHAP interaction values (F13, session 18)** — `shap_test.joblib`
+  now also persists `shap_interaction`.  Regression shape:
+  `(n_test, p, p)`; multiclass shape: `(n_test, p, p, K=5)`.
+  Diagonal `[i,i]` = main effect; off-diagonal `[i,j]` = pairwise
+  interaction between features i and j (symmetric).  Computed via
+  `TreeExplainer.shap_interaction_values()` on test set with
+  category-dtype columns pre-encoded to integer codes
+  (`_encode_cats_for_shap`).  `training_metrics.json` stores
+  `global_interaction_top25` (top 25 feature pairs by mean |φ|) per
+  outcome.  Dashboard renders an interaction heatmap and a two-feature
+  interaction dependence plot in the insight engine.
 * **Test-set predictions (F8, session 14)** — `shap_test.joblib` now
   also persists `y_test` (actual values) and `y_pred` (point
   predictions) for all outcomes.  Multiclass additionally stores
@@ -293,6 +312,79 @@ pkill -f 'rehab_sci.dashboard.app'               # stop stale dashboard
 ```
 
 ## 7. Session log (most recent first)
+
+### 2026-05-24 (session 18, F13 SHAP interaction explorer shipped)
+
+* Shipped **F13 SHAP interaction explorer**.
+* **Problem:** The insight engine showed per-feature SHAP importance and
+  single-feature dependence, but interactions between feature *pairs*
+  were invisible.  Clinically, interactions are where real insight lives
+  — e.g., "age only hurts SCIM prognosis when combined with low motor
+  score" is a non-additive interaction effect that cannot be captured by
+  marginal SHAP values.
+* **Training side** (`models/train.py`):
+  - New helpers: `_encode_cats_for_shap(X)` — encodes category-dtype
+    columns to integer codes (required because
+    `shap_interaction_values()` rejects string categoricals, unlike
+    `shap_values()`).  `_top_interactions(shap_int, feature_names)` and
+    `_top_interactions_multiclass(shap_int, feature_names)` — rank all
+    (p choose 2) feature pairs by mean |SHAP interaction value| and
+    return top 25.
+  - `_train_regression()` extended: computes `shap_interaction_values`
+    on encoded test set, stores `shap_interaction` in
+    `shap_test.joblib` (shape: n_test × p × p), stores
+    `global_interaction_top25` in training metrics.
+  - `_train_multiclass()` extended: same, with 4-D interaction tensor
+    (n_test × p × p × K) and multiclass averaging.
+  - All training metrics reproduced identically (deterministic pipeline,
+    random state 20260518).
+* **Top interaction pairs discovered:**
+  - SCIM total: Age × LEMS (|φ|=1.12)
+  - SCIM self-care: Age × TotalMotor (|φ|=0.33)
+  - SCIM resp/sphincter: Age × LEMS (|φ|=0.57)
+  - SCIM mobility: Age × LEMS (|φ|=0.50)
+  - AIS discharge: LEMS × PinPrickTotal (|φ|=0.04)
+  - LOS: Age × TotalMotor (|φ|=0.03)
+  - Pattern: age × motor score is the dominant interaction across
+    functional outcomes; for AIS classification, motor × sensory is
+    primary.
+* **Dashboard figures** (`dashboard/figures.py`), 2 new functions:
+  - `fig_interaction_heatmap(metrics, schema, lang, *, top_n=10)` —
+    upper-triangle heatmap of top feature-pair interactions with
+    colorscale from paper→teal.  Features ordered by first appearance
+    in the ranked list.  NaN-masked lower triangle for visual clarity.
+  - `fig_interaction_dependence(shap_pack, X_test, feat_x, feat_y,
+    schema, lang, *, class_idx=None)` — scatter of feature X values vs
+    SHAP interaction φ(X,Y), colored by feature Y values.  Numeric Y →
+    Viridis continuous colorscale; categorical Y → distinct traces with
+    palette colors.  Handles NaN categories, categorical X labels, and
+    multiclass class selection.
+* **Dashboard app** (`dashboard/app.py`):
+  - New interaction card in `render_insights()`: heatmap graph + two
+    feature dropdowns (X and Y) + interaction dependence graph.
+  - 3 new callbacks: `update_interaction_heatmap` (outcome + lang →
+    heatmap), `update_int_feat_options` (outcome + lang → X/Y dropdown
+    options, defaulting to top pair), `update_interaction_dependence`
+    (feat_x + feat_y + outcome + class + lang → dependence plot).
+  - Interaction dependence reuses the existing class selector
+    (`ins-dep-class`) from F6 — when AIS discharge is selected, the
+    class dropdown controls both the standard dependence plot and the
+    interaction dependence plot.
+  - Total: 20 callbacks (3 new).
+* New UI strings: `insight_interaction_heading` (ja: "特徴量間相互作用
+  (SHAP)", en: "Feature interactions (SHAP)"), `insight_int_feat_x`
+  (ja: "特徴量 X", en: "Feature X"), `insight_int_feat_y` (ja:
+  "特徴量 Y", en: "Feature Y").
+* Verification: full pipeline `uv run python -m rehab_sci.models.train`
+  + `subgroups`; dashboard HTTP 200 on `/`, `/_dash-layout`,
+  `/_dash-dependencies`.  20 callbacks registered (3 new).  Functional
+  tests confirm: (1) regression interaction shape (100, 30, 30),
+  (2) multiclass interaction shape (126, 30, 30, 5), (3) heatmap
+  renders 21 non-NaN cells for top-10 pairs, (4) numeric×numeric
+  dependence shows Viridis-colored scatter, (5) numeric×categorical
+  dependence shows distinct traces per category (Paraplegia=13,
+  Tetraplegia=84), (6) multiclass class_idx slicing correct,
+  (7) bilingual labels verified (JA: 年齢, EN: Age).
 
 ### 2026-05-24 (session 17, dependency audit + update)
 
@@ -1330,3 +1422,35 @@ dependency**.  Ordered by recommended start order (F1 first).
   (1 new callback, 1 `dcc.Download`, layout modified), `pyproject.toml`
   (`fpdf2` dep), `dashboard/assets/style.css` (2 new style blocks),
   `schema/ui_strings.yaml` (1 new key).
+
+### F13. SHAP interaction explorer — **STATUS: shipped (session 18, 2026-05-24)**
+
+* **What was built:** SHAP interaction values computed at training time
+  for all 6 outcomes (regression: 3-D `(n, p, p)`; multiclass: 4-D
+  `(n, p, p, K)`), persisted in `shap_test.joblib`, and surfaced in the
+  insight engine as two linked visualizations: (1) an upper-triangle
+  heatmap showing top 10 feature-pair interaction strengths by mean |φ|,
+  and (2) a two-feature interaction dependence scatter plot colored by
+  the second feature's value (Viridis for numeric, distinct traces for
+  categorical).  For multiclass (AIS discharge), both plots respect the
+  existing F6 class selector to show per-class interaction patterns.
+  Feature X/Y dropdowns default to the strongest interaction pair for the
+  selected outcome.
+* **Why:** Single-feature SHAP shows marginal contributions but hides
+  non-additive effects.  Clinicians benefit from seeing *how* features
+  amplify or suppress each other — e.g., age's negative impact on SCIM
+  is strongest when motor score is low (non-additive interaction), a
+  pattern invisible in marginal SHAP.
+* **Key finding:** Age × motor score (LEMS or TotalMotor) is the
+  dominant interaction across all functional outcomes (|φ|=0.33–1.12).
+  For AIS discharge classification, motor × sensory (LEMS ×
+  PinPrickTotal, |φ|=0.04) is primary — sensory modulates the
+  predictive signal from motor.  LOS interactions are weak (|φ|=0.03),
+  consistent with LOS being inherently hard to predict from admission
+  features.
+* **Files changed:** `models/train.py` (3 new helpers +
+  `_train_regression` and `_train_multiclass` extended),
+  `dashboard/figures.py` (2 new functions: `fig_interaction_heatmap`,
+  `fig_interaction_dependence`), `dashboard/app.py` (interaction card
+  in `render_insights` + 3 new callbacks), `schema/ui_strings.yaml`
+  (3 new keys).

@@ -326,6 +326,15 @@ insight_dependence_regression_only:
 insight_dep_class_label:
   ja: "対象クラス"
   en: "Target class"
+insight_interaction_heading:
+  ja: "特徴量間相互作用 (SHAP)"
+  en: "Feature interactions (SHAP)"
+insight_int_feat_x:
+  ja: "特徴量 X"
+  en: "Feature X"
+insight_int_feat_y:
+  ja: "特徴量 Y"
+  en: "Feature Y"
 patient_outcome_label:
   ja: "予測対象"
   en: "Predicted outcome"

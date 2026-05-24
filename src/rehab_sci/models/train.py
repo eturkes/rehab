@@ -455,6 +455,60 @@ def _aps_test_metrics(
     return result
 
 
+# ----------------------------- SHAP interaction helpers -------------------
+
+def _encode_cats_for_shap(X: pd.DataFrame) -> pd.DataFrame:
+    """Encode category-dtype columns to integer codes for shap_interaction_values."""
+    out = X.copy()
+    for c in out.columns:
+        if out[c].dtype.name == "category":
+            out[c] = out[c].cat.codes.astype(float)
+            out[c] = out[c].replace(-1, float("nan"))
+    return out
+
+
+# ----------------------------- SHAP interaction ranking -------------------
+
+def _top_interactions(
+    shap_interaction: np.ndarray,
+    feature_names: list[str],
+    top_n: int = 25,
+) -> list[dict]:
+    """Rank feature pairs by mean |SHAP interaction| (regression: 3-D input)."""
+    # shap_interaction shape: (n_samples, n_features, n_features)
+    abs_mean = np.abs(shap_interaction).mean(axis=0)  # (p, p)
+    n_feat = len(feature_names)
+    pairs = []
+    for i in range(n_feat):
+        for j in range(i + 1, n_feat):
+            pairs.append((feature_names[i], feature_names[j], float(abs_mean[i, j])))
+    pairs.sort(key=lambda x: -x[2])
+    return [
+        {"feat_a": a, "feat_b": b, "abs_mean_interaction": v}
+        for a, b, v in pairs[:top_n]
+    ]
+
+
+def _top_interactions_multiclass(
+    shap_interaction: np.ndarray,
+    feature_names: list[str],
+    top_n: int = 25,
+) -> list[dict]:
+    """Rank feature pairs by mean |SHAP interaction| (multiclass: 4-D input)."""
+    # shap_interaction shape: (n_samples, n_features, n_features, K)
+    abs_mean = np.abs(shap_interaction).mean(axis=(0, 3))  # (p, p)
+    n_feat = len(feature_names)
+    pairs = []
+    for i in range(n_feat):
+        for j in range(i + 1, n_feat):
+            pairs.append((feature_names[i], feature_names[j], float(abs_mean[i, j])))
+    pairs.sort(key=lambda x: -x[2])
+    return [
+        {"feat_a": a, "feat_b": b, "abs_mean_interaction": v}
+        for a, b, v in pairs[:top_n]
+    ]
+
+
 # ----------------------------- per-outcome trainers ----------------------
 
 def _train_regression(
@@ -583,6 +637,14 @@ def _train_regression(
         key=lambda x: -x[1],
     )
 
+    # SHAP interaction values — (n_test, n_features, n_features)
+    X_te_num = _encode_cats_for_shap(X_te)
+    shap_interaction = explainer.shap_interaction_values(X_te_num)
+    interaction_top25 = _top_interactions(shap_interaction, X.columns.tolist())
+    print(f"   SHAP interactions computed  top pair: "
+          f"{interaction_top25[0]['feat_a']} × {interaction_top25[0]['feat_b']}  "
+          f"mean|φ|={interaction_top25[0]['abs_mean_interaction']:.4f}")
+
     # persist
     od = out_root / spec.key
     od.mkdir(parents=True, exist_ok=True)
@@ -593,6 +655,7 @@ def _train_regression(
         {
             "X_test_index": list(X_te.index),
             "shap_values": shap_values,
+            "shap_interaction": shap_interaction,
             "X_test": X_te,
             "base_value": base_value,
             "y_test": y_te_raw,
@@ -625,6 +688,7 @@ def _train_regression(
         "global_importance_top25": [
             {"feature": f, "abs_mean_shap": v} for f, v in importance[:25]
         ],
+        "global_interaction_top25": interaction_top25,
         "n_features": int(X.shape[1]),
         "n_episodes_with_outcome": int(len(X)),
         "n_patients_with_outcome": int(groups.nunique()),
@@ -752,6 +816,22 @@ def _train_multiclass(
         key=lambda x: -x[1],
     )
 
+    # multiclass SHAP interaction values — list of K (n, p, p) or (n, p, p, K)
+    X_te_num = _encode_cats_for_shap(X_te)
+    raw_int = explainer.shap_interaction_values(X_te_num)
+    if isinstance(raw_int, list):
+        shap_int_arr = np.stack(raw_int, axis=-1)  # (n, p, p, K)
+    else:
+        shap_int_arr = np.asarray(raw_int)
+        if (shap_int_arr.ndim == 4 and shap_int_arr.shape[0] == n_classes
+                and shap_int_arr.shape[-1] != n_classes):
+            shap_int_arr = np.transpose(shap_int_arr, (1, 2, 3, 0))
+    # mean |interaction| across samples and classes for top-pair ranking
+    interaction_top25 = _top_interactions_multiclass(shap_int_arr, X.columns.tolist())
+    print(f"   SHAP interactions computed  top pair: "
+          f"{interaction_top25[0]['feat_a']} × {interaction_top25[0]['feat_b']}  "
+          f"mean|φ|={interaction_top25[0]['abs_mean_interaction']:.4f}")
+
     od = out_root / spec.key
     od.mkdir(parents=True, exist_ok=True)
     joblib.dump(final_clf, od / "lgbm_multiclass.joblib")
@@ -759,6 +839,7 @@ def _train_multiclass(
         {
             "X_test_index": list(X_te.index),
             "shap_values": shap_arr,
+            "shap_interaction": shap_int_arr,
             "X_test": X_te,
             "base_value": base_value,
             "class_codes": [int(c) for c in class_codes],
@@ -792,6 +873,7 @@ def _train_multiclass(
         "global_importance_top25": [
             {"feature": f, "abs_mean_shap": v} for f, v in importance[:25]
         ],
+        "global_interaction_top25": interaction_top25,
         "n_features": int(X.shape[1]),
         "n_episodes_with_outcome": int(len(X)),
         "n_patients_with_outcome": int(groups.nunique()),

@@ -173,6 +173,133 @@
           "abs_mean_shap": 0.058713545462687276
         }
       ],
+      "global_interaction_top25": [
+        {
+          "feat_a": "\u5e74\u9f62",
+          "feat_b": "LEMS",
+          "abs_mean_interaction": 1.1240618864314462
+        },
+        {
+          "feat_a": "\u5e74\u9f62",
+          "feat_b": "TotalMotor",
+          "abs_mean_interaction": 0.819750044789039
+        },
+        {
+          "feat_a": "LEMS",
+          "feat_b": "LightTouchTotal",
+          "abs_mean_interaction": 0.6418148319910766
+        },
+        {
+          "feat_a": "TotalMotor",
+          "feat_b": "PinPrickTotal",
+          "abs_mean_interaction": 0.5745133452127776
+        },
+        {
+          "feat_a": "mFrankel_ord",
+          "feat_b": "TotalMotor",
+          "abs_mean_interaction": 0.528723048451203
+        },
+        {
+          "feat_a": "\u5e74\u9f62",
+          "feat_b": "mFrankel_ord",
+          "abs_mean_interaction": 0.5197775370586263
+        },
+        {
+          "feat_a": "LEMS",
+          "feat_b": "PinPrickTotal",
+          "abs_mean_interaction": 0.511621868073531
+        },
+        {
+          "feat_a": "LEMS",
+          "feat_b": "TotalMotor",
+          "abs_mean_interaction": 0.44323855671583706
+        },
+        {
+          "feat_a": "mFrankel_ord",
+          "feat_b": "LEMS",
+          "abs_mean_interaction": 0.4290766941320379
+        },
+        {
+          "feat_a": "UEMS",
+          "feat_b": "TotalMotor",
+          "abs_mean_interaction": 0.4088652196453127
+        },
+        {
+          "feat_a": "\u5e74\u9f62",
+          "feat_b": "PinPrickTotal",
+          "abs_mean_interaction": 0.3611710962543891
+        },
+        {
+          "feat_a": "\u5e74\u9f62",
+          "feat_b": "LightTouchTotal",
+          "abs_mean_interaction": 0.3456067893812344
+        },
+        {
+          "feat_a": "TotalMotor",
+          "feat_b": "LightTouchTotal",
+          "abs_mean_interaction": 0.33586208686661423
+        },
+        {
+          "feat_a": "\u5e74\u9f62",
+          "feat_b": "UEMS",
+          "abs_mean_interaction": 0.31128941800066956
+        },
+        {
+          "feat_a": "UEMS",
+          "feat_b": "LEMS",
+          "abs_mean_interaction": 0.270634831446545
+        },
+        {
+          "feat_a": "LeftMotorLevel_ord",
+          "feat_b": "TotalMotor",
+          "abs_mean_interaction": 0.2469471591329933
+        },
+        {
+          "feat_a": "LEMS",
+          "feat_b": "SCIM_respiration_sphincter",
+          "abs_mean_interaction": 0.23625471482307286
+        },
+        {
+          "feat_a": "LeftMotorLevel_ord",
+          "feat_b": "LEMS",
+          "abs_mean_interaction": 0.1997657436968399
+        },
+        {
+          "feat_a": "LightTouchTotal",
+          "feat_b": "PinPrickTotal",
+          "abs_mean_interaction": 0.16006850197306172
+        },
+        {
+          "feat_a": "\u5e74\u9f62",
+          "feat_b": "LeftMotorLevel_ord",
+          "abs_mean_interaction": 0.15326253951904026
+        },
+        {
+          "feat_a": "DAP",
+          "feat_b": "TotalMotor",
+          "abs_mean_interaction": 0.1482422198571547
+        },
+        {
+          "feat_a": "\u5e74\u9f62",
+          "feat_b": "RightMotorLevel_ord",
+          "abs_mean_interaction": 0.1474973924485248
+        },
+        {
+          "feat_a": "AIS_ord",
+          "feat_b": "TotalMotor",
+          "abs_mean_interaction": 0.14355097954215293
+        },
+        {
+          "feat_a": "mFrankel_ord",
+          "feat_b": "PinPrickTotal",
+          "abs_mean_interaction": 0.14169146935240554
+        },
+        {
+          "feat_a": "OPLL",
+          "feat_b": "LEMS",
+          "abs_mean_interaction": 0.13981398988601804
+        }
+      ],
       "n_features": 30,
       "n_episodes_with_outcome": 498,
       "n_patients_with_outcome": 498
@@ -348,6 +475,133 @@
         {
           "feature": "DISH",
           "abs_mean_shap": 0.008472900047520847
+        }
+      ],
+      "global_interaction_top25": [
+        {
+          "feat_a": "\u5e74\u9f62",
+          "feat_b": "TotalMotor",
+          "abs_mean_interaction": 0.3292753939383444
+        },
+        {
+          "feat_a": "TotalMotor",
+          "feat_b": "PinPrickTotal",
+          "abs_mean_interaction": 0.2028817535000515
+        },
+        {
+          "feat_a": "TotalMotor",
+          "feat_b": "LightTouchTotal",
+          "abs_mean_interaction": 0.1274750670576349
+        },
+        {
+          "feat_a": "LightTouchTotal",
+          "feat_b": "PinPrickTotal",
+          "abs_mean_interaction": 0.11784843059862564
+        },
+        {
+          "feat_a": "UEMS",
+          "feat_b": "TotalMotor",
+          "abs_mean_interaction": 0.11609889242264826
+        },
+        {
+          "feat_a": "LEMS",
+          "feat_b": "TotalMotor",
+          "abs_mean_interaction": 0.11320072924945013
+        },
+        {
+          "feat_a": "UEMS",
+          "feat_b": "LightTouchTotal",
+          "abs_mean_interaction": 0.10186912776619819
+        },
+        {
+          "feat_a": "\u5e74\u9f62",
+          "feat_b": "PinPrickTotal",
+          "abs_mean_interaction": 0.09078233050073964
+        },
+        {
+          "feat_a": "\u5e74\u9f62",
+          "feat_b": "mFrankel_ord",
+          "abs_mean_interaction": 0.08560645793753072
+        },
+        {
+          "feat_a": "\u5e74\u9f62",
+          "feat_b": "LEMS",
+          "abs_mean_interaction": 0.07988787173004534
+        },
+        {
+          "feat_a": "\u5e74\u9f62",
+          "feat_b": "LightTouchTotal",
+          "abs_mean_interaction": 0.07489296177592922
+        },
+        {
+          "feat_a": "LEMS",
+          "feat_b": "LightTouchTotal",
+          "abs_mean_interaction": 0.057863769789183374
+        },
+        {
+          "feat_a": "mFrankel_ord",
+          "feat_b": "TotalMotor",
+          "abs_mean_interaction": 0.05556581578878918
+        },
+        {
+          "feat_a": "mFrankel_ord",
+          "feat_b": "PinPrickTotal",
+          "abs_mean_interaction": 0.054294262217451476
+        },
+        {
+          "feat_a": "UEMS",
+          "feat_b": "LEMS",
+          "abs_mean_interaction": 0.049221003443719956
+        },
+        {
+          "feat_a": "\u5e74\u9f62",
+          "feat_b": "UEMS",
+          "abs_mean_interaction": 0.04718719110882109
+        },
+        {
+          "feat_a": "LightTouchTotal",
+          "feat_b": "SCIM_total",
+          "abs_mean_interaction": 0.044495762174178874
+        },
+        {
+          "feat_a": "LEMS",
+          "feat_b": "PinPrickTotal",
+          "abs_mean_interaction": 0.044252393926291406
+        },
+        {
+          "feat_a": "OPLL",
+          "feat_b": "TotalMotor",
+          "abs_mean_interaction": 0.038878784671326425
+        },
+        {
+          "feat_a": "RightSensoryLevel_ord",
+          "feat_b": "TotalMotor",
+          "abs_mean_interaction": 0.03708711189136452
+        },
+        {
+          "feat_a": "TotalMotor",
+          "feat_b": "SCIM_total",
+          "abs_mean_interaction": 0.03502472589706984
+        },
+        {
+          "feat_a": "\u5e74\u9f62",
+          "feat_b": "RightMotorLevel_ord",
+          "abs_mean_interaction": 0.03486964607873931
+        },
+        {
+          "feat_a": "mFrankel_ord",
+          "feat_b": "LightTouchTotal",
+          "abs_mean_interaction": 0.03331477605248584
+        },
+        {
+          "feat_a": "OPLL",
+          "feat_b": "UEMS",
+          "abs_mean_interaction": 0.033035885022625076
+        },
+        {
+          "feat_a": "DAP",
+          "feat_b": "TotalMotor",
+          "abs_mean_interaction": 0.032446633677579634
         }
       ],
       "n_features": 30,
@@ -527,6 +781,133 @@
           "abs_mean_shap": 0.02305239108282553
         }
       ],
+      "global_interaction_top25": [
+        {
+          "feat_a": "\u5e74\u9f62",
+          "feat_b": "LEMS",
+          "abs_mean_interaction": 0.5738134681308854
+        },
+        {
+          "feat_a": "LEMS",
+          "feat_b": "TotalMotor",
+          "abs_mean_interaction": 0.3756514291485915
+        },
+        {
+          "feat_a": "TotalMotor",
+          "feat_b": "PinPrickTotal",
+          "abs_mean_interaction": 0.35638853426730077
+        },
+        {
+          "feat_a": "mFrankel_ord",
+          "feat_b": "TotalMotor",
+          "abs_mean_interaction": 0.305293963991257
+        },
+        {
+          "feat_a": "\u5e74\u9f62",
+          "feat_b": "TotalMotor",
+          "abs_mean_interaction": 0.30480869911342734
+        },
+        {
+          "feat_a": "\u5e74\u9f62",
+          "feat_b": "mFrankel_ord",
+          "abs_mean_interaction": 0.26213146046827823
+        },
+        {
+          "feat_a": "\u5e74\u9f62",
+          "feat_b": "PinPrickTotal",
+          "abs_mean_interaction": 0.2415377546394456
+        },
+        {
+          "feat_a": "LEMS",
+          "feat_b": "PinPrickTotal",
+          "abs_mean_interaction": 0.18714516949487084
+        },
+        {
+          "feat_a": "\u5e74\u9f62",
+          "feat_b": "LightTouchTotal",
+          "abs_mean_interaction": 0.1817384231997143
+        },
+        {
+          "feat_a": "\u5e74\u9f62",
+          "feat_b": "UEMS",
+          "abs_mean_interaction": 0.17762362935901918
+        },
+        {
+          "feat_a": "UEMS",
+          "feat_b": "TotalMotor",
+          "abs_mean_interaction": 0.16930327783162347
+        },
+        {
+          "feat_a": "mFrankel_ord",
+          "feat_b": "LEMS",
+          "abs_mean_interaction": 0.16401670800133442
+        },
+        {
+          "feat_a": "UEMS",
+          "feat_b": "LEMS",
+          "abs_mean_interaction": 0.1439217295288538
+        },
+        {
+          "feat_a": "LEMS",
+          "feat_b": "LightTouchTotal",
+          "abs_mean_interaction": 0.13551942607896492
+        },
+        {
+          "feat_a": "LeftMotorLevel_ord",
+          "feat_b": "LEMS",
+          "abs_mean_interaction": 0.1254546229352351
+        },
+        {
+          "feat_a": "TotalMotor",
+          "feat_b": "LightTouchTotal",
+          "abs_mean_interaction": 0.1250784885921544
+        },
+        {
+          "feat_a": "\u5e74\u9f62",
+          "feat_b": "LeftMotorLevel_ord",
+          "abs_mean_interaction": 0.11308861868180915
+        },
+        {
+          "feat_a": "LeftMotorLevel_ord",
+          "feat_b": "TotalMotor",
+          "abs_mean_interaction": 0.11096421969485766
+        },
+        {
+          "feat_a": "RightSensoryLevel_ord",
+          "feat_b": "LEMS",
+          "abs_mean_interaction": 0.08632677963702458
+        },
+        {
+          "feat_a": "LEMS",
+          "feat_b": "SCIM_respiration_sphincter",
+          "abs_mean_interaction": 0.08324939012286936
+        },
+        {
+          "feat_a": "mFrankel_ord",
+          "feat_b": "UEMS",
+          "abs_mean_interaction": 0.07485595740741903
+        },
+        {
+          "feat_a": "UEMS",
+          "feat_b": "PinPrickTotal",
+          "abs_mean_interaction": 0.07402675531409783
+        },
+        {
+          "feat_a": "mFrankel_ord",
+          "feat_b": "LightTouchTotal",
+          "abs_mean_interaction": 0.0711464883808494
+        },
+        {
+          "feat_a": "RightMotorLevel_ord",
+          "feat_b": "PinPrickTotal",
+          "abs_mean_interaction": 0.06932633320506318
+        },
+        {
+          "feat_a": "\u5e74\u9f62",
+          "feat_b": "RightSensoryLevel_ord",
+          "abs_mean_interaction": 0.0648594062997147
+        }
+      ],
       "n_features": 30,
       "n_episodes_with_outcome": 498,
       "n_patients_with_outcome": 498
@@ -702,6 +1083,133 @@
         {
           "feature": "VAC",
           "abs_mean_shap": 0.024328486043257644
+        }
+      ],
+      "global_interaction_top25": [
+        {
+          "feat_a": "\u5e74\u9f62",
+          "feat_b": "LEMS",
+          "abs_mean_interaction": 0.49546989157688537
+        },
+        {
+          "feat_a": "LEMS",
+          "feat_b": "LightTouchTotal",
+          "abs_mean_interaction": 0.329898912727231
+        },
+        {
+          "feat_a": "\u5e74\u9f62",
+          "feat_b": "mFrankel_ord",
+          "abs_mean_interaction": 0.2800473188277405
+        },
+        {
+          "feat_a": "mFrankel_ord",
+          "feat_b": "LEMS",
+          "abs_mean_interaction": 0.2748413680971213
+        },
+        {
+          "feat_a": "\u5e74\u9f62",
+          "feat_b": "TotalMotor",
+          "abs_mean_interaction": 0.22434388680114373
+        },
+        {
+          "feat_a": "LEMS",
+          "feat_b": "TotalMotor",
+          "abs_mean_interaction": 0.20440103773409962
+        },
+        {
+          "feat_a": "LEMS",
+          "feat_b": "PinPrickTotal",
+          "abs_mean_interaction": 0.19345661454415833
+        },
+        {
+          "feat_a": "TotalMotor",
+          "feat_b": "LightTouchTotal",
+          "abs_mean_interaction": 0.17462279923972424
+        },
+        {
+          "feat_a": "\u5e74\u9f62",
+          "feat_b": "PinPrickTotal",
+          "abs_mean_interaction": 0.16964191412453583
+        },
+        {
+          "feat_a": "\u5e74\u9f62",
+          "feat_b": "UEMS",
+          "abs_mean_interaction": 0.15032021730244863
+        },
+        {
+          "feat_a": "\u5e74\u9f62",
+          "feat_b": "LightTouchTotal",
+          "abs_mean_interaction": 0.14069600326355666
+        },
+        {
+          "feat_a": "UEMS",
+          "feat_b": "LEMS",
+          "abs_mean_interaction": 0.10998014411027357
+        },
+        {
+          "feat_a": "TotalMotor",
+          "feat_b": "PinPrickTotal",
+          "abs_mean_interaction": 0.10908828551350246
+        },
+        {
+          "feat_a": "mFrankel_ord",
+          "feat_b": "TotalMotor",
+          "abs_mean_interaction": 0.10860514692767927
+        },
+        {
+          "feat_a": "LeftMotorLevel_ord",
+          "feat_b": "LEMS",
+          "abs_mean_interaction": 0.0935561066486778
+        },
+        {
+          "feat_a": "mFrankel_ord",
+          "feat_b": "LightTouchTotal",
+          "abs_mean_interaction": 0.08187390390393989
+        },
+        {
+          "feat_a": "OPLL",
+          "feat_b": "TotalMotor",
+          "abs_mean_interaction": 0.07996565252613641
+        },
+        {
+          "feat_a": "LeftMotorLevel_ord",
+          "feat_b": "TotalMotor",
+          "abs_mean_interaction": 0.07528905317319882
+        },
+        {
+          "feat_a": "RightMotorLevel_ord",
+          "feat_b": "LEMS",
+          "abs_mean_interaction": 0.06942520783065968
+        },
+        {
+          "feat_a": "LEMS",
+          "feat_b": "SCIM_respiration_sphincter",
+          "abs_mean_interaction": 0.06673290999416745
+        },
+        {
+          "feat_a": "RightSensoryLevel_ord",
+          "feat_b": "PinPrickTotal",
+          "abs_mean_interaction": 0.06478245970842192
+        },
+        {
+          "feat_a": "OPLL",
+          "feat_b": "LEMS",
+          "abs_mean_interaction": 0.06397260326783394
+        },
+        {
+          "feat_a": "\u5e74\u9f62",
+          "feat_b": "LeftMotorLevel_ord",
+          "abs_mean_interaction": 0.06316870151720927
+        },
+        {
+          "feat_a": "RightMotorLevel_ord",
+          "feat_b": "TotalMotor",
+          "abs_mean_interaction": 0.06203291378536534
+        },
+        {
+          "feat_a": "\u5e74\u9f62",
+          "feat_b": "DAP",
+          "abs_mean_interaction": 0.0612974636536759
         }
       ],
       "n_features": 30,
@@ -919,6 +1427,133 @@
           "abs_mean_shap": 0.002453779963912918
         }
       ],
+      "global_interaction_top25": [
+        {
+          "feat_a": "LEMS",
+          "feat_b": "PinPrickTotal",
+          "abs_mean_interaction": 0.040603881542515215
+        },
+        {
+          "feat_a": "\u5e74\u9f62",
+          "feat_b": "LEMS",
+          "abs_mean_interaction": 0.022451430816831132
+        },
+        {
+          "feat_a": "AIS_ord",
+          "feat_b": "LEMS",
+          "abs_mean_interaction": 0.02080950830385671
+        },
+        {
+          "feat_a": "Frankel_ord",
+          "feat_b": "LEMS",
+          "abs_mean_interaction": 0.017032173582273175
+        },
+        {
+          "feat_a": "AIS_ord",
+          "feat_b": "LightTouchTotal",
+          "abs_mean_interaction": 0.0152138892914504
+        },
+        {
+          "feat_a": "\u5e74\u9f62",
+          "feat_b": "AIS_ord",
+          "abs_mean_interaction": 0.014895124272978944
+        },
+        {
+          "feat_a": "RightSensoryLevel_ord",
+          "feat_b": "LEMS",
+          "abs_mean_interaction": 0.013664652689235807
+        },
+        {
+          "feat_a": "mFrankel_ord",
+          "feat_b": "LightTouchTotal",
+          "abs_mean_interaction": 0.01328161826398951
+        },
+        {
+          "feat_a": "LEMS",
+          "feat_b": "LightTouchTotal",
+          "abs_mean_interaction": 0.012391186433304686
+        },
+        {
+          "feat_a": "\u5e74\u9f62",
+          "feat_b": "mFrankel_ord",
+          "abs_mean_interaction": 0.011680325249469622
+        },
+        {
+          "feat_a": "mFrankel_ord",
+          "feat_b": "LEMS",
+          "abs_mean_interaction": 0.011486988023524717
+        },
+        {
+          "feat_a": "AIS_ord",
+          "feat_b": "PinPrickTotal",
+          "abs_mean_interaction": 0.01074131298125138
+        },
+        {
+          "feat_a": "\u5e74\u9f62",
+          "feat_b": "LightTouchTotal",
+          "abs_mean_interaction": 0.009687758685538998
+        },
+        {
+          "feat_a": "AIS_ord",
+          "feat_b": "mFrankel_ord",
+          "abs_mean_interaction": 0.009589642051665015
+        },
+        {
+          "feat_a": "LeftSensoryLevel_ord",
+          "feat_b": "LEMS",
+          "abs_mean_interaction": 0.009223437008512985
+        },
+        {
+          "feat_a": "LEMS",
+          "feat_b": "TotalMotor",
+          "abs_mean_interaction": 0.009062452023124291
+        },
+        {
+          "feat_a": "mFrankel_ord",
+          "feat_b": "PinPrickTotal",
+          "abs_mean_interaction": 0.008754934630816754
+        },
+        {
+          "feat_a": "mFrankel_ord",
+          "feat_b": "Frankel_ord",
+          "abs_mean_interaction": 0.008679196903287398
+        },
+        {
+          "feat_a": "mFrankel_ord",
+          "feat_b": "RightSensoryLevel_ord",
+          "abs_mean_interaction": 0.008460443441929043
+        },
+        {
+          "feat_a": "Frankel_ord",
+          "feat_b": "PinPrickTotal",
+          "abs_mean_interaction": 0.007937425112082412
+        },
+        {
+          "feat_a": "\u5e74\u9f62",
+          "feat_b": "PinPrickTotal",
+          "abs_mean_interaction": 0.007910199480194861
+        },
+        {
+          "feat_a": "TotalMotor",
+          "feat_b": "PinPrickTotal",
+          "abs_mean_interaction": 0.007507874306228813
+        },
+        {
+          "feat_a": "\u5e74\u9f62",
+          "feat_b": "Frankel_ord",
+          "abs_mean_interaction": 0.007389356984876735
+        },
+        {
+          "feat_a": "LeftSensoryLevel_ord",
+          "feat_b": "TotalMotor",
+          "abs_mean_interaction": 0.007279931693437633
+        },
+        {
+          "feat_a": "TotalMotor",
+          "feat_b": "LightTouchTotal",
+          "abs_mean_interaction": 0.006875075013513511
+        }
+      ],
       "n_features": 30,
       "n_episodes_with_outcome": 628,
       "n_patients_with_outcome": 624
@@ -1103,6 +1738,133 @@
         {
           "feature": "\u6027\u5225",
           "abs_mean_shap": 0.006438849695461937
+        }
+      ],
+      "global_interaction_top25": [
+        {
+          "feat_a": "\u5e74\u9f62",
+          "feat_b": "TotalMotor",
+          "abs_mean_interaction": 0.027245713071071424
+        },
+        {
+          "feat_a": "\u5e74\u9f62",
+          "feat_b": "PinPrickTotal",
+          "abs_mean_interaction": 0.017414887346767518
+        },
+        {
+          "feat_a": "TotalMotor",
+          "feat_b": "PinPrickTotal",
+          "abs_mean_interaction": 0.01736626439499495
+        },
+        {
+          "feat_a": "\u5e74\u9f62",
+          "feat_b": "LEMS",
+          "abs_mean_interaction": 0.01695767191307883
+        },
+        {
+          "feat_a": "\u5e74\u9f62",
+          "feat_b": "LightTouchTotal",
+          "abs_mean_interaction": 0.013801933754518865
+        },
+        {
+          "feat_a": "DAP",
+          "feat_b": "PinPrickTotal",
+          "abs_mean_interaction": 0.01052289643091439
+        },
+        {
+          "feat_a": "mFrankel_ord",
+          "feat_b": "PinPrickTotal",
+          "abs_mean_interaction": 0.010268333973808552
+        },
+        {
+          "feat_a": "TotalMotor",
+          "feat_b": "LightTouchTotal",
+          "abs_mean_interaction": 0.008828269975985814
+        },
+        {
+          "feat_a": "LEMS",
+          "feat_b": "LightTouchTotal",
+          "abs_mean_interaction": 0.008743841715225787
+        },
+        {
+          "feat_a": "\u5e74\u9f62",
+          "feat_b": "mFrankel_ord",
+          "abs_mean_interaction": 0.007329797199077591
+        },
+        {
+          "feat_a": "Frankel_ord",
+          "feat_b": "PinPrickTotal",
+          "abs_mean_interaction": 0.007310996724359321
+        },
+        {
+          "feat_a": "RightSensoryLevel_ord",
+          "feat_b": "PinPrickTotal",
+          "abs_mean_interaction": 0.007310740301461571
+        },
+        {
+          "feat_a": "LightTouchTotal",
+          "feat_b": "PinPrickTotal",
+          "abs_mean_interaction": 0.006373641943943542
+        },
+        {
+          "feat_a": "UEMS",
+          "feat_b": "TotalMotor",
+          "abs_mean_interaction": 0.00633225216869867
+        },
+        {
+          "feat_a": "LEMS",
+          "feat_b": "PinPrickTotal",
+          "abs_mean_interaction": 0.005981347716494529
+        },
+        {
+          "feat_a": "RightMotorLevel_ord",
+          "feat_b": "PinPrickTotal",
+          "abs_mean_interaction": 0.005885346960014516
+        },
+        {
+          "feat_a": "UEMS",
+          "feat_b": "PinPrickTotal",
+          "abs_mean_interaction": 0.005866891109898421
+        },
+        {
+          "feat_a": "\u5e74\u9f62",
+          "feat_b": "UEMS",
+          "abs_mean_interaction": 0.005793414905155393
+        },
+        {
+          "feat_a": "TotalMotor",
+          "feat_b": "SCIM_respiration_sphincter",
+          "abs_mean_interaction": 0.005681596441417261
+        },
+        {
+          "feat_a": "\u5e74\u9f62",
+          "feat_b": "SCIM_mobility",
+          "abs_mean_interaction": 0.0052333050391314
+        },
+        {
+          "feat_a": "\u5e74\u9f62",
+          "feat_b": "Frankel_ord",
+          "abs_mean_interaction": 0.004802465424769636
+        },
+        {
+          "feat_a": "\u5e74\u9f62",
+          "feat_b": "DAP",
+          "abs_mean_interaction": 0.0047589688850878335
+        },
+        {
+          "feat_a": "AIS_ord",
+          "feat_b": "PinPrickTotal",
+          "abs_mean_interaction": 0.004393265213608387
+        },
+        {
+          "feat_a": "LEMS",
+          "feat_b": "TotalMotor",
+          "abs_mean_interaction": 0.004285851365176356
+        },
+        {
+          "feat_a": "LeftSensoryLevel_ord",
+          "feat_b": "PinPrickTotal",
+          "abs_mean_interaction": 0.003881721932887536
         }
       ],
       "n_features": 30,

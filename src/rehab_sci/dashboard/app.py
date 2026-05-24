@@ -972,11 +972,58 @@ def render_insights(lang: str) -> html.Div:
         ),
     )
 
+    interaction_card = chart_card(
+        t(SCHEMA, "insight_interaction_heading", lang),
+        html.Div(
+            [
+                dcc.Graph(id="ins-int-heatmap", config={"displayModeBar": False}),
+                html.Div(
+                    style={"display": "flex", "gap": "12px", "marginBottom": "8px",
+                           "marginTop": "16px"},
+                    children=[
+                        html.Div(
+                            style={"flex": "1"},
+                            children=[
+                                html.Label(
+                                    t(SCHEMA, "insight_int_feat_x", lang),
+                                    style={"fontSize": "12px", "color": INK["500"]},
+                                ),
+                                dcc.Dropdown(
+                                    id="ins-int-feat-x",
+                                    options=[],
+                                    value=None,
+                                    clearable=False,
+                                ),
+                            ],
+                        ),
+                        html.Div(
+                            style={"flex": "1"},
+                            children=[
+                                html.Label(
+                                    t(SCHEMA, "insight_int_feat_y", lang),
+                                    style={"fontSize": "12px", "color": INK["500"]},
+                                ),
+                                dcc.Dropdown(
+                                    id="ins-int-feat-y",
+                                    options=[],
+                                    value=None,
+                                    clearable=False,
+                                ),
+                            ],
+                        ),
+                    ],
+                ),
+                dcc.Graph(id="ins-int-dep-graph", config={"displayModeBar": False}),
+            ]
+        ),
+    )
+
     return html.Div(
         [
             outcome_selector,
             html.Div(className="chart-row", children=[importance_card, subgroup_card]),
             html.Div(className="chart-row", children=[dep_card]),
+            html.Div(className="chart-row", children=[interaction_card]),
         ]
     )
 
@@ -2176,6 +2223,67 @@ def update_dependence(feature, outcome_key, class_val, lang):  # noqa: ANN001
     else:
         class_idx = None
     return fg.fig_dependence(shap_pack, shap_pack["X_test"], feature, SCHEMA, lang, class_idx=class_idx), ""
+
+
+# ---------- INSIGHT: interaction heatmap ----------
+
+@callback(
+    Output("ins-int-heatmap", "figure"),
+    Input("ins-outcome", "value"),
+    Input("lang-store", "data"),
+)
+def update_interaction_heatmap(outcome_key, lang):  # noqa: ANN001
+    m = METRICS["outcomes"].get(outcome_key or DEFAULT_OUTCOME,
+                                METRICS["outcomes"][DEFAULT_OUTCOME])
+    return fg.fig_interaction_heatmap(m, SCHEMA, lang)
+
+
+@callback(
+    Output("ins-int-feat-x", "options"),
+    Output("ins-int-feat-x", "value"),
+    Output("ins-int-feat-y", "options"),
+    Output("ins-int-feat-y", "value"),
+    Input("ins-outcome", "value"),
+    Input("lang-store", "data"),
+)
+def update_int_feat_options(outcome_key, lang):  # noqa: ANN001
+    outcome_key = outcome_key or DEFAULT_OUTCOME
+    m = METRICS["outcomes"].get(outcome_key, METRICS["outcomes"][DEFAULT_OUTCOME])
+    items = m.get("global_interaction_top25", [])
+    # build feature options from all features that appear in any top pair
+    seen, opts = set(), []
+    for item in items:
+        for f in (item["feat_a"], item["feat_b"]):
+            if f not in seen:
+                seen.add(f)
+                opts.append({"label": col_label(SCHEMA, f, lang), "value": f})
+    # default to the top interaction pair
+    val_x = items[0]["feat_a"] if items else (opts[0]["value"] if opts else None)
+    val_y = items[0]["feat_b"] if items else (opts[1]["value"] if len(opts) > 1 else None)
+    return opts, val_x, opts, val_y
+
+
+@callback(
+    Output("ins-int-dep-graph", "figure"),
+    Input("ins-int-feat-x", "value"),
+    Input("ins-int-feat-y", "value"),
+    Input("ins-outcome", "value"),
+    Input("ins-dep-class", "value"),
+    Input("lang-store", "data"),
+)
+def update_interaction_dependence(feat_x, feat_y, outcome_key, class_val, lang):  # noqa: ANN001
+    outcome_key = outcome_key or DEFAULT_OUTCOME
+    bundle = OUTCOME_BUNDLES.get(outcome_key) or SCIM_TOTAL_BUNDLE
+    if feat_x is None or feat_y is None:
+        return go.Figure()
+    shap_pack = bundle["shap"]
+    if bundle["task"] == "multiclass":
+        class_idx = class_val if class_val is not None else 0
+    else:
+        class_idx = None
+    return fg.fig_interaction_dependence(
+        shap_pack, shap_pack["X_test"], feat_x, feat_y, SCHEMA, lang, class_idx=class_idx,
+    )
 
 
 if __name__ == "__main__":
