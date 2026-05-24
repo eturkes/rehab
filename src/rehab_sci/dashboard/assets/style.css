@@ -31,6 +31,19 @@
 
   --font-sans: "Inter", "Hiragino Sans", "Noto Sans JP", "Yu Gothic UI", system-ui, sans-serif;
   --font-mono: "JetBrains Mono", "SF Mono", "Hiragino Sans", "Noto Sans Mono CJK JP", monospace;
+
+  /* Dash 4 design tokens — map to our design system */
+  --Dash-Spacing: 4px;
+  --Dash-Fill-Inverse-Strong: var(--card);
+  --Dash-Fill-Disabled: var(--ink-100);
+  --Dash-Fill-Interactive-Strong: var(--accent);
+  --Dash-Fill-Interactive-Weak: var(--accent-soft);
+  --Dash-Stroke-Strong: var(--ink-200);
+  --Dash-Shading-Strong: rgba(14, 27, 42, 0.12);
+  --Dash-Shading-Weak: rgba(14, 27, 42, 0.06);
+  --Dash-Text-Strong: var(--ink-900);
+  --Dash-Text-Weak: var(--ink-500);
+  --Dash-Text-Disabled: var(--ink-300);
 }
 
 html, body {
@@ -371,13 +384,8 @@ html, body {
 /* Patient ID dropdown: 866 options, single-line each.  Forbid mid-character
    wraps and give every option a hairline separator + clean focus background
    so even a wrap is visually disambiguated. */
-.patient-picker-card .Select-menu-outer,
-.patient-picker-card .VirtualizedSelectOption {
-  z-index: 50;
-}
-.patient-picker-card .Select-menu-outer { font-size: 12.5px; }
-.patient-picker-card .VirtualizedSelectOption,
-.patient-picker-card .Select-option {
+.patient-picker-card .dash-dropdown-content { z-index: 50; font-size: 12.5px; }
+.patient-picker-card .dash-dropdown-option {
   white-space: nowrap !important;
   overflow: hidden !important;
   text-overflow: ellipsis !important;
@@ -385,15 +393,14 @@ html, body {
   padding: 8px 12px !important;
   border-bottom: 1px solid var(--ink-100);
 }
-.patient-picker-card .VirtualizedSelectOption:last-child,
-.patient-picker-card .Select-option:last-child { border-bottom: 0; }
-.patient-picker-card .VirtualizedSelectFocusedOption,
-.patient-picker-card .Select-option.is-focused {
+.patient-picker-card .dash-dropdown-option:last-child { border-bottom: 0; }
+.patient-picker-card .dash-dropdown-option:hover,
+.patient-picker-card .dash-dropdown-option:focus {
   background: var(--accent-soft) !important;
   color: var(--ink-900) !important;
 }
-.patient-picker-card .Select-control,
-.patient-picker-card .Select-value-label {
+.patient-picker-card .dash-dropdown,
+.patient-picker-card .dash-dropdown-value {
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -477,10 +484,14 @@ input[type="number"]:focus, input[type="text"]:focus, select:focus {
 }
 
 /* Dash dropdown overrides */
-.Select-control { border-radius: var(--radius) !important; border-color: var(--ink-200) !important; }
-.Select-menu-outer { border-radius: var(--radius) !important; }
-.is-focused:not(.is-open) > .Select-control {
+.dash-dropdown,
+.dash-dropdown-content {
+  border-radius: var(--radius) !important;
+  border-color: var(--ink-200) !important;
+}
+.dash-dropdown:focus {
   border-color: var(--accent) !important;
+  outline: 1px solid var(--accent) !important;
   box-shadow: 0 0 0 2px var(--accent-soft) !important;
 }
 
@@ -547,6 +558,6 @@ input[type="number"]:focus, input[type="text"]:focus, select:focus {
 .whatif-delta { color: var(--warm); font-weight: 600; }
 
 /* Dash slider overrides */
-.rc-slider-track { background: var(--accent) !important; }
-.rc-slider-handle { border-color: var(--accent) !important; }
-.rc-slider-dot-active { border-color: var(--accent) !important; }
+.dash-slider-range { background: var(--accent) !important; }
+.dash-slider-thumb { border-color: var(--accent) !important; }
+.dash-slider-dot { border-color: var(--accent) !important; }

@@ -51,6 +51,15 @@ bottom of each section as new lessons land; do **not** delete prior entries.
   The loader was correct but the anomaly was visible in session 1.
   *Takeaway:* when encountering unexpected NaN patterns or row counts,
   investigate immediately rather than deferring.
+* **Session 17: uv resolver picks minimum-compatible transitive deps**
+  — shap 0.51.0 declares `numba` (unconstrained) for non-macOS
+  platforms; `uv lock` (even with `--resolution highest`) resolved to
+  numba 0.53.1 / llvmlite 0.36.0 (2021-era, no Py3.13 support).
+  Fix: added explicit lower bounds `numba>=0.61` and `llvmlite>=0.44`
+  to `pyproject.toml`.  *Takeaway:* when upgrading packages with
+  unconstrained transitive deps, always verify the resolved versions
+  in `uv.lock` and add explicit lower bounds for any that resolve
+  below the Python-version-compatible threshold.
 
 ## 1. Data invariants (do not rediscover)
 
@@ -284,6 +293,46 @@ pkill -f 'rehab_sci.dashboard.app'               # stop stale dashboard
 ```
 
 ## 7. Session log (most recent first)
+
+### 2026-05-24 (session 17, dependency audit + update)
+
+* **F14 Dependency audit + security update** — full audit and upgrade of
+  all dependencies to latest versions within compatibility.
+* **Security fix:** pyarrow 21.0.0 → 24.0.0 (PYSEC-2026-113: use-after-free
+  in Arrow C++ IPC reader with pre-buffering; not exploitable via Python
+  bindings but cleared for audit hygiene).
+* **Major version upgrades (both verified with full pipeline re-run):**
+  - pandas 2.3.3 → 3.0.3 (CoW default, string dtype, groupby changes).
+    No code changes needed — our codebase already used correct patterns
+    (explicit `.copy()`, `observed=True` on groupby, `.iloc` for integer
+    indexing, no chained assignment).  All training metrics reproduced
+    identically.
+  - Dash 3.4.0 → 4.1.0 (DCC component DOM/CSS rebuilt from scratch).
+    CSS updated: `.Select-*` selectors → `.dash-dropdown-*`;
+    `.rc-slider-*` → `.dash-slider-*`.  Dash 4 design tokens
+    (`--Dash-Fill-*`, `--Dash-Stroke-*`, `--Dash-Text-*`) mapped to our
+    ink/accent/paper palette via `:root` overrides.  17 callbacks
+    unchanged.
+* **Minor/patch upgrades:** numpy 2.4.5→2.4.6, polars 1.40.1→1.41.0,
+  shap 0.49.1→0.51.0 (multi-output ndarray return; our code already
+  handled both formats), pingouin 0.5.5→0.6.1 (renamed
+  `pairwise_ttests`→`pairwise_tests`; we use scipy.stats directly),
+  rich 14.3.4→15.0.0, ruff 0.15.13→0.15.14.
+* **Transitive dep pins:** Added `numba>=0.61` and `llvmlite>=0.44` to
+  `pyproject.toml` to work around a uv resolver issue where shap 0.51's
+  unconstrained numba/llvmlite deps resolved to ancient pre-Py3.13
+  versions (numba 0.53.1 / llvmlite 0.36.0).
+* **Dev dep:** pip-audit added to dev dependency group for future audits.
+* **Verification (3 tiers):**
+  1. Tier 1+2 (safe patches): training pipeline identical metrics,
+     dashboard HTTP 200, subgroups reproduced.
+  2. pandas 3.0: training metrics identical, dashboard HTTP 200,
+     subgroups reproduced.
+  3. Dash 4.0: dashboard HTTP 200, 17 callbacks, CSS updated.
+* **Final state:** pip-audit clean (0 vulnerabilities).  All 22 direct
+  deps at latest version.  5 deps unchanged (already at latest:
+  scipy 1.17.1, statsmodels 0.14.6, scikit-learn 1.8.0, lightgbm 4.6.0,
+  plotly 6.7.0 + 5 others).
 
 ### 2026-05-24 (session 16, F10 PDF patient report shipped)
 
