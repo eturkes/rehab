@@ -302,8 +302,9 @@ def fig_recovery_curves(long_df: pd.DataFrame, schema: Schema, lang: str) -> go.
         height=380,
         yaxis_title=t(schema, "chart_discharge_scim", lang),
         xaxis_title=("評価時点" if lang == "ja" else "Timepoint"),
+        xaxis_tickangle=-45,
         legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1),
-        margin=dict(l=50, r=20, t=20, b=44),
+        margin=dict(l=50, r=20, t=20, b=80),
     )
     return fig
 
@@ -863,12 +864,13 @@ def fig_patient_scim_timeline(
     fig.update_layout(
         height=420,
         xaxis_title=("評価時点" if lang == "ja" else "Timepoint"),
+        xaxis_tickangle=-45,
         yaxis_title="SCIM-III (0–100)",
         yaxis=dict(range=[0, 102]),
         legend=dict(
             orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1, font=dict(size=11),
         ),
-        margin=dict(l=56, r=24, t=20, b=48),
+        margin=dict(l=56, r=24, t=20, b=80),
     )
     # Force x-axis to show every canonical timepoint, even those the patient lacks.
     fig.update_xaxes(categoryorder="array", categoryarray=x_labels)
@@ -969,13 +971,14 @@ def fig_sim_trajectory(
     fig.update_layout(
         height=340,
         xaxis_title=("評価時点" if lang == "ja" else "Timepoint"),
+        xaxis_tickangle=-45,
         yaxis_title="SCIM-III (0–100)",
         yaxis=dict(range=[0, 102]),
         legend=dict(
             orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1,
             font=dict(size=11),
         ),
-        margin=dict(l=56, r=24, t=20, b=48),
+        margin=dict(l=56, r=24, t=20, b=80),
     )
     # Merge timepoints from both trajectories for x-axis ordering.
     all_x = list(x_labels)
@@ -1524,8 +1527,9 @@ def fig_archetype_curves(
         yaxis_title="SCIM-III" + (" (予測)" if lang == "ja" else " (predicted)"),
         yaxis_range=[0, 105],
         xaxis_title=("評価時点" if lang == "ja" else "Timepoint"),
+        xaxis_tickangle=-45,
         legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1),
-        margin=dict(l=50, r=20, t=20, b=44),
+        margin=dict(l=50, r=20, t=20, b=80),
     )
     return fig
 

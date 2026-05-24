@@ -161,7 +161,7 @@ nonkey_muscle:
 
 # Time-name labels for the dashboard.
 time_name:
-  - { display: "0day",      ja: "入院時 (0 日)",     en: "Admission (day 0)",       raw_aliases: ["0day"] }
+  - { display: "0day",      ja: "入院時",            en: "Admission",               raw_aliases: ["0day"] }
   - { display: "72h",       ja: "72 時間",            en: "72 hours",                raw_aliases: ["72h"] }
   - { display: "2w",        ja: "2 週",               en: "2 weeks",                 raw_aliases: ["2w"] }
   - { display: "4w",        ja: "4 週",               en: "4 weeks",                 raw_aliases: ["4w"] }
