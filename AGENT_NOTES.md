@@ -18,7 +18,7 @@ bottom of each section as new lessons land; do **not** delete prior entries.
 * **Default-work pool for fresh sessions: §8 Feature backlog.**
   F1–F10 shipped as of session 16; F13 shipped session 18; F16 shipped
   session 19; F18 shipped session 20; F20 (proactive refactor) shipped
-  session 21.  All backlog items are shipped — propose new feature
+  session 21; F22 shipped session 22.  Next: propose new feature
   candidates or maintenance work unless the user redirects.  Historical
   "Open items rolled forward" lists inside prior §7 session entries are
   **superseded** by user decision in session 4 — treat them as history.
@@ -259,7 +259,9 @@ bottom of each section as new lessons land; do **not** delete prior entries.
   - `dashboard/layout.py` — shared UI components: topbar, kpi_card,
     chart_card, slider_for, dropdown_for, fig_shap_local,
     fig_prediction_interval, fig_class_probabilities.
-  - `dashboard/tabs/overview.py` — overview tab layout (no callbacks).
+  - `dashboard/tabs/overview.py` — overview tab layout + 1 filter
+    callback (`update_overview_content`).  Filter bar (AIS, paralysis,
+    age range, archetype) drives all KPI + chart rendering.
   - `dashboard/tabs/simulator.py` — simulator layout + simulate
     callback + 3 what-if callbacks.
   - `dashboard/tabs/patient.py` — patient explorer layout + 3 patient
@@ -274,8 +276,12 @@ bottom of each section as new lessons land; do **not** delete prior entries.
   `compute` → `state`; `layout` → `state`, `compute`;
   `tabs/*` → `state`, `compute`, `layout`, `figures`;
   `app` → `tabs/*` (imports trigger `@callback` registration).
-* `dcc.Store("lang-store")` holds `"ja"` / `"en"`.  Every callback that
-  renders text takes it as `Input` so swaps are instant.
+* `dcc.Store("lang-store")` holds `"ja"` / `"en"`.  Most callbacks that
+  render text take it as `Input` so swaps are instant.  Exception:
+  `update_overview_content` takes it as `State` to avoid a race
+  condition with `update_tab` (both respond to lang changes; using
+  `State` ensures the overview callback fires *after* `update_tab`
+  recreates the filter components with new lang labels).
 * Pattern-matched simulator inputs use IDs `{"type": "num"/"cat", "col": <raw>}`
   with `dash.ALL` in the consumer.  Order of the input list is fixed by
   `feature_spec.joblib['feature_cols']`.
@@ -342,6 +348,59 @@ pkill -f 'rehab_sci.dashboard.app'               # stop stale dashboard
 ```
 
 ## 7. Session log (most recent first)
+
+### 2026-05-24 (session 22, F22 overview cohort filtering shipped)
+
+* Shipped **F22 Overview cohort filtering**.
+* **Problem:** The overview tab showed fixed cohort-wide KPIs and charts
+  for all 899 episodes.  Clinicians had no way to answer subpopulation
+  questions like "how do AIS-D tetraplegics over 60 compare to the full
+  cohort?" without switching to the insight engine.
+* **Design:** A filter bar at the top of the overview tab with 4 controls:
+  - AIS grade (multi-select dropdown: A/B/C/D/E)
+  - Paralysis type (multi-select dropdown: TETRA/PARA/NONE)
+  - Age range (range slider: 10–95, step 5)
+  - Recovery archetype (multi-select dropdown: Limited/Gradual/Rapid,
+    hidden if no archetype data)
+* **Filter semantics:** Empty selection = no filter (show all).
+  All active filters are AND-combined.  Episodes with NaN in a filtered
+  column are excluded when that filter is active.
+* **Architecture change:** `render_overview(lang)` now returns a layout
+  shell (filter bar + empty content div).  A new callback
+  `update_overview_content` fires on filter changes and populates the
+  content.  Uses `State("lang-store", "data")` instead of `Input` to
+  avoid a race condition with `update_tab` on lang changes.
+* **Archetype handling under filtering:** Centroid curves stay fixed
+  (they are model properties), but per-archetype n counts and AIS
+  demographics are recomputed from the filtered episode subset via
+  `_filtered_archetype_summaries()`.  Unfiltered view uses the
+  precomputed summaries from `archetypes.joblib`.
+* **"Showing X of Y" indicator:** When any filter is active, a teal
+  left-bordered annotation strip appears above KPIs showing the
+  filtered vs total episode count (bilingual).
+* **Empty result handling:** If filters produce zero matching episodes,
+  shows a "no data" message instead of attempting chart rendering.
+* **Defensive fix:** `fig_discharge_scim` gained a `len(s) > 0` guard
+  around the median vline to prevent NaN x-coordinate when the filtered
+  subset has no discharge SCIM values.
+* **Files changed:**
+  - `dashboard/tabs/overview.py` — rewritten: filter bar layout +
+    `_apply_filters()` + `_filtered_archetype_summaries()` +
+    `update_overview_content` callback.
+  - `dashboard/figures.py` — 1-line guard in `fig_discharge_scim`.
+  - `schema/ui_strings.yaml` — 4 new keys (overview_filter_ais,
+    overview_filter_paralysis, overview_filter_age,
+    overview_filter_archetype).
+  - `dashboard/assets/style.css` — 6 new style blocks
+    (ov-filter-bar, ov-filter-field, ov-filter-field--slider,
+    ov-filter-note, overview-empty).
+* **Verification:** Flask test client HTTP 200 on `/`, `/_dash-layout`,
+  `/_dash-dependencies`.  21 callbacks registered (1 new).  Filter logic
+  tested for 7 cases: no filters (899 ep), AIS D (331), TETRA (699),
+  age 60–80 (488), archetype 0 (334), combined (93), empty (0).
+  Callback rendering tested for all 7 × 2 languages = 14 scenarios:
+  9 graphs for populated filters, 0 for empty.  Filtered archetype
+  summaries verified for AIS D: arch 0 n=9, arch 1 n=124, arch 2 n=193.
 
 ### 2026-05-24 (session 21, F20 proactive refactor of app.py)
 
@@ -1770,3 +1829,21 @@ dependency**.  Ordered by recommended start order (F1 first).
   (`state.py`, `compute.py`, `layout.py`, `tabs/__init__.py`,
   `tabs/overview.py`, `tabs/simulator.py`, `tabs/patient.py`,
   `tabs/insights.py`, `tabs/methods.py`).
+
+### F22. Overview cohort filtering — **STATUS: shipped (session 22, 2026-05-24)**
+
+* **What was built:** Interactive filter bar on the overview tab with
+  4 controls (AIS grade, paralysis type, age range, recovery archetype).
+  All 9 charts and 4 KPIs dynamically re-render on the filtered episode
+  subset.  AND logic across filters.  Empty multi-select = no filter.
+  Filtered archetype summaries recomputed from the subset; centroid
+  curves stay fixed.  "Showing X of Y" annotation when filtered.
+* **Why:** The overview showed the full 899-episode cohort with no way
+  to slice by subpopulation.  Clinicians need to compare e.g. "AIS-D
+  tetraplegics over 60" to the overall cohort for treatment planning.
+* **Architecture:** `render_overview` returns a layout shell (filter bar
+  + empty div).  `update_overview_content` callback responds to filter
+  inputs with `State(lang-store)` to avoid a race with `update_tab`.
+* **Files changed:** `dashboard/tabs/overview.py` (rewritten),
+  `dashboard/figures.py` (1-line guard), `schema/ui_strings.yaml`
+  (4 new keys), `dashboard/assets/style.css` (6 new style blocks).

@@ -592,6 +592,46 @@ input[type="number"]:focus, input[type="text"]:focus, select:focus {
   font-weight: 600;
 }
 
+/* Overview filter bar (F22) */
+.ov-filter-bar {
+  display: flex;
+  gap: 1rem;
+  flex-wrap: wrap;
+  padding: 0.75rem 1rem;
+  margin-bottom: 1rem;
+  background: var(--paper);
+  border-radius: 8px;
+  border: 1px solid var(--ink-100);
+}
+.ov-filter-field {
+  flex: 1;
+  min-width: 170px;
+}
+.ov-filter-field--slider { min-width: 240px; }
+.ov-filter-field > label {
+  display: block;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--ink-500);
+  margin-bottom: 0.25rem;
+}
+.ov-filter-note {
+  padding: 0.5rem 1rem;
+  margin-bottom: 0.75rem;
+  background: rgba(17, 122, 139, 0.08);
+  border-left: 3px solid var(--accent);
+  border-radius: 4px;
+  font-size: 0.85rem;
+  color: var(--accent-dark, #0c5a66);
+  font-weight: 500;
+}
+.overview-empty {
+  padding: 3rem;
+  text-align: center;
+  color: var(--ink-300);
+  font-size: 1.1rem;
+}
+
 /* Dash slider overrides */
 .dash-slider-range { background: var(--accent) !important; }
 .dash-slider-thumb { border-color: var(--accent) !important; }

@@ -98,13 +98,14 @@ def fig_discharge_scim(ep: pd.DataFrame, schema: Schema, lang: str) -> go.Figure
             hovertemplate=("%{y} " + ("名" if lang == "ja" else "patients") + "<extra></extra>"),
         )
     )
-    fig.add_vline(
-        x=float(s.median()),
-        line=dict(color=INK["700"], width=2, dash="dot"),
-        annotation_text=("中央値 " if lang == "ja" else "Median ") + f"{s.median():.0f}",
-        annotation_position="top right",
-        annotation_font_color=INK["700"],
-    )
+    if len(s) > 0:
+        fig.add_vline(
+            x=float(s.median()),
+            line=dict(color=INK["700"], width=2, dash="dot"),
+            annotation_text=("中央値 " if lang == "ja" else "Median ") + f"{s.median():.0f}",
+            annotation_position="top right",
+            annotation_font_color=INK["700"],
+        )
     fig.update_layout(
         xaxis_title=t(schema, "chart_discharge_scim", lang) + " (0–100)",
         yaxis_title=("患者数" if lang == "ja" else "Patients"),

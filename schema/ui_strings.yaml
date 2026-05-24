@@ -379,3 +379,17 @@ chart_archetype_demographics:
 patient_archetype_label:
   ja: "回復タイプ"
   en: "Recovery type"
+
+# --- overview filters (F22) ---
+overview_filter_ais:
+  ja: "AIS (入院時)"
+  en: "AIS (admission)"
+overview_filter_paralysis:
+  ja: "麻痺タイプ"
+  en: "Paralysis type"
+overview_filter_age:
+  ja: "年齢範囲"
+  en: "Age range"
+overview_filter_archetype:
+  ja: "回復アーキタイプ"
+  en: "Recovery archetype"
