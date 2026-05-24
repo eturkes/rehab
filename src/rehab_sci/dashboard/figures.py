@@ -380,12 +380,26 @@ def fig_subgroup_box(
 
 
 def fig_dependence(
-    shap_pack: dict, X_test: pd.DataFrame, feature: str, schema: Schema, lang: str
+    shap_pack: dict,
+    X_test: pd.DataFrame,
+    feature: str,
+    schema: Schema,
+    lang: str,
+    *,
+    class_idx: int | None = None,
 ) -> go.Figure:
     if feature not in X_test.columns:
         return go.Figure()
     idx = X_test.columns.get_loc(feature)
-    shap_vals = shap_pack["shap_values"][:, idx]
+    sv = shap_pack["shap_values"]
+    if class_idx is not None and sv.ndim == 3:
+        shap_vals = sv[:, idx, class_idx]
+        labels = shap_pack.get("class_labels", [])
+        cls_lbl = labels[class_idx] if class_idx < len(labels) else str(class_idx)
+        y_label = f"SHAP (AIS {cls_lbl})"
+    else:
+        shap_vals = sv[:, idx]
+        y_label = "SHAP"
     spec = schema.by_raw(feature)
 
     if spec and spec.dtype == "categorical":
@@ -402,7 +416,7 @@ def fig_dependence(
                 fillcolor="rgba(212,119,60,0.15)",
             )
         )
-        fig.update_layout(xaxis_title=col_label(schema, feature, lang), yaxis_title="SHAP")
+        fig.update_layout(xaxis_title=col_label(schema, feature, lang), yaxis_title=y_label)
     else:
         x = pd.to_numeric(X_test[feature], errors="coerce")
         fig = go.Figure(
@@ -421,13 +435,13 @@ def fig_dependence(
                 ),
                 hovertemplate=(
                     col_label(schema, feature, lang)
-                    + ": %{x}<br>SHAP: %{y:.2f}<extra></extra>"
+                    + ": %{x}<br>" + y_label + ": %{y:.2f}<extra></extra>"
                 ),
             )
         )
         fig.update_layout(
             xaxis_title=col_label(schema, feature, lang),
-            yaxis_title="SHAP",
+            yaxis_title=y_label,
         )
     fig.add_hline(y=0, line=dict(color=INK["300"], dash="dash", width=1))
     fig.update_layout(height=360, margin=dict(l=60, r=20, t=10, b=44))

@@ -816,17 +816,38 @@ def render_insights(lang: str) -> html.Div:
         html.Div(
             [
                 html.Div(
-                    style={"marginBottom": "8px"},
+                    style={"display": "flex", "gap": "12px", "marginBottom": "8px"},
                     children=[
-                        html.Label(
-                            t(SCHEMA, "insight_choose_feature", lang),
-                            style={"fontSize": "12px", "color": INK["500"]},
+                        html.Div(
+                            style={"flex": "1"},
+                            children=[
+                                html.Label(
+                                    t(SCHEMA, "insight_choose_feature", lang),
+                                    style={"fontSize": "12px", "color": INK["500"]},
+                                ),
+                                dcc.Dropdown(
+                                    id="ins-dep-feature",
+                                    options=[],
+                                    value=None,
+                                    clearable=False,
+                                ),
+                            ],
                         ),
-                        dcc.Dropdown(
-                            id="ins-dep-feature",
-                            options=[],
-                            value=None,
-                            clearable=False,
+                        html.Div(
+                            id="ins-dep-class-wrap",
+                            style={"flex": "1", "display": "none"},
+                            children=[
+                                html.Label(
+                                    t(SCHEMA, "insight_dep_class_label", lang),
+                                    style={"fontSize": "12px", "color": INK["500"]},
+                                ),
+                                dcc.Dropdown(
+                                    id="ins-dep-class",
+                                    options=[],
+                                    value=None,
+                                    clearable=False,
+                                ),
+                            ],
                         ),
                     ],
                 ),
@@ -1643,24 +1664,40 @@ def update_dep_feature_options(outcome_key, lang):  # noqa: ANN001
 
 
 @callback(
+    Output("ins-dep-class-wrap", "style"),
+    Output("ins-dep-class", "options"),
+    Output("ins-dep-class", "value"),
+    Input("ins-outcome", "value"),
+)
+def update_dep_class_options(outcome_key):  # noqa: ANN001
+    outcome_key = outcome_key or DEFAULT_OUTCOME
+    bundle = OUTCOME_BUNDLES.get(outcome_key) or SCIM_TOTAL_BUNDLE
+    if bundle["task"] == "multiclass":
+        spec = bundle["spec"]
+        opts = [{"label": lbl, "value": i} for i, lbl in enumerate(spec.class_labels)]
+        return {"flex": "1"}, opts, 0
+    return {"flex": "1", "display": "none"}, [], None
+
+
+@callback(
     Output("ins-dep-graph", "figure"),
     Output("ins-dep-note", "children"),
     Input("ins-dep-feature", "value"),
     Input("ins-outcome", "value"),
+    Input("ins-dep-class", "value"),
     Input("lang-store", "data"),
 )
-def update_dependence(feature, outcome_key, lang):  # noqa: ANN001
+def update_dependence(feature, outcome_key, class_val, lang):  # noqa: ANN001
     outcome_key = outcome_key or DEFAULT_OUTCOME
     bundle = OUTCOME_BUNDLES.get(outcome_key) or SCIM_TOTAL_BUNDLE
-    if bundle["task"] != "regression":
-        return go.Figure(), html.Div(
-            t(SCHEMA, "insight_dependence_regression_only", lang),
-            style={"fontSize": "13px", "color": INK["500"], "marginTop": "8px"},
-        )
     if feature is None:
         return go.Figure(), ""
     shap_pack = bundle["shap"]
-    return fg.fig_dependence(shap_pack, shap_pack["X_test"], feature, SCHEMA, lang), ""
+    if bundle["task"] == "multiclass":
+        class_idx = class_val if class_val is not None else 0
+    else:
+        class_idx = None
+    return fg.fig_dependence(shap_pack, shap_pack["X_test"], feature, SCHEMA, lang, class_idx=class_idx), ""
 
 
 if __name__ == "__main__":

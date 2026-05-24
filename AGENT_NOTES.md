@@ -16,7 +16,7 @@ bottom of each section as new lessons land; do **not** delete prior entries.
   Keep it accurate: update sections after every session; prune obsolete
   entries when they conflict with current state.
 * **Default-work pool for fresh sessions: §8 Feature backlog.**
-  All features F1–F5 are shipped as of session 11.  Propose new feature
+  All features F1–F6 are shipped as of session 12.  Propose new feature
   candidates or maintenance work unless the user redirects.  Historical
   "Open items rolled forward" lists inside prior §7 session entries are
   **superseded** by user decision in session 4 — treat them as history.
@@ -191,7 +191,9 @@ bottom of each section as new lessons land; do **not** delete prior entries.
   set (would be optimistic).  Cached in `shap_test.joblib`.  For
   multiclass AIS the SHAP cache is a 3-D `(n, p, K=5)` tensor with the
   AIS axis last; at inference the simulator shows SHAP for the
-  predicted class.
+  predicted class.  The insight engine's SHAP dependence panel (F6)
+  slices this tensor by a user-selected class via `class_idx` kwarg to
+  `fig_dependence`.
 * **Holm correction**: running **max** over sorted p × (n−k+1), not
   running min.  (Fixed 2026-05-18; previous values were ~10⁻⁵⁵ for every
   test.)
@@ -260,6 +262,44 @@ pkill -f 'rehab_sci.dashboard.app'               # stop stale dashboard
 ```
 
 ## 7. Session log (most recent first)
+
+### 2026-05-24 (session 12, F6 SHAP class selector for AIS shipped)
+
+* Shipped **F6 SHAP class selector for AIS multiclass dependence**.
+* **Problem:** The insight engine's SHAP dependence panel showed a
+  "regression only" note for the AIS discharge outcome because the
+  multiclass SHAP tensor is 3-D `(n_samples=126, n_features=30,
+  n_classes=5)` and `fig_dependence` assumed a 2-D array.
+* **`dashboard/figures.py`** — `fig_dependence()` gains optional
+  keyword `class_idx: int | None`.  When provided and `shap_values` is
+  3-D, slices `sv[:, feature_idx, class_idx]` to produce a 1-D SHAP
+  vector.  Y-axis label becomes `"SHAP (AIS {letter})"`.  Hovertemplate
+  also updated.  Backward-compatible: regression callers pass no
+  `class_idx`.
+* **`dashboard/app.py`** layout — `render_insights()` adds a class
+  selector dropdown (`ins-dep-class`) alongside the existing feature
+  dropdown in a flex row.  Wrapped in `ins-dep-class-wrap` div whose
+  `display` is toggled by a new callback.
+* **`dashboard/app.py`** callbacks:
+  - New `update_dep_class_options`: `ins-outcome` → sets class dropdown
+    visibility (`display:none` for regression, `flex:1` for multiclass),
+    options (A/B/C/D/E), and default value (0=A).
+  - Modified `update_dependence`: now takes `ins-dep-class` as an Input.
+    Removed the `bundle["task"] != "regression"` short-circuit.  Passes
+    `class_idx` to `fig_dependence` for multiclass; `None` for
+    regression.  Defaults `class_idx=0` if the class dropdown hasn't
+    fired yet (guard against init timing).
+* New UI string: `insight_dep_class_label` (ja: "対象クラス",
+  en: "Target class").
+* **Per-class SHAP observations (test set, AIS, feature=年齢/age):**
+  mean |SHAP| varies meaningfully: C=0.154, D=0.107, B=0.064, E=0.062,
+  A=0.041.  Each class shows genuinely different dependence patterns —
+  the class selector is informative, not just cosmetic.
+* Verification: dashboard HTTP 200 on `/`, `/_dash-layout`,
+  `/_dash-dependencies`.  Callback graph verified: 3 insight-dep
+  callbacks with correct dependency ordering (outcome → class/feature
+  options → figure).  `fig_dependence` tested for all 5 class indices
+  on both numeric and categorical features.
 
 ### 2026-05-24 (session 11, F5 APS conformal classification sets shipped)
 
@@ -833,3 +873,20 @@ dependency**.  Ordered by recommended start order (F1 first).
 * **Files changed:** `models/train.py` (APS helpers + calibration
   fold), `dashboard/app.py` (q resolution refactor + set rendering),
   `schema/ui_strings.yaml` (1 new key).
+
+### F6. SHAP class selector for AIS multiclass dependence — **STATUS: shipped (session 12, 2026-05-24)**
+
+* **What was built:** A class selector dropdown (A/B/C/D/E) added to
+  the insight engine's SHAP dependence panel.  When the user selects
+  the AIS discharge outcome, the class dropdown appears alongside the
+  feature dropdown; selecting a class slices the 3-D SHAP tensor
+  `(n, p, K=5)` at the chosen class axis and renders the standard
+  dependence scatter/box plot.  For regression outcomes the class
+  dropdown is hidden.  `fig_dependence` now supports an optional
+  `class_idx` keyword parameter.
+* **Key finding:** Per-class SHAP dependence patterns differ
+  meaningfully — e.g., age has 3.7× higher mean |SHAP| for AIS-C vs
+  AIS-A.  The selector is informative, not cosmetic.
+* **Files changed:** `dashboard/figures.py` (`fig_dependence`
+  signature), `dashboard/app.py` (layout + 1 new callback + 1 modified
+  callback), `schema/ui_strings.yaml` (1 new key).

@@ -317,6 +317,9 @@ insight_outcome_label:
 insight_dependence_regression_only:
   ja: "SHAP依存プロットは回帰アウトカムのみ利用可能です。"
   en: "SHAP dependence plots are available for regression outcomes only."
+insight_dep_class_label:
+  ja: "対象クラス"
+  en: "Target class"
 patient_outcome_label:
   ja: "予測対象"
   en: "Predicted outcome"
