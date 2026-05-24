@@ -924,8 +924,11 @@ def _perf_block_regression(spec: OutcomeSpec, info: dict, lang: str) -> html.Div
     cv = info["cv"]
     te = info["test"]
     units = (" " + t(SCHEMA, spec.unit_key, lang)) if spec.unit_key else ""
+    bundle = OUTCOME_BUNDLES.get(spec.key, {})
+    shap_pack = bundle.get("shap", {})
+    axis_label = t(SCHEMA, spec.display_key, lang)
     children = [
-        html.H4(t(SCHEMA, spec.display_key, lang)),
+        html.H4(axis_label),
         html.P(
             f"CV  R²={cv['r2_mean']:.3f} ± {cv['r2_std']:.3f}   "
             f"RMSE={cv['rmse_mean']:.2f}{units}   "
@@ -963,12 +966,29 @@ def _perf_block_regression(spec: OutcomeSpec, info: dict, lang: str) -> html.Div
                     style={"fontSize": "12px", "color": INK["500"]},
                 )
             )
+    fig_pvo = fg.fig_pred_vs_observed(
+        shap_pack, SCHEMA, lang,
+        clip_min=spec.clip_min, clip_max=spec.clip_max, axis_label=axis_label,
+    )
+    fig_rh = fg.fig_residual_hist(shap_pack, SCHEMA, lang, axis_label=axis_label)
+    if fig_pvo is not None and fig_rh is not None:
+        children.append(html.Div(
+            style={"display": "flex", "gap": "12px", "marginTop": "8px"},
+            children=[
+                dcc.Graph(figure=fig_pvo, config={"displayModeBar": False},
+                          style={"flex": "1", "minWidth": "0"}),
+                dcc.Graph(figure=fig_rh, config={"displayModeBar": False},
+                          style={"flex": "1", "minWidth": "0"}),
+            ],
+        ))
     return html.Div(className="methods-perf-card", children=children)
 
 
 def _perf_block_multiclass(spec: OutcomeSpec, info: dict, lang: str) -> html.Div:
     cv = info["cv"]
     te = info["test"]
+    bundle = OUTCOME_BUNDLES.get(spec.key, {})
+    shap_pack = bundle.get("shap", {})
     ord_lbl = "順序MAE" if lang == "ja" else "ordinal MAE"
     children = [
         html.H4(t(SCHEMA, spec.display_key, lang)),
@@ -1022,6 +1042,18 @@ def _perf_block_multiclass(spec: OutcomeSpec, info: dict, lang: str) -> html.Div
                     style={"fontSize": "12px", "color": INK["500"]},
                 )
             )
+    fig_cm = fg.fig_confusion_matrix(shap_pack, SCHEMA, lang)
+    fig_cal = fg.fig_calibration_curve(shap_pack, SCHEMA, lang)
+    if fig_cm is not None and fig_cal is not None:
+        children.append(html.Div(
+            style={"display": "flex", "gap": "12px", "marginTop": "8px"},
+            children=[
+                dcc.Graph(figure=fig_cm, config={"displayModeBar": False},
+                          style={"flex": "1", "minWidth": "0"}),
+                dcc.Graph(figure=fig_cal, config={"displayModeBar": False},
+                          style={"flex": "1", "minWidth": "0"}),
+            ],
+        ))
     return html.Div(className="methods-perf-card", children=children)
 
 

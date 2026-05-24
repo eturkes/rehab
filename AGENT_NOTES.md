@@ -16,7 +16,7 @@ bottom of each section as new lessons land; do **not** delete prior entries.
   Keep it accurate: update sections after every session; prune obsolete
   entries when they conflict with current state.
 * **Default-work pool for fresh sessions: §8 Feature backlog.**
-  All features F1–F7 are shipped as of session 13.  Propose new feature
+  All features F1–F8 are shipped as of session 14.  Propose new feature
   candidates or maintenance work unless the user redirects.  Historical
   "Open items rolled forward" lists inside prior §7 session entries are
   **superseded** by user decision in session 4 — treat them as history.
@@ -194,6 +194,12 @@ bottom of each section as new lessons land; do **not** delete prior entries.
   predicted class.  The insight engine's SHAP dependence panel (F6)
   slices this tensor by a user-selected class via `class_idx` kwarg to
   `fig_dependence`.
+* **Test-set predictions (F8, session 14)** — `shap_test.joblib` now
+  also persists `y_test` (actual values) and `y_pred` (point
+  predictions) for all outcomes.  Multiclass additionally stores
+  `y_pred_proba` (n_test × K probability matrix).  These are used by
+  the Methods tab's calibration visualizations (pred-vs-observed,
+  residual histogram, confusion matrix, calibration reliability curve).
 * **Holm correction**: running **max** over sorted p × (n−k+1), not
   running min.  (Fixed 2026-05-18; previous values were ~10⁻⁵⁵ for every
   test.)
@@ -273,6 +279,65 @@ pkill -f 'rehab_sci.dashboard.app'               # stop stale dashboard
 ```
 
 ## 7. Session log (most recent first)
+
+### 2026-05-24 (session 14, F8 Calibration & performance visualizations shipped)
+
+* Shipped **F8 Predicted-vs-observed calibration & performance
+  visualizations**.
+* **Problem:** The Methods tab reported summary metrics (R², RMSE,
+  coverage %) as text but did not *show* model performance visually.
+  Clinicians reviewing the tool could not see patterns like systematic
+  under-prediction for high-SCIM patients or class-specific
+  miscalibration.
+* **Training side** (`models/train.py`):
+  - `_train_regression()` now persists `y_test` (actual values, raw
+    scale) and `y_pred` (predicted values, raw scale) in
+    `shap_test.joblib`.
+  - `_train_multiclass()` now persists `y_test` (actual class indices),
+    `y_pred` (predicted class indices), and `y_pred_proba` (n×K
+    probability matrix) in `shap_test.joblib`.
+  - All metrics reproduced identically after retrain (deterministic
+    pipeline, random state 20260518).
+* **Dashboard figures** (`dashboard/figures.py`), 4 new functions:
+  - `fig_pred_vs_observed(shap_pack, schema, lang, *, clip_min,
+    clip_max, axis_label)` — scatter of predicted vs observed with
+    identity line, points colored by residual magnitude (diverging
+    teal→red colorscale with `cmid=0`), R² + n annotation.  Aspect
+    ratio locked (`scaleanchor="x"`).  Handles `clip_max=None` (LOS).
+  - `fig_residual_hist(shap_pack, schema, lang, *, axis_label)` —
+    histogram of (predicted − observed) residuals, vertical line at 0,
+    μ and σ annotation.
+  - `fig_confusion_matrix(shap_pack, schema, lang)` — row-normalized
+    heatmap (count + %) with reversed y-axis (A at top).  Colorscale
+    paper→teal.
+  - `fig_calibration_curve(shap_pack, schema, lang, *, n_bins=5)` —
+    per-class reliability diagram with 5 bins, diagonal reference line,
+    AIS color palette.  Bins with < 2 samples suppressed; classes with
+    < 2 valid bins suppressed.
+* **Dashboard app** (`dashboard/app.py`):
+  - `_perf_block_regression()` extended: accesses `OUTCOME_BUNDLES`
+    shap pack, renders a flex row with pred-vs-observed + residual
+    histogram below the text metrics.  Guard: renders text-only if
+    `y_test`/`y_pred` absent (backward compat).
+  - `_perf_block_multiclass()` extended: same pattern with confusion
+    matrix + calibration curve.
+  - No new callbacks — charts are rendered statically at tab-switch
+    time, consistent with the existing Methods tab pattern.
+  - Total: 12 new `dcc.Graph` components (5 regression × 2 + 1
+    multiclass × 2).
+* All inline bilingual labels (実測値/Observed, 予測値/Predicted,
+  残差/Residual, 頻度/Frequency, 実際/Actual, 予測/Predicted,
+  予測確率/Predicted probability, 実測頻度/Observed frequency,
+  誤差/Error).
+* Verification: full pipeline `uv run python -m rehab_sci.models.train`
+  reproduces all metrics; dashboard HTTP 200 on `/`, `/_dash-layout`,
+  `/_dash-dependencies`.  Programmatic test confirms: (1) 12 graphs
+  in Methods tab for both EN and JA, (2) pred-vs-observed shows R²
+  annotation, (3) confusion matrix renders row-normalized percentages,
+  (4) calibration curve shows all 5 AIS classes with valid bins,
+  (5) LOS edge case (clip_max=None) correctly auto-ranges,
+  (6) bilingual labels verified (JA: 実測値, 実際; EN: Observed,
+  Actual).
 
 ### 2026-05-24 (session 13, F7 Recovery trajectory forecasting shipped)
 
@@ -1009,3 +1074,34 @@ dependency**.  Ordered by recommended start order (F1 first).
   `dashboard/app.py` (TRAJECTORY_BUNDLE load + `_predict_trajectory()` +
   simulator 4th output + `_perf_block_trajectory()` + layout),
   `schema/ui_strings.yaml` (2 new keys).
+
+### F8. Calibration & performance visualizations — **STATUS: shipped (session 14, 2026-05-24)**
+
+* **What was built:** Four visualization functions for the Methods tab's
+  per-outcome performance blocks.  Regression outcomes (5) get a
+  predicted-vs-observed scatter and a residual histogram.  The
+  multiclass outcome (AIS) gets a row-normalized confusion matrix
+  heatmap and a per-class calibration reliability diagram.  The
+  training pipeline now persists test-set `y_test`, `y_pred` (and
+  `y_pred_proba` for multiclass) in `shap_test.joblib`.  12 new
+  `dcc.Graph` components rendered statically at tab-switch time.
+* **Why:** Summary metrics (R², accuracy) are opaque.  Clinicians
+  reviewing the tool need to see *how* the model fails — systematic
+  bias at the extremes, class-specific miscalibration, residual
+  asymmetry.  Visual calibration is the foundation for clinical
+  credibility.
+* **Key observations (test set):**
+  - SCIM-total residuals: μ≈0, σ≈19; no systematic bias.
+  - AIS confusion: D→D dominates (59% of test); most errors are
+    ±1 grade (C↔D, D↔E).  A and B rarely confused with each other.
+  - AIS calibration: 5-bin reliability curves track the diagonal
+    reasonably for D (majority class); smaller classes show more
+    binning noise due to n.
+  - LOS pred-vs-observed: wider scatter (R²=0.215) with no clear
+    systematic bias; the conformal PI is the operational deliverable.
+* **Files changed:** `models/train.py` (2 edits: persist y_test/y_pred
+  in both `_train_regression` and `_train_multiclass`),
+  `dashboard/figures.py` (4 new functions: `fig_pred_vs_observed`,
+  `fig_residual_hist`, `fig_confusion_matrix`, `fig_calibration_curve`),
+  `dashboard/app.py` (2 modified functions: `_perf_block_regression`,
+  `_perf_block_multiclass`).

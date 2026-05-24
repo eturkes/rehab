@@ -595,6 +595,8 @@ def _train_regression(
             "shap_values": shap_values,
             "X_test": X_te,
             "base_value": base_value,
+            "y_test": y_te_raw,
+            "y_pred": pred,
         },
         od / "shap_test.joblib",
     )
@@ -761,6 +763,9 @@ def _train_multiclass(
             "base_value": base_value,
             "class_codes": [int(c) for c in class_codes],
             "class_labels": list(spec.class_labels),
+            "y_test": y_te,
+            "y_pred": pred_idx,
+            "y_pred_proba": proba_te,
         },
         od / "shap_test.joblib",
     )
