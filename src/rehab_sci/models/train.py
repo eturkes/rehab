@@ -29,7 +29,8 @@ Design choices (see also AGENT_NOTES §3)
   encoded by severity (A=0 … E=4) so ``predict_proba`` columns and the
   cached SHAP last axis are both ordinally sorted.  Ordinal-aware
   metrics (quadratic-weighted κ, MAE-on-ordinal-code) are reported
-  alongside accuracy.  No conformal sets this session (revisit with F3).
+  alongside accuracy.  APS conformal classification sets provide 80 %
+  coverage guarantee with Mondrian per-group calibration.
 * **TreeSHAP** is cached on the held-out test set only.  Regression
   outcomes store a 2D ``(n, p)`` matrix; multiclass stores a 3D
   ``(n, p, K)`` tensor with K=5 (the AIS axis).
@@ -369,6 +370,89 @@ def _mondrian_test_coverage(
     return result
 
 
+# ----------------------------- APS conformal classification -----------------
+
+
+def _aps_scores(proba: np.ndarray, y_true: np.ndarray) -> np.ndarray:
+    """APS nonconformity scores for conformal classification sets.
+
+    For each sample: sort class probabilities descending, accumulate until the
+    true class is included.  The score is the total accumulated mass.
+    """
+    n = len(y_true)
+    scores = np.zeros(n)
+    for i in range(n):
+        order = np.argsort(-proba[i])
+        cumsum = 0.0
+        for j in order:
+            cumsum += proba[i, j]
+            if j == y_true[i]:
+                scores[i] = cumsum
+                break
+    return scores
+
+
+def _aps_prediction_set(proba_row: np.ndarray, q_hat: float) -> list[int]:
+    """Class indices in the APS prediction set for one sample."""
+    order = np.argsort(-proba_row)
+    cumsum = 0.0
+    pred_set: list[int] = []
+    for j in order:
+        pred_set.append(int(j))
+        cumsum += proba_row[j]
+        if cumsum >= q_hat:
+            break
+    return sorted(pred_set)
+
+
+def _aps_test_metrics(
+    proba: np.ndarray,
+    y_true: np.ndarray,
+    q_arr: np.ndarray,
+    X: pd.DataFrame,
+) -> dict:
+    """Coverage and avg set size on test set using per-row Mondrian APS q."""
+    n = len(y_true)
+    covered = np.zeros(n, dtype=bool)
+    sizes = np.zeros(n, dtype=int)
+    for i in range(n):
+        pset = _aps_prediction_set(proba[i], q_arr[i])
+        covered[i] = y_true[i] in pset
+        sizes[i] = len(pset)
+    result: dict = {
+        "coverage": round(float(covered.mean()), 4),
+        "avg_set_size": round(float(sizes.mean()), 3),
+        "n": n,
+    }
+    if AIS_ORD_COL in X.columns:
+        ais_vals = pd.to_numeric(X[AIS_ORD_COL], errors="coerce").to_numpy()
+        ais_cov: dict = {}
+        for code, letter in AIS_ORD_TO_LETTER.items():
+            mask = ais_vals == code
+            ng = int(mask.sum())
+            if ng > 0:
+                ais_cov[letter] = {
+                    "n": ng,
+                    "coverage": round(float(covered[mask].mean()), 4),
+                    "avg_set_size": round(float(sizes[mask].mean()), 3),
+                }
+        result["ais"] = ais_cov
+    if PARALYSIS_COL in X.columns:
+        para_vals = X[PARALYSIS_COL].astype(str).to_numpy()
+        para_cov: dict = {}
+        for label in ("TETRA", "PARA", "NONE"):
+            mask = para_vals == label
+            ng = int(mask.sum())
+            if ng > 0:
+                para_cov[label] = {
+                    "n": ng,
+                    "coverage": round(float(covered[mask].mean()), 4),
+                    "avg_set_size": round(float(sizes[mask].mean()), 3),
+                }
+        result["paralysis"] = para_cov
+    return result
+
+
 # ----------------------------- per-outcome trainers ----------------------
 
 def _train_regression(
@@ -572,37 +656,72 @@ def _train_multiclass(
         f"ordMAE={cv['ordinal_mae_mean']:.3f}"
     )
 
-    # holdout (no separate calibration — no conformal this session)
+    # holdout + calibration fold (for APS conformal classification sets)
     train_idx, test_idx = _grouped_holdout(X, y_codes, groups, test_size=0.2)
     X_dev, X_te = X.iloc[train_idx], X.iloc[test_idx]
     y_dev, y_te = y_codes[train_idx], y_codes[test_idx]
     g_dev = groups.iloc[train_idx]
 
+    train_idx2, calib_idx = _grouped_holdout(X_dev, y_dev, g_dev, test_size=0.20)
+    X_tr_full, X_cal = X_dev.iloc[train_idx2], X_dev.iloc[calib_idx]
+    y_tr_full, y_cal = y_dev[train_idx2], y_dev[calib_idx]
+    g_tr_full = g_dev.iloc[train_idx2]
+
     inner = GroupShuffleSplit(n_splits=1, test_size=0.1, random_state=RANDOM_STATE)
-    inner_tr, inner_val = next(inner.split(X_dev, y_dev, groups=g_dev))
-    X_tr, X_val = X_dev.iloc[inner_tr], X_dev.iloc[inner_val]
-    y_tr, y_val = y_dev[inner_tr], y_dev[inner_val]
+    inner_tr, inner_val = next(inner.split(X_tr_full, y_tr_full, groups=g_tr_full))
+    X_tr, X_val = X_tr_full.iloc[inner_tr], X_tr_full.iloc[inner_val]
+    y_tr, y_val = y_tr_full[inner_tr], y_tr_full[inner_val]
 
     clf_dev = _fit_clf(_params_lgbm_clf(n_classes), X_tr, y_tr, X_val, y_val, cat_cols)
     pred_idx = np.asarray(clf_dev.predict(X_te), dtype=int)
+
+    # APS conformal classification sets on calibration fold
+    alpha = 0.2
+    proba_cal = np.asarray(clf_dev.predict_proba(X_cal), dtype=float)
+    aps_scores = _aps_scores(proba_cal, y_cal)
+    aps_q_hat = _conformal_q(aps_scores, alpha)
+    aps_q_by_group = _compute_mondrian_q(aps_scores, X_cal, alpha)
+    aps_q_by_group["marginal"] = aps_q_hat
+    aps_q_by_group["min_n"] = MONDRIAN_MIN_N
+
+    proba_te = np.asarray(clf_dev.predict_proba(X_te), dtype=float)
+    aps_q_te = _resolve_mondrian_q_array(aps_q_hat, aps_q_by_group, X_te)
+    aps_test = _aps_test_metrics(proba_te, y_te, aps_q_te, X_te)
 
     test_metrics = {
         "accuracy": float(accuracy_score(y_te, pred_idx)),
         "kappa_quadratic": float(cohen_kappa_score(y_te, pred_idx, weights="quadratic")),
         "ordinal_mae": float(mean_absolute_error(code_arr[y_te], code_arr[pred_idx])),
         "n_train": int(len(X_tr)),
-        "n_val": int(len(X_val)),
+        "n_calib": int(len(X_cal)),
         "n_test": int(len(X_te)),
         "n_dev_patients": int(g_dev.nunique()),
         "n_test_patients": int(groups.iloc[test_idx].nunique()),
         "class_codes": [int(c) for c in class_codes],
         "class_labels": list(spec.class_labels),
+        "aps_q_hat": aps_q_hat,
+        "aps_coverage_80": aps_test["coverage"],
+        "aps_avg_set_size": aps_test["avg_set_size"],
+        "aps_mondrian_coverage": aps_test,
+        "aps_q_by_group": {
+            k: v for k, v in aps_q_by_group.items() if k != "min_n"
+        },
     }
     print(
         f"   TEST  acc={test_metrics['accuracy']:.3f}  "
         f"κ_quad={test_metrics['kappa_quadratic']:.3f}  "
         f"ordMAE={test_metrics['ordinal_mae']:.3f}"
     )
+    print(
+        f"   APS  coverage={aps_test['coverage']:.2%}  "
+        f"avg_set_size={aps_test['avg_set_size']:.2f}  "
+        f"q_hat={aps_q_hat:.4f}"
+    )
+    ais_aps_qs = aps_q_by_group.get("ais", {})
+    para_aps_qs = aps_q_by_group.get("paralysis", {})
+    ais_str = "  ".join(f"{g}={q:.3f}" for g, q in sorted(ais_aps_qs.items())) if ais_aps_qs else "–"
+    para_str = "  ".join(f"{g}={q:.3f}" for g, q in sorted(para_aps_qs.items())) if para_aps_qs else "–"
+    print(f"   APS-MONDRIAN  AIS:[{ais_str}]  Para:[{para_str}]")
 
     full_params = _params_lgbm_clf(n_classes)
     full_params["n_estimators"] = int(clf_dev.best_iteration_ or 400)
@@ -651,6 +770,8 @@ def _train_multiclass(
         "class_codes": [int(c) for c in class_codes],
         "class_labels": list(spec.class_labels),
         "base_value": base_value,
+        "aps_q_hat": aps_q_hat,
+        "aps_q_by_group": aps_q_by_group,
     }
     joblib.dump(feature_spec, od / "feature_spec.joblib")
 

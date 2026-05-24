@@ -735,11 +735,11 @@
         "folds": 5
       },
       "test": {
-        "accuracy": 0.7142857142857143,
-        "kappa_quadratic": 0.7718485381051285,
-        "ordinal_mae": 0.36507936507936506,
-        "n_train": 452,
-        "n_val": 50,
+        "accuracy": 0.6825396825396826,
+        "kappa_quadratic": 0.7696468820435762,
+        "ordinal_mae": 0.40476190476190477,
+        "n_train": 362,
+        "n_calib": 100,
         "n_test": 126,
         "n_dev_patients": 499,
         "n_test_patients": 125,
@@ -756,108 +756,167 @@
           "C",
           "D",
           "E"
-        ]
+        ],
+        "aps_q_hat": 0.9172356133458649,
+        "aps_coverage_80": 0.9921,
+        "aps_avg_set_size": 2.77,
+        "aps_mondrian_coverage": {
+          "coverage": 0.9921,
+          "avg_set_size": 2.77,
+          "n": 126,
+          "ais": {
+            "A": {
+              "n": 22,
+              "coverage": 1.0,
+              "avg_set_size": 3.864
+            },
+            "B": {
+              "n": 8,
+              "coverage": 1.0,
+              "avg_set_size": 3.5
+            },
+            "C": {
+              "n": 33,
+              "coverage": 0.9697,
+              "avg_set_size": 2.788
+            },
+            "D": {
+              "n": 55,
+              "coverage": 1.0,
+              "avg_set_size": 2.309
+            },
+            "E": {
+              "n": 7,
+              "coverage": 1.0,
+              "avg_set_size": 2.0
+            }
+          },
+          "paralysis": {
+            "TETRA": {
+              "n": 104,
+              "coverage": 0.9904,
+              "avg_set_size": 2.692
+            },
+            "PARA": {
+              "n": 19,
+              "coverage": 1.0,
+              "avg_set_size": 3.316
+            }
+          }
+        },
+        "aps_q_by_group": {
+          "ais": {
+            "A": 0.9435833876311939,
+            "C": 0.864986478706016,
+            "D": 0.9174176545707093
+          },
+          "paralysis": {
+            "TETRA": 0.9218465619550452,
+            "PARA": 0.9156517118605567
+          },
+          "marginal": 0.9172356133458649
+        }
       },
       "global_importance_top25": [
         {
           "feature": "LEMS",
-          "abs_mean_shap": 0.3538509710639982
-        },
-        {
-          "feature": "AIS_ord",
-          "abs_mean_shap": 0.21787030760981724
+          "abs_mean_shap": 0.32296472494013684
         },
         {
           "feature": "mFrankel_ord",
-          "abs_mean_shap": 0.20681641127327294
+          "abs_mean_shap": 0.19026628094589867
+        },
+        {
+          "feature": "AIS_ord",
+          "abs_mean_shap": 0.1862771702726647
         },
         {
           "feature": "Frankel_ord",
-          "abs_mean_shap": 0.14825194412330794
+          "abs_mean_shap": 0.1453044838246657
         },
         {
           "feature": "PinPrickTotal",
-          "abs_mean_shap": 0.11409817927151746
+          "abs_mean_shap": 0.10624425974378096
         },
         {
           "feature": "\u5e74\u9f62",
-          "abs_mean_shap": 0.10175137943986148
+          "abs_mean_shap": 0.08567475622056563
         },
         {
           "feature": "TotalMotor",
-          "abs_mean_shap": 0.08821392301877119
+          "abs_mean_shap": 0.07841620303212053
         },
         {
           "feature": "LightTouchTotal",
-          "abs_mean_shap": 0.07950227883961494
+          "abs_mean_shap": 0.07340264715337985
         },
         {
           "feature": "RightSensoryLevel_ord",
-          "abs_mean_shap": 0.068986984281028
+          "abs_mean_shap": 0.06412835543291315
         },
         {
           "feature": "LeftSensoryLevel_ord",
-          "abs_mean_shap": 0.042663564499404436
+          "abs_mean_shap": 0.03854524247709462
         },
         {
           "feature": "UEMS",
-          "abs_mean_shap": 0.027610908635505457
+          "abs_mean_shap": 0.023768962828980507
         },
         {
           "feature": "RightMotorLevel_ord",
-          "abs_mean_shap": 0.025739137419400242
+          "abs_mean_shap": 0.02289139645758479
         },
         {
           "feature": "NLI_ord",
-          "abs_mean_shap": 0.0224041975564944
+          "abs_mean_shap": 0.018952407633154856
         },
         {
           "feature": "VAC",
-          "abs_mean_shap": 0.018857521876233786
-        },
-        {
-          "feature": "SCIM_self_care",
-          "abs_mean_shap": 0.016051314968747656
-        },
-        {
-          "feature": "SCIM_respiration_sphincter",
-          "abs_mean_shap": 0.015285292609192551
-        },
-        {
-          "feature": "DAP",
-          "abs_mean_shap": 0.01432802076566616
+          "abs_mean_shap": 0.013818507522933577
         },
         {
           "feature": "\u6027\u5225",
-          "abs_mean_shap": 0.014092388379340624
+          "abs_mean_shap": 0.013239664852816661
+        },
+        {
+          "feature": "SCIM_self_care",
+          "abs_mean_shap": 0.013160129199087477
         },
         {
           "feature": "LeftMotorLevel_ord",
-          "abs_mean_shap": 0.01344131722570395
+          "abs_mean_shap": 0.012597939836540235
+        },
+        {
+          "feature": "DAP",
+          "abs_mean_shap": 0.012237412866108811
+        },
+        {
+          "feature": "SCIM_respiration_sphincter",
+          "abs_mean_shap": 0.011848503189939201
         },
         {
           "feature": "OPLL",
-          "abs_mean_shap": 0.011387513493823739
-        },
-        {
-          "feature": "\u4fdd\u967a",
-          "abs_mean_shap": 0.009806243392045172
+          "abs_mean_shap": 0.009780833915415206
         },
         {
           "feature": "SCIM_total",
-          "abs_mean_shap": 0.006523023013655478
+          "abs_mean_shap": 0.006117222877282465
+        },
+        {
+          "feature": "\u4fdd\u967a",
+          "abs_mean_shap": 0.00609392519027386
         },
         {
           "feature": "\u7cd6\u5c3f\u75c5",
-          "abs_mean_shap": 0.005850922054238405
+          "abs_mean_shap": 0.005347524016533774
         },
         {
           "feature": "\u5916\u50b7\u6027_\u975e\u5916\u50b7\u6027",
-          "abs_mean_shap": 0.004442603564840434
+          "abs_mean_shap": 0.0041161818965365395
         },
         {
           "feature": "DISH",
-          "abs_mean_shap": 0.002646836306769308
+          "abs_mean_shap": 0.002453779963912918
         }
       ],
       "n_features": 30,

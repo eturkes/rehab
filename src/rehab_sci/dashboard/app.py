@@ -113,13 +113,12 @@ def _input_id(prefix: str, col: str) -> dict:
 AIS_ORD_TO_LETTER = {1: "A", 2: "B", 3: "C", 4: "D", 5: "E"}
 
 
-def _resolve_conformal_q(fspec: dict, X: pd.DataFrame) -> float:
-    """Resolve Mondrian conformal q for a single-row input.
+def _resolve_group_q(q_by_group: dict | None, marginal: float, X: pd.DataFrame) -> float:
+    """Resolve Mondrian q for a single-row input.
 
     Priority: AIS group -> paralysis group -> marginal.
+    Shared by regression conformal PI and APS classification sets.
     """
-    q_by_group = fspec.get("conformal_q_by_group")
-    marginal = float(fspec.get("conformal_q_transformed", 0.0))
     if q_by_group is None or len(X) == 0:
         return marginal
     row = X.iloc[0]
@@ -137,6 +136,37 @@ def _resolve_conformal_q(fspec: dict, X: pd.DataFrame) -> float:
             if str(para_val) in para_qs:
                 return float(para_qs[str(para_val)])
     return marginal
+
+
+def _resolve_conformal_q(fspec: dict, X: pd.DataFrame) -> float:
+    """Resolve Mondrian conformal q for a single-row regression input."""
+    return _resolve_group_q(
+        fspec.get("conformal_q_by_group"),
+        float(fspec.get("conformal_q_transformed", 0.0)),
+        X,
+    )
+
+
+def _resolve_aps_q(fspec: dict, X: pd.DataFrame) -> float:
+    """Resolve Mondrian APS q for a single-row classification input."""
+    return _resolve_group_q(
+        fspec.get("aps_q_by_group"),
+        float(fspec.get("aps_q_hat", 1.0)),
+        X,
+    )
+
+
+def _aps_prediction_set(proba_row: np.ndarray, q_hat: float) -> list[int]:
+    """Class indices in the APS prediction set for one sample."""
+    order = np.argsort(-proba_row)
+    cumsum = 0.0
+    pred_set: list[int] = []
+    for j in order:
+        pred_set.append(int(j))
+        cumsum += proba_row[j]
+        if cumsum >= q_hat:
+            break
+    return sorted(pred_set)
 
 
 def _format_value(col: str, value: object) -> str:
@@ -866,25 +896,59 @@ def _perf_block_multiclass(spec: OutcomeSpec, info: dict, lang: str) -> html.Div
     cv = info["cv"]
     te = info["test"]
     ord_lbl = "順序MAE" if lang == "ja" else "ordinal MAE"
-    return html.Div(
-        className="methods-perf-card",
-        children=[
-            html.H4(t(SCHEMA, spec.display_key, lang)),
+    children = [
+        html.H4(t(SCHEMA, spec.display_key, lang)),
+        html.P(
+            f"CV  acc={cv['accuracy_mean']:.3f} ± {cv['accuracy_std']:.3f}   "
+            f"κ_quad={cv['kappa_quadratic_mean']:.3f} ± {cv['kappa_quadratic_std']:.3f}   "
+            f"{ord_lbl}={cv['ordinal_mae_mean']:.3f}"
+        ),
+        html.P(
+            f"TEST  acc={te['accuracy']:.3f}   κ_quad={te['kappa_quadratic']:.3f}   "
+            f"{ord_lbl}={te['ordinal_mae']:.3f}"
+        ),
+        html.P(
+            ("患者数" if lang == "ja" else "Patients")
+            + f": train={te['n_train']}+calib={te.get('n_calib', te.get('n_val', '?'))}, test={te['n_test']}"
+        ),
+    ]
+    aps_q = te.get("aps_q_hat")
+    if aps_q is not None:
+        set_lbl = "80%予測集合" if lang == "ja" else "80% prediction set"
+        cov_lbl = "カバレッジ" if lang == "ja" else "coverage"
+        size_lbl = "平均集合サイズ" if lang == "ja" else "avg set size"
+        children.append(
             html.P(
-                f"CV  acc={cv['accuracy_mean']:.3f} ± {cv['accuracy_std']:.3f}   "
-                f"κ_quad={cv['kappa_quadratic_mean']:.3f} ± {cv['kappa_quadratic_std']:.3f}   "
-                f"{ord_lbl}={cv['ordinal_mae_mean']:.3f}"
-            ),
-            html.P(
-                f"TEST  acc={te['accuracy']:.3f}   κ_quad={te['kappa_quadratic']:.3f}   "
-                f"{ord_lbl}={te['ordinal_mae']:.3f}"
-            ),
-            html.P(
-                ("患者数" if lang == "ja" else "Patients")
-                + f": train={te['n_train']}+val={te['n_val']}, test={te['n_test']}"
-            ),
-        ],
-    )
+                f"APS {set_lbl}: {cov_lbl}={te['aps_coverage_80']:.0%}  "
+                f"{size_lbl}={te['aps_avg_set_size']:.2f}",
+            )
+        )
+        aps_mond = te.get("aps_mondrian_coverage", {})
+        parts: list[str] = []
+        ais_cov = aps_mond.get("ais", {})
+        if ais_cov:
+            ais_strs = [
+                f"{g}={d['coverage']:.0%}(n={d['n']},|C|={d['avg_set_size']:.1f})"
+                for g, d in sorted(ais_cov.items())
+            ]
+            prefix = "AIS別" if lang == "ja" else "Per-AIS"
+            parts.append(f"{prefix}: {', '.join(ais_strs)}")
+        para_cov = aps_mond.get("paralysis", {})
+        if para_cov:
+            para_strs = [
+                f"{g}={d['coverage']:.0%}(n={d['n']},|C|={d['avg_set_size']:.1f})"
+                for g, d in sorted(para_cov.items())
+            ]
+            prefix = "麻痺別" if lang == "ja" else "Per-paralysis"
+            parts.append(f"{prefix}: {', '.join(para_strs)}")
+        if parts:
+            children.append(
+                html.P(
+                    "   ".join(parts),
+                    style={"fontSize": "12px", "color": INK["500"]},
+                )
+            )
+    return html.Div(className="methods-perf-card", children=children)
 
 
 def render_methods(lang: str) -> html.Div:
@@ -1169,15 +1233,32 @@ def _fig_prediction_interval(
 
 
 def _fig_class_probabilities(
-    proba: np.ndarray, class_labels: list[str], spec: OutcomeSpec, lang: str
+    proba: np.ndarray, class_labels: list[str], spec: OutcomeSpec, lang: str,
+    conformal_set: list[int] | None = None,
 ) -> go.Figure:
     label = t(SCHEMA, spec.display_key, lang)
     bar_labels = [f"AIS {c}" for c in class_labels]
+    if conformal_set is not None:
+        colors = [
+            PALETTE_CATEGORICAL[0] if i in conformal_set
+            else "rgba(17,122,139,0.18)"
+            for i in range(len(class_labels))
+        ]
+        borders = [
+            "#0c5a66" if i in conformal_set else "rgba(0,0,0,0)"
+            for i in range(len(class_labels))
+        ]
+    else:
+        colors = [PALETTE_CATEGORICAL[0]] * len(class_labels)
+        borders = [PALETTE_CATEGORICAL[0]] * len(class_labels)
     fig = go.Figure(
         go.Bar(
             x=bar_labels,
             y=proba,
-            marker=dict(color=PALETTE_CATEGORICAL[0]),
+            marker=dict(
+                color=colors,
+                line=dict(color=borders, width=1.5),
+            ),
             text=[f"{p:.0%}" for p in proba],
             textposition="outside",
             hovertemplate="%{x}: %{y:.1%}<extra></extra>",
@@ -1244,18 +1325,27 @@ def _simulate_multiclass(bundle: dict, X: pd.DataFrame, lang: str):
     pred_class = class_labels[pred_idx]
     pred_prob = float(proba[pred_idx])
 
+    aps_q = _resolve_aps_q(fspec, X)
+    conformal_set = _aps_prediction_set(proba, aps_q)
+    set_letters = [class_labels[i] for i in conformal_set]
+
     shap_vals, base = _shap_for_row_class(X, clf, pred_idx, len(class_labels))
     label = t(SCHEMA, spec.display_key, lang)
     pcls_label = t(SCHEMA, "sim_predicted_class_label", lang)
+    set_label = t(SCHEMA, "sim_conformal_set", lang)
     readout = [
         html.Div(label, style={"color": INK["500"], "fontSize": "13px"}),
         html.Div(f"AIS {pred_class}", className="pred"),
         html.Div(f"{pred_prob:.0%}", className="pred-unit"),
         html.Div(f"{pcls_label} : AIS {pred_class}", className="pi"),
+        html.Div(
+            f"{set_label} : {{{', '.join(set_letters)}}}",
+            className="pi",
+        ),
     ]
     return (
         readout,
-        _fig_class_probabilities(proba, class_labels, spec, lang),
+        _fig_class_probabilities(proba, class_labels, spec, lang, conformal_set),
         _fig_shap_local(shap_vals, X, base, lang),
     )
 
@@ -1391,15 +1481,24 @@ def _patient_multiclass(bundle: dict, X: pd.DataFrame, key_record: int, lang: st
     pred_class = class_labels[pred_idx]
     pred_prob = float(proba[pred_idx])
 
+    aps_q = _resolve_aps_q(fspec, X)
+    conformal_set = _aps_prediction_set(proba, aps_q)
+    set_letters = [class_labels[i] for i in conformal_set]
+
     observed_ord = _get_observed_for_outcome(key_record, spec)
     label = t(SCHEMA, spec.display_key, lang)
     pcls_label = t(SCHEMA, "sim_predicted_class_label", lang)
+    set_label = t(SCHEMA, "sim_conformal_set", lang)
 
     readout: list = [
         html.Div(label, style={"color": INK["500"], "fontSize": "13px"}),
         html.Div(f"AIS {pred_class}", className="pred"),
         html.Div(f"{pred_prob:.0%}", className="pred-unit"),
         html.Div(f"{pcls_label} : AIS {pred_class}", className="pi"),
+        html.Div(
+            f"{set_label} : {{{', '.join(set_letters)}}}",
+            className="pi",
+        ),
     ]
     note: list = []
     if observed_ord is not None:
@@ -1414,7 +1513,7 @@ def _patient_multiclass(bundle: dict, X: pd.DataFrame, key_record: int, lang: st
         note.append(html.Div(t(SCHEMA, "patient_no_outcome_note", lang),
                              className="patient-pred-empty"))
 
-    pred_fig = _fig_class_probabilities(proba, class_labels, spec, lang)
+    pred_fig = _fig_class_probabilities(proba, class_labels, spec, lang, conformal_set)
     shap_vals, base = _shap_for_row_class(X, clf, pred_idx, len(class_labels))
     shap_fig = _fig_shap_local(shap_vals, X, base, lang)
     return readout, pred_fig, shap_fig, note

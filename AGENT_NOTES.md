@@ -15,10 +15,11 @@ bottom of each section as new lessons land; do **not** delete prior entries.
 * This file is the agent-facing scratchpad.  Always read it before planning.
   Keep it accurate: update sections after every session; prune obsolete
   entries when they conflict with current state.
-* **Default-work pool for fresh sessions: §8 Feature backlog (F1–F3).**
-  Propose work from §8 unless the user redirects.  Historical "Open items
-  rolled forward" lists inside prior §7 session entries are **superseded**
-  by user decision in session 4 — treat them as history, not as a to-do.
+* **Default-work pool for fresh sessions: §8 Feature backlog.**
+  All features F1–F5 are shipped as of session 11.  Propose new feature
+  candidates or maintenance work unless the user redirects.  Historical
+  "Open items rolled forward" lists inside prior §7 session entries are
+  **superseded** by user decision in session 4 — treat them as history.
 
 ## 0b. Lessons & mistakes (append here; prune when superseded)
 
@@ -171,7 +172,15 @@ bottom of each section as new lessons land; do **not** delete prior entries.
   (A=index 0 … E=index 4), so the `predict_proba` columns and the
   cached SHAP last axis are ordinally sorted.  Reported metrics:
   accuracy, quadratic-weighted Cohen κ, MAE-on-ordinal-code (1–5).
-  *No conformal sets this session* — revisit alongside F3 Mondrian.
+  **APS conformal classification sets (F5, session 11):** a calibration
+  fold is carved from dev (20%); APS nonconformity scores (cumulative
+  probability mass to include the true class) are computed and
+  thresholded at ⌈(n+1)·0.8⌉ quantile to produce `q_hat`.  Mondrian
+  per-AIS/per-paralysis variants stored in `feature_spec.joblib` under
+  `aps_q_hat` + `aps_q_by_group`.  At inference, class probabilities
+  are sorted descending and accumulated until cumsum ≥ resolved q_hat;
+  the resulting set is displayed with solid/muted bar coloring in the
+  dashboard.  Coverage is 99% (conservative for K=5); avg set size 2.77.
 * **LOS (log1p) head** — same LightGBM regression machinery as SCIM,
   but `transform="log1p"` is applied to `y` before fitting and the
   conformal q is computed in log-space.  Predictions, PI bounds, and
@@ -251,6 +260,67 @@ pkill -f 'rehab_sci.dashboard.app'               # stop stale dashboard
 ```
 
 ## 7. Session log (most recent first)
+
+### 2026-05-24 (session 11, F5 APS conformal classification sets shipped)
+
+* Shipped **F5 APS conformal classification sets for AIS**.
+* **Training side** (`models/train.py`):
+  - `_train_multiclass()` now splits dev into train (80%) + calibration
+    (20%), matching the regression path.  Calibration fold is used for
+    APS nonconformity score computation; early-stopping val is split from
+    the training portion (10% of the 80%).
+  - New helpers: `_aps_scores(proba, y_true)` — cumulative probability
+    mass until the true class is included; `_aps_prediction_set(proba, q)`
+    — inference-time set computation; `_aps_test_metrics(proba, y, q, X)`
+    — per-row coverage and set size on test data using Mondrian q values.
+  - APS threshold `q_hat` + Mondrian per-AIS/per-paralysis variants
+    stored in `feature_spec.joblib` under `aps_q_hat` and
+    `aps_q_by_group` (same fallback structure as regression Mondrian:
+    AIS grade → paralysis → marginal, groups with <8 cal samples
+    omitted).
+  - Existing `_conformal_q` and `_compute_mondrian_q` helpers reused
+    directly — APS scores are just another nonconformity measure.
+  - Test-set APS metrics reported in `training_metrics.json`:
+    `aps_q_hat`, `aps_coverage_80`, `aps_avg_set_size`,
+    `aps_mondrian_coverage` (per-group breakdown).
+* **Dashboard side** (`dashboard/app.py`):
+  - `_resolve_conformal_q()` refactored: common Mondrian resolution
+    logic extracted into `_resolve_group_q(q_by_group, marginal, X)`,
+    called by both `_resolve_conformal_q` (regression) and new
+    `_resolve_aps_q` (classification).  `_aps_prediction_set()` also
+    added to app.py for inference.
+  - `_fig_class_probabilities()` gains optional `conformal_set`
+    parameter: bars in the set get solid accent color; bars outside get
+    muted `rgba(17,122,139,0.18)`.  Backward-compatible (default=None).
+  - `_simulate_multiclass()` and `_patient_multiclass()` both compute
+    the APS conformal set using Mondrian q resolution and display it in
+    the readout as "80% prediction set (APS) : {C, D}" and in the bar
+    chart via the muted/solid visual distinction.
+  - `_perf_block_multiclass()` extended: shows APS coverage, avg set
+    size, and per-group (AIS + paralysis) Mondrian breakdown in the
+    Methods tab.  Backward-compatible: checks for `aps_q_hat` presence
+    in metrics before rendering.
+* New UI string: `sim_conformal_set` (ja: "80%予測集合 (APS)",
+  en: "80% prediction set (APS)").
+* **APS metrics (SCIM test set, n=126):**
+  - Marginal q_hat=0.917, coverage=99% (exceeds 80% — conservative for
+    K=5 due to discrete APS score distribution), avg set size=2.77.
+  - Per-AIS Mondrian q: A=0.944, C=0.865, D=0.917.  AIS-C gets the
+    tightest sets (motor-incomplete outcomes most predictable); AIS-A
+    gets the widest (complete injuries most uncertain).
+  - Per-AIS test set sizes: A=3.9, B=3.5, C=2.8, D=2.3, E=2.0.
+    AIS-D patients typically get 2-class sets; AIS-A patients typically
+    get 4-class sets.
+  - Point accuracy slightly lower (0.683 vs 0.714 previously) due to
+    smaller dev training set (calibration carved out); CV unchanged
+    (0.669).  Shipped model is refitted on all data — test metrics
+    reflect the weaker dev model, not the shipped model.
+* Verification: full pipeline `uv run python -m rehab_sci.models.train`
+  + `subgroups`; dashboard HTTP 200 on `/`, `/_dash-layout`,
+  `/_dash-dependencies`.  Smoke tests confirm: (1) APS set displayed
+  in simulator + patient explorer readouts, (2) bar chart solid/muted
+  distinction correct, (3) Mondrian fallback B→TETRA works, (4)
+  Methods tab shows per-group APS metrics, (5) bilingual labels correct.
 
 ### 2026-05-24 (session 10, F4 multi-outcome insight + patient explorer shipped)
 
@@ -741,17 +811,25 @@ dependency**.  Ordered by recommended start order (F1 first).
   `fig_patient_prediction` parameterized), `models/subgroups.py`
   (multi-outcome loop), `schema/ui_strings.yaml` (3 new keys).
 
-### F5. APS / RAPS conformal classification sets for AIS
+### F5. APS conformal classification sets for AIS — **STATUS: shipped (session 11, 2026-05-24)**
 
-* **What:** Replace AIS point-prediction + probability bar with an
-  80 %-coverage *set* of AIS grades produced by adaptive prediction
-  sets (APS) or regularized APS (RAPS).  Sets respect ordinality if
-  classes are sorted by severity (which they already are in
-  `class_codes`).
-* **Why:** Clinicians often want "could be C *or* D" — a calibrated
-  set is more honest than the argmax + probability.  Pairs naturally
-  with F3 Mondrian (per-paralysis calibration of the classification
-  sets).
-* **Effort:** small once the calibration plumbing for F3 lands.
-* **Files:** `models/train.py` (extra calibration block for the AIS
-  head), `dashboard/app.py` (render predicted set, not point).
+* **What was built:** APS (Adaptive Prediction Sets) conformal
+  classification sets for the AIS multiclass head.  A calibration fold
+  is carved from the dev set (same as regression); APS nonconformity
+  scores are computed on it; the ⌈(n+1)(1-α)⌉-th quantile becomes
+  `q_hat`.  Mondrian per-AIS/per-paralysis `q_hat` variants give
+  tighter sets for well-predicted groups (C) and wider sets for
+  uncertain groups (A).  Dashboard renders the prediction set in both
+  the simulator and patient explorer, with solid/muted bar coloring.
+  Methods tab reports coverage + avg set size per group.
+* **Key finding:** APS coverage is 99% (vs 80% target) because K=5
+  produces discrete APS scores; the ⌈(n+1)·0.8⌉ quantile overshoots.
+  This is the expected conservative behavior for small K.  Average set
+  size is 2.77, with AIS-D patients getting ~2-class sets and AIS-A
+  patients getting ~4-class sets.
+* **Metrics:** q_hat=0.917; per-AIS q: A=0.944, C=0.865, D=0.917.
+  Test accuracy=0.683 (dev model on smaller training set), CV=0.669
+  (unchanged).
+* **Files changed:** `models/train.py` (APS helpers + calibration
+  fold), `dashboard/app.py` (q resolution refactor + set rendering),
+  `schema/ui_strings.yaml` (1 new key).

@@ -320,3 +320,6 @@ insight_dependence_regression_only:
 patient_outcome_label:
   ja: "予測対象"
   en: "Predicted outcome"
+sim_conformal_set:
+  ja: "80%予測集合 (APS)"
+  en: "80% prediction set (APS)"
