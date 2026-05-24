@@ -557,6 +557,34 @@ input[type="number"]:focus, input[type="text"]:focus, select:focus {
 .patient-action-row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
 .whatif-delta { color: var(--warm); font-weight: 600; }
 
+/* Patient similarity (F16) */
+.patient-sim-summary {
+  font-size: 12.5px;
+  color: var(--ink-500);
+  margin-bottom: 10px;
+}
+.patient-sim-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12.5px;
+  font-variant-numeric: tabular-nums;
+}
+.patient-sim-table th,
+.patient-sim-table td {
+  padding: 5px 10px;
+  text-align: left;
+  border-bottom: 1px solid var(--ink-100);
+}
+.patient-sim-table th {
+  font-weight: 600;
+  color: var(--ink-500);
+  font-size: 11.5px;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  background: var(--paper);
+}
+.patient-sim-table td { color: var(--ink-700); }
+
 /* Dash slider overrides */
 .dash-slider-range { background: var(--accent) !important; }
 .dash-slider-thumb { border-color: var(--accent) !important; }

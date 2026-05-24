@@ -16,11 +16,11 @@ bottom of each section as new lessons land; do **not** delete prior entries.
   Keep it accurate: update sections after every session; prune obsolete
   entries when they conflict with current state.
 * **Default-work pool for fresh sessions: §8 Feature backlog.**
-  F1–F10 shipped as of session 16; F13 shipped session 18.  Propose new
-  feature candidates or maintenance work unless the user redirects.
-  Historical "Open items rolled forward" lists inside prior §7 session
-  entries are **superseded** by user decision in session 4 — treat them
-  as history.
+  F1–F10 shipped as of session 16; F13 shipped session 18; F16 shipped
+  session 19.  Propose new feature candidates or maintenance work unless
+  the user redirects.  Historical "Open items rolled forward" lists inside
+  prior §7 session entries are **superseded** by user decision in session 4
+  — treat them as history.
 
 ## 0b. Lessons & mistakes (append here; prune when superseded)
 
@@ -312,6 +312,82 @@ pkill -f 'rehab_sci.dashboard.app'               # stop stale dashboard
 ```
 
 ## 7. Session log (most recent first)
+
+### 2026-05-24 (session 19, F16 patient similarity explorer shipped)
+
+* Shipped **F16 Patient similarity explorer**.
+* **Problem:** The dashboard predicted outcomes for individual patients and
+  let clinicians explore hypothetical scenarios, but there was no empirical
+  anchor — no way to answer "what actually happened to patients similar to
+  mine?"  Model predictions without historical precedent require a leap of
+  faith.
+* **Algorithm:** Gower distance on the 32 admission features.  Gower is
+  the standard mixed-type distance metric for clinical data: numeric
+  features use Manhattan distance normalized by observed range; categorical
+  features use simple matching (0 if identical, 1 if different); features
+  where either patient has a missing value are excluded from both numerator
+  and denominator.  A `MIN_FEATURE_OVERLAP=5` threshold prevents vacuous
+  distance=0 for data-sparse partial-orphan episodes.
+* **New module:** `data/similarity.py` (130 lines).
+  - `gower_distance_one_vs_all(query, candidates, ...)` — returns
+    `(distances, weights)` arrays.  Weights track the per-candidate number
+    of mutually non-null features (the Gower denominator).
+  - `find_nearest(ep, key_record, ..., k=10)` — returns the K nearest
+    episodes with demographics, actual outcomes, and similarity scores.
+    Filters candidates below `MIN_FEATURE_OVERLAP`.
+* **Dashboard figures** (`dashboard/figures.py`), 2 new functions:
+  - `fig_neighbor_outcomes(neighbors, pred, lo, hi, observed, ...)` —
+    horizontal strip chart showing K neighbors' actual outcomes as sized
+    dots (larger = more similar) overlaid on the query patient's prediction
+    + PI band + observed value.  Neighbor dots use a secondary y-axis with
+    vertical jitter for visual clarity.  Handles regression outcomes for
+    all 5 regression heads.
+  - `fig_neighbor_ais_distribution(neighbors, pred_proba, observed_ais,
+    ...)` — grouped bar chart comparing neighbor AIS grade distribution
+    (empirical %) to the model's predicted class probabilities (line+dot
+    overlay).  Annotation shows observed grade.
+* **Dashboard app** (`dashboard/app.py`):
+  - New `_build_similarity_section(key_record, bundle, X, lang)` — finds
+    K=10 nearest neighbors, looks up each neighbor's actual value for the
+    selected outcome, builds the appropriate figure (regression strip or
+    AIS distribution), and renders a summary + table.
+  - `_compute_patient_tab` extended from 7-tuple to 9-tuple (new outputs:
+    `patient-sim-graph.figure` + `patient-sim-table.children`).
+  - `render_patient(lang)` gains a similarity card below the
+    isncsci/prediction row.
+  - `update_patient_tab` callback extended with 2 new `Output`s.
+  - No new callbacks — the similarity section piggybacks on the existing
+    patient tab callback to avoid redundant computation.  Total: 20
+    callbacks (unchanged).
+* **Neighbor table:** each row shows ID, age, admission AIS, actual
+  outcome value (bilingual formatting: regression values as numbers, AIS
+  as letter grade), and similarity percentage.  Summary line above: "10
+  similar patients identified (X with observed outcome)".
+* **Outcome-aware rendering:** similarity figure adapts to the selected
+  outcome.  For regression (SCIM total/subscales, LOS): strip chart with
+  neighbor dots + PI + prediction diamond.  For multiclass (AIS): grouped
+  bar chart comparing neighbor grade distribution to model probabilities.
+* **Performance:** 259ms avg per patient tab render (including K-NN
+  search + figure construction).  Gower distance over 899 episodes × 32
+  features is < 5ms — negligible overhead.
+* **Edge cases tested:** (1) all 6 outcome types render correctly,
+  (2) both languages (JA/EN), (3) None key_record returns 9-element empty
+  tuple, (4) partial-orphan episodes filtered by MIN_FEATURE_OVERLAP=5,
+  (5) LOS with clip_max=None auto-ranges correctly, (6) patients with
+  sparse SCIM data show "–" in table.
+* New UI string: `patient_similarity_heading` (ja: "類似患者
+  (Gower距離)", en: "Similar patients (Gower distance)").
+* New CSS: `.patient-sim-summary`, `.patient-sim-table` (5 styles
+  matching the existing ISNCSCI table pattern).
+* **Files changed:** new `data/similarity.py`, `dashboard/figures.py`
+  (2 new functions + `AIS_ORD_TO_LETTER` constant), `dashboard/app.py`
+  (1 new import, 1 new function, 1 extended function, 1 modified callback,
+  layout extended), `schema/ui_strings.yaml` (1 new key),
+  `dashboard/assets/style.css` (5 new style blocks).
+* Verification: app module imports cleanly, Flask test client confirms
+  HTTP 200 on `/`, `/_dash-layout`, `/_dash-dependencies`.  20 callbacks
+  registered (unchanged).  `_compute_patient_tab` returns correct 9-tuple
+  for all 6 outcomes × 2 languages.
 
 ### 2026-05-24 (session 18, F13 SHAP interaction explorer shipped)
 
@@ -1454,3 +1530,25 @@ dependency**.  Ordered by recommended start order (F1 first).
   `fig_interaction_dependence`), `dashboard/app.py` (interaction card
   in `render_insights` + 3 new callbacks), `schema/ui_strings.yaml`
   (3 new keys).
+
+### F16. Patient similarity explorer — **STATUS: shipped (session 19, 2026-05-24)**
+
+* **What was built:** Gower distance-based K-nearest-neighbor explorer in
+  the patient tab.  For any selected patient, shows the 10 most similar
+  historical episodes by admission-feature similarity.  Regression
+  outcomes display a strip chart of neighbor outcomes overlaid on the
+  model's prediction + PI.  Multiclass (AIS) displays a bar chart
+  comparing neighbor grade distribution to the model's predicted
+  probabilities.  A compact table lists each neighbor's ID, age, AIS,
+  outcome, and similarity score.
+* **Why:** Model predictions need empirical grounding.  Clinicians trust
+  "patients like yours typically achieved X" more than a bare model
+  output.  The similarity explorer provides this anchor.
+* **Algorithm:** Gower distance on 32 admission features (numeric:
+  Manhattan/range, categorical: 0/1 match, missing: excluded).
+  `MIN_FEATURE_OVERLAP=5` prevents vacuous distance=0 for data-sparse
+  episodes.  Performance: <5ms for 899-episode KNN search.
+* **Files changed:** new `data/similarity.py`, `dashboard/figures.py`
+  (2 new functions), `dashboard/app.py` (1 new import, 1 new function,
+  1 extended function, 1 modified callback, layout), `schema/ui_strings.yaml`
+  (1 new key), `dashboard/assets/style.css` (5 new styles).

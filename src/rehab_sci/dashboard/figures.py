@@ -1274,3 +1274,174 @@ def fig_calibration_curve(
     )
     return fig
 
+
+# ---------- Patient similarity (F16) ----------
+AIS_ORD_TO_LETTER = {1: "A", 2: "B", 3: "C", 4: "D", 5: "E"}
+
+
+def fig_neighbor_outcomes(
+    neighbors: list[dict],
+    pred: float | None,
+    lo: float | None,
+    hi: float | None,
+    observed: float | None,
+    schema: Schema,
+    lang: str,
+    *,
+    clip_min: float = 0.0,
+    clip_max: float | None = 100.0,
+    axis_label: str | None = None,
+) -> go.Figure:
+    """Strip chart of K nearest neighbors' actual outcomes on the prediction scale.
+
+    Neighbor dots are sized by similarity (larger = more similar) and layered
+    over the query patient's prediction interval and observed value.
+    """
+    fig = go.Figure()
+    band_lbl = t(schema, "sim_prediction_interval", lang)
+    pred_lbl = "予測中央値" if lang == "ja" else "Predicted median"
+    obs_lbl = "実測値" if lang == "ja" else "Observed"
+    nbr_lbl = "類似患者" if lang == "ja" else "Similar patients"
+
+    if pred is not None and lo is not None and hi is not None:
+        fig.add_trace(go.Bar(
+            x=[hi - lo], base=[lo], y=[nbr_lbl],
+            orientation="h",
+            marker=dict(color="rgba(17,122,139,0.12)", line=dict(width=0)),
+            hovertemplate=f"80% PI: {lo:.0f}–{hi:.0f}<extra></extra>",
+            showlegend=False,
+        ))
+        fig.add_trace(go.Scatter(
+            x=[pred], y=[nbr_lbl],
+            mode="markers",
+            marker=dict(color="#0c5a66", size=14, symbol="diamond"),
+            hovertemplate=f"{pred_lbl}: %{{x:.0f}}<extra></extra>",
+            name=pred_lbl, showlegend=True,
+        ))
+
+    vals = [n["y_discharge_scim"] for n in neighbors if n.get("y_discharge_scim") is not None]
+    sims = [n["similarity"] for n in neighbors if n.get("y_discharge_scim") is not None]
+    ids = [n.get("id_number") for n in neighbors if n.get("y_discharge_scim") is not None]
+    if vals:
+        rng = np.random.default_rng(42)
+        jitter = rng.uniform(-0.15, 0.15, size=len(vals))
+        sizes = [8 + 10 * s for s in sims]
+        id_txt = [str(i) if i is not None else "?" for i in ids]
+        hover = [
+            f"ID {i}<br>SCIM: {v:.0f}<br>{'類似度' if lang == 'ja' else 'Similarity'}: {s:.0%}"
+            for i, v, s in zip(id_txt, vals, sims, strict=True)
+        ]
+        fig.add_trace(go.Scatter(
+            x=vals,
+            y=[jitter[j] for j in range(len(vals))],
+            mode="markers",
+            marker=dict(
+                color=PALETTE_CATEGORICAL[1],
+                size=sizes,
+                opacity=0.75,
+                line=dict(color=PALETTE_CATEGORICAL[1], width=1),
+            ),
+            yaxis="y2",
+            hovertext=hover,
+            hoverinfo="text",
+            name=nbr_lbl, showlegend=True,
+        ))
+
+    if observed is not None:
+        fig.add_trace(go.Scatter(
+            x=[observed], y=[nbr_lbl],
+            mode="markers",
+            marker=dict(color="#a3354e", size=16, symbol="x-thin-open",
+                        line=dict(color="#a3354e", width=3)),
+            hovertemplate=f"{obs_lbl}: %{{x:.0f}}<extra></extra>",
+            name=obs_lbl, showlegend=True,
+        ))
+
+    x_lo = float(clip_min) if clip_min is not None else 0.0
+    if clip_max is not None:
+        x_hi = float(clip_max)
+    else:
+        all_vals = vals + ([pred] if pred else []) + ([observed] if observed else [])
+        x_hi = float(max(all_vals) * 1.1 + 1.0) if all_vals else 100.0
+    if axis_label is None:
+        axis_label = "SCIM-III (0–100)"
+
+    fig.update_layout(
+        height=180,
+        margin=dict(l=130, r=20, t=10, b=30),
+        xaxis=dict(range=[x_lo, x_hi], title=axis_label),
+        yaxis=dict(showticklabels=True, tickfont=dict(size=12), showgrid=False,
+                   domain=[0.0, 0.4]),
+        yaxis2=dict(
+            showticklabels=False, showgrid=False, zeroline=False,
+            range=[-0.5, 0.5], domain=[0.4, 1.0], fixedrange=True,
+        ),
+        showlegend=True,
+        legend=dict(orientation="h", x=0.0, y=1.18, font=dict(size=11),
+                    bgcolor="rgba(255,255,255,0)"),
+    )
+    return fig
+
+
+def fig_neighbor_ais_distribution(
+    neighbors: list[dict],
+    pred_proba: list[float] | None,
+    observed_ais: int | None,
+    schema: Schema,
+    lang: str,
+) -> go.Figure:
+    """Bar chart comparing neighbor AIS grade distribution to the model's predicted probabilities."""
+    labels = list(AIS_ORD_TO_LETTER.values())
+    ais_colors = [PALETTE_AIS[lbl] for lbl in labels]
+
+    neighbor_grades = [n["y_discharge_ais"] for n in neighbors if n.get("y_discharge_ais") is not None]
+    counts = np.zeros(5)
+    for g in neighbor_grades:
+        if 1 <= g <= 5:
+            counts[g - 1] += 1
+    total = counts.sum()
+    nbr_pct = counts / total if total > 0 else counts
+
+    fig = go.Figure()
+    nbr_name = "類似患者の実績" if lang == "ja" else "Similar patients (actual)"
+    model_name = "モデル予測" if lang == "ja" else "Model prediction"
+
+    fig.add_trace(go.Bar(
+        x=labels, y=nbr_pct, name=nbr_name,
+        marker=dict(color=[_hex_to_rgba(c, 0.6) for c in ais_colors],
+                    line=dict(color=ais_colors, width=1.5)),
+        hovertemplate="%{x}: %{y:.0%}<extra>" + nbr_name + "</extra>",
+    ))
+
+    if pred_proba is not None and len(pred_proba) == 5:
+        fig.add_trace(go.Scatter(
+            x=labels, y=pred_proba, name=model_name,
+            mode="lines+markers",
+            marker=dict(color=PALETTE_CATEGORICAL[0], size=8),
+            line=dict(color=PALETTE_CATEGORICAL[0], width=2, dash="dot"),
+            hovertemplate="%{x}: %{y:.0%}<extra>" + model_name + "</extra>",
+        ))
+
+    obs_text = ""
+    if observed_ais is not None and 1 <= observed_ais <= 5:
+        obs_letter = AIS_ORD_TO_LETTER[observed_ais]
+        obs_text = f"{'実測' if lang == 'ja' else 'Observed'}: AIS {obs_letter}"
+
+    y_lbl = "割合" if lang == "ja" else "Proportion"
+    fig.update_layout(
+        height=240,
+        margin=dict(l=50, r=20, t=28, b=44),
+        xaxis=dict(title="AIS"),
+        yaxis=dict(title=y_lbl, range=[0, 1], tickformat=".0%"),
+        barmode="group",
+        legend=dict(orientation="h", x=0.0, y=1.15, font=dict(size=11),
+                    bgcolor="rgba(255,255,255,0)"),
+        annotations=([dict(
+            x=0.98, y=0.95, xref="paper", yref="paper",
+            text=obs_text, showarrow=False,
+            font=dict(size=12, color="#a3354e"),
+            xanchor="right",
+        )] if obs_text else []),
+    )
+    return fig
+

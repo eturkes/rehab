@@ -363,3 +363,8 @@ whatif_delta:
 report_download_button:
   ja: "PDF レポート"
   en: "PDF report"
+
+# --- patient similarity (F16) ---
+patient_similarity_heading:
+  ja: "類似患者 (Gower距離)"
+  en: "Similar patients (Gower distance)"

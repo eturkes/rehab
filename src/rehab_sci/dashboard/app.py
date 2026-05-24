@@ -39,6 +39,7 @@ from rehab_sci.data.episodes import (
     patient_meta,
     patient_timeline,
 )
+from rehab_sci.data.similarity import find_nearest
 from rehab_sci.models.outcomes import OUTCOMES, OutcomeSpec
 from rehab_sci.schema import load_schema
 
@@ -844,6 +845,14 @@ def render_patient(lang: str) -> html.Div:
         ),
     )
 
+    similarity_card = chart_card(
+        t(SCHEMA, "patient_similarity_heading", lang),
+        html.Div([
+            dcc.Graph(id="patient-sim-graph", config={"displayModeBar": False}),
+            html.Div(id="patient-sim-table"),
+        ]),
+    )
+
     return html.Div(
         className="patient-grid",
         children=[
@@ -853,6 +862,7 @@ def render_patient(lang: str) -> html.Div:
                 children=[
                     timeline_card,
                     html.Div(className="chart-row", children=[isncsci_card, prediction_card]),
+                    similarity_card,
                 ],
             ),
         ],
@@ -1857,11 +1867,113 @@ def _patient_multiclass(bundle: dict, X: pd.DataFrame, key_record: int, lang: st
     return readout, pred_fig, shap_fig, note
 
 
+def _build_similarity_section(
+    key_record: int, bundle: dict, X: pd.DataFrame, lang: str,
+) -> tuple[go.Figure, html.Div]:
+    """Compute K nearest neighbors and build the similarity figure + table."""
+    neighbors = find_nearest(
+        EP, key_record,
+        feature_cols=FEATURE_SPEC["feature_cols"],
+        numeric_cols=FEATURE_SPEC["numeric_cols"],
+        categorical_cols=FEATURE_SPEC["categorical_cols"],
+        ranges=FEATURE_SPEC["ranges"],
+        k=10,
+    )
+    if not neighbors:
+        return go.Figure(), html.Div()
+
+    spec: OutcomeSpec = bundle["spec"]
+
+    # Look up each neighbor's actual value for the selected outcome.
+    for n in neighbors:
+        nr = EP.loc[EP["KeyRecordNumber"] == n["key_record"]]
+        if not nr.empty:
+            val = nr.iloc[0].get(spec.target_col)
+            n["outcome_val"] = None if pd.isna(val) else float(val)
+        else:
+            n["outcome_val"] = None
+
+    # Build the outcome-specific figure.
+    if spec.task == "regression":
+        fspec = bundle["feature_spec"]
+        transform = fspec.get("transform")
+        clip_min = fspec.get("clip_min")
+        clip_max = fspec.get("clip_max")
+        q_t = _resolve_conformal_q(fspec, X)
+        pred_t = float(bundle["median"].predict(X)[0])
+        pred = _clip_scalar(_inv_transform_scalar(pred_t, transform), clip_min, clip_max)
+        lo_conf = _clip_scalar(_inv_transform_scalar(pred_t - q_t, transform), clip_min, clip_max)
+        hi_conf = _clip_scalar(_inv_transform_scalar(pred_t + q_t, transform), clip_min, clip_max)
+        lo_q = _clip_scalar(_inv_transform_scalar(float(bundle["p10"].predict(X)[0]), transform), clip_min, clip_max)
+        hi_q = _clip_scalar(_inv_transform_scalar(float(bundle["p90"].predict(X)[0]), transform), clip_min, clip_max)
+        lo = min(lo_conf, lo_q)
+        hi = max(hi_conf, hi_q)
+        observed = _get_observed_for_outcome(key_record, spec)
+        label = t(SCHEMA, spec.display_key, lang)
+        unit = t(SCHEMA, spec.unit_key, lang) if spec.unit_key else ""
+        axis_label = f"{label} ({unit})" if unit else label
+        for n in neighbors:
+            n["y_discharge_scim"] = n["outcome_val"]
+        sim_fig = fg.fig_neighbor_outcomes(
+            neighbors, pred, lo, hi, observed, SCHEMA, lang,
+            clip_min=spec.clip_min or 0.0, clip_max=spec.clip_max,
+            axis_label=axis_label,
+        )
+    else:
+        clf = bundle["clf"]
+        proba = np.asarray(clf.predict_proba(X)[0], dtype=float)
+        observed_ord = _get_observed_for_outcome(key_record, spec)
+        for n in neighbors:
+            n["y_discharge_ais"] = (
+                int(n["outcome_val"]) if n["outcome_val"] is not None else None
+            )
+        sim_fig = fg.fig_neighbor_ais_distribution(
+            neighbors, list(proba), int(observed_ord) if observed_ord is not None else None,
+            SCHEMA, lang,
+        )
+
+    # Build the neighbor table.
+    sim_lbl = "類似度" if lang == "ja" else "Similarity"
+    age_lbl = "年齢" if lang == "ja" else "Age"
+    out_lbl = t(SCHEMA, spec.display_key, lang)
+    header = html.Tr([
+        html.Th("ID"), html.Th(age_lbl), html.Th("AIS"),
+        html.Th(out_lbl), html.Th(sim_lbl),
+    ])
+    rows = [header]
+    for n in neighbors:
+        ov = n.get("outcome_val")
+        if spec.task == "multiclass" and ov is not None:
+            ov_txt = f"AIS {AIS_ORD_TO_LETTER.get(int(ov), '?')}"
+        elif ov is not None:
+            ov_txt = f"{ov:.0f}"
+        else:
+            ov_txt = "–"
+        rows.append(html.Tr([
+            html.Td(str(n["id_number"]) if n["id_number"] else "–"),
+            html.Td(f"{n['age']:.0f}" if n["age"] is not None else "–"),
+            html.Td(n["ais_admit"] or "–"),
+            html.Td(ov_txt),
+            html.Td(f"{n['similarity']:.0%}"),
+        ]))
+    sim_table = html.Table(rows, className="patient-sim-table")
+
+    with_count = sum(1 for n in neighbors if n.get("outcome_val") is not None)
+    total = len(neighbors)
+    summary_text = (
+        f"{total}{('名の類似患者を特定' if lang == 'ja' else ' similar patients identified')}"
+        f" ({with_count}{('名に実測データあり' if lang == 'ja' else ' with observed outcome')})"
+    )
+    summary = html.Div(summary_text, className="patient-sim-summary")
+
+    return sim_fig, html.Div([summary, sim_table])
+
+
 def _compute_patient_tab(key_record, strata, outcome_key, lang):  # noqa: ANN001
-    """Pure-function payload for the patient tab. Returns a 7-tuple matching the callback's Outputs."""
+    """Pure-function payload for the patient tab. Returns a 9-tuple matching the callback's Outputs."""
     if key_record is None:
         empty = go.Figure()
-        return html.Div(), empty, html.Div(), [], empty, empty, ""
+        return html.Div(), empty, html.Div(), [], empty, empty, "", empty, html.Div()
     key_record = int(key_record)
 
     meta = patient_meta(EP, key_record)
@@ -1879,6 +1991,8 @@ def _compute_patient_tab(key_record, strata, outcome_key, lang):  # noqa: ANN001
             go.Figure(),
             go.Figure(),
             "",
+            go.Figure(),
+            html.Div(),
         )
 
     bundle = OUTCOME_BUNDLES.get(outcome_key) or SCIM_TOTAL_BUNDLE
@@ -1926,7 +2040,9 @@ def _compute_patient_tab(key_record, strata, outcome_key, lang):  # noqa: ANN001
     else:
         readout, pred_fig, shap_fig, note = _patient_multiclass(bundle, X, key_record, lang)
 
-    return meta_strip, timeline_fig, isncsci_table, readout, pred_fig, shap_fig, note
+    sim_fig, sim_table = _build_similarity_section(key_record, bundle, X, lang)
+
+    return meta_strip, timeline_fig, isncsci_table, readout, pred_fig, shap_fig, note, sim_fig, sim_table
 
 
 @callback(
@@ -1937,6 +2053,8 @@ def _compute_patient_tab(key_record, strata, outcome_key, lang):  # noqa: ANN001
     Output("patient-pred-graph", "figure"),
     Output("patient-shap-graph", "figure"),
     Output("patient-pred-note", "children"),
+    Output("patient-sim-graph", "figure"),
+    Output("patient-sim-table", "children"),
     Input("patient-episode-radio", "value"),
     Input("patient-strata-radio", "value"),
     Input("patient-outcome", "value"),
