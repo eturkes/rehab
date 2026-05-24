@@ -104,7 +104,9 @@ mechanism:
   - { display: "FALL_LOW",   ja: "低所からの転落",           en: "Fall from low height",            raw_aliases: ["低所からの転落"] }
   - { display: "TRAFFIC",    ja: "交通事故",                 en: "Traffic accident",                raw_aliases: ["交通事故"] }
   - { display: "SPORT",      ja: "スポーツ",                 en: "Sports",                          raw_aliases: ["スポーツ"] }
-  - { display: "HEAVY",      ja: "重量物の落下／下敷き",     en: "Heavy object — fall / crush",     raw_aliases: ["重量物の落下あるいは下敷き", "重量物の落下", "重量物下敷き"] }
+  - { display: "HEAVY",      ja: "重量物の落下／下敷き",     en: "Heavy object — fall / crush",     raw_aliases: ["重量物の落下あるいは下敷き", "重量物の落下", "重量物下敷き", "重量物落下・下敷き"] }
+  - { display: "TUMOR_SURG", ja: "脊髄腫瘍術後",            en: "Post tumor surgery",              raw_aliases: ["脊髄腫瘍ope後"] }
+  - { display: "DF-4",       ja: "DF-4 (不明)",              en: "DF-4 (unspecified)",              raw_aliases: [] }
   - { display: "OTHER",      ja: "その他",                   en: "Other",                           raw_aliases: ["その他"] }
   - { display: "UNK",        ja: "不明",                     en: "Unknown",                         raw_aliases: ["不明"] }
 
