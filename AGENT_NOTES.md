@@ -7,14 +7,49 @@ bottom of each section as new lessons land; do **not** delete prior entries.
 
 ## 0. Read-first
 
-* `CLAUDE.md` is the user's policy file.  Treat as authoritative.  Requires
-  user approval to modify.
+* `CLAUDE.md` is the user's policy file.  Treat as authoritative.  You may
+  modify it freely when content becomes obsolete or can be improved.
+* `SESSION_PROMPT.md` contains the reusable prompt the user pastes to start
+  new sessions.  Update it if the bootstrapping workflow changes.
 * `README.md` is the human-facing entry point.  Keep in sync with code.
 * This file is the agent-facing scratchpad.  Always read it before planning.
+  Keep it accurate: update sections after every session; prune obsolete
+  entries when they conflict with current state.
 * **Default-work pool for fresh sessions: §8 Feature backlog (F1–F3).**
   Propose work from §8 unless the user redirects.  Historical "Open items
   rolled forward" lists inside prior §7 session entries are **superseded**
   by user decision in session 4 — treat them as history, not as a to-do.
+
+## 0b. Lessons & mistakes (append here; prune when superseded)
+
+* **Session 1: Holm step-down implemented backwards** — used running
+  `min` instead of running `max` over sorted p×(n−k+1).  Produced
+  nonsensical adjusted-p values (~10⁻⁵⁵).  Fix: verified the Holm
+  formula against a stats reference before committing.  *Takeaway:*
+  always validate statistical procedures against a reference
+  implementation or textbook definition, especially for correction
+  methods where the direction of an operator is easy to confuse.
+* **Session 2: Plotly silent failure on sunburst** — `branchvalues=
+  "total"` with zero-valued parents renders blank with no error.
+  Spent time debugging before realizing Plotly silently swallows the
+  misconfiguration.  *Takeaway:* Plotly has several silent-failure
+  modes; when a chart renders blank, check the `branchvalues` /
+  parent-child value contract before assuming a data issue.
+* **Session 1–3: `_apply_missing_sentinels` phantom function** — early
+  notes referenced a helper that was never written; sentinels are
+  handled by two different mechanisms in the loader.  Corrected in
+  session 6.  *Takeaway:* verify that referenced functions actually
+  exist in the codebase before documenting them; grep for the name.
+* **Session 5: Dropdown option labels too long for narrow viewports** —
+  concatenating full Japanese demographic strings produced multi-line
+  wrapping in the Dash Dropdown that blended adjacent options together.
+  *Takeaway:* always test UI components at minimum viewport width;
+  Dash Dropdown `optionHeight` must match the actual rendered height.
+* **General: ghost-episode discovery delayed** — 301 placeholder
+  episodes inflated cohort counts for 5 sessions before investigation.
+  The loader was correct but the anomaly was visible in session 1.
+  *Takeaway:* when encountering unexpected NaN patterns or row counts,
+  investigate immediately rather than deferring.
 
 ## 1. Data invariants (do not rediscover)
 
@@ -206,6 +241,22 @@ pkill -f 'rehab_sci.dashboard.app'               # stop stale dashboard
 ```
 
 ## 7. Session log (most recent first)
+
+### 2026-05-24 (session 8, CLAUDE.md update response)
+
+* User updated `CLAUDE.md` with several new/expanded directives.  Key
+  additions: (a) memory/scratchpad system mandate, (b) reusable session
+  prompt requirement, (c) directory-scoping constraint, (d) CLAUDE.md
+  modification freedom (previously required user approval), (e) testing
+  philosophy, (f) KISS/UNIX/overengineering guidance, (g) expanded
+  security audit + reasoning methodology directives.
+* Updated §0 to remove the outdated "requires user approval to modify"
+  note about CLAUDE.md, and added a reminder to keep AGENT_NOTES
+  accurate and pruned.
+* Added §0b "Lessons & mistakes" section, consolidating past mistakes
+  from session logs into a dedicated section for quick reference.
+* Emitted the reusable session prompt for future sessions.
+* No code changes this session — pure documentation/process.
 
 ### 2026-05-18 (session 7, F2 multi-outcome prediction shipped)
 
