@@ -21,6 +21,7 @@ from dash import Dash, Input, Output, State, callback, ctx, dcc, html
 
 from rehab_sci.dashboard import figures as fg
 from rehab_sci.dashboard.i18n import col_label, level_label, t
+from rehab_sci.dashboard.report import generate_patient_report
 from rehab_sci.dashboard.theme import (
     INK,
     PALETTE_CATEGORICAL,
@@ -822,11 +823,22 @@ def render_patient(lang: str) -> html.Div:
                 ),
                 dcc.Graph(id="patient-shap-graph", config={"displayModeBar": False}),
                 html.Div(id="patient-pred-note", className="patient-pred-note"),
-                html.Button(
-                    t(SCHEMA, "whatif_button", lang),
-                    id="patient-whatif-btn",
-                    n_clicks=0,
-                    className="whatif-btn",
+                html.Div(
+                    className="patient-action-row",
+                    children=[
+                        html.Button(
+                            t(SCHEMA, "whatif_button", lang),
+                            id="patient-whatif-btn",
+                            n_clicks=0,
+                            className="whatif-btn",
+                        ),
+                        html.Button(
+                            t(SCHEMA, "report_download_button", lang),
+                            id="patient-report-btn",
+                            n_clicks=0,
+                            className="report-btn",
+                        ),
+                    ],
                 ),
             ]
         ),
@@ -1187,6 +1199,7 @@ def create_app() -> Dash:
         children=[
             dcc.Store(id="lang-store", data="ja"),
             dcc.Store(id="patient-ref", storage_type="session"),
+            dcc.Download(id="report-download"),
             html.Div(id="topbar-container"),
             html.Div(
                 className="tabs-container",
@@ -1969,6 +1982,92 @@ def update_whatif_banner(ref_data, lang):  # noqa: ANN001
 )
 def clear_whatif(_n):  # noqa: ANN001
     return None
+
+
+# ---------- PDF report callback ----------
+@callback(
+    Output("report-download", "data"),
+    Input("patient-report-btn", "n_clicks"),
+    State("patient-episode-radio", "value"),
+    State("patient-id-dropdown", "value"),
+    State("patient-strata-radio", "value"),
+    State("lang-store", "data"),
+    prevent_initial_call=True,
+)
+def download_report(n_clicks, key_record, id_number, strata, lang):  # noqa: ANN001
+    if not n_clicks or key_record is None:
+        return dash.no_update
+    key_record = int(key_record)
+    if not _episode_has_admission(key_record):
+        return dash.no_update
+
+    meta = patient_meta(EP, key_record)
+    X = _episode_row_for_model(key_record)
+
+    # Predictions for all 6 outcomes + observed values.
+    ref_preds = _compute_ref_predictions(X)
+    for spec in OUTCOMES:
+        p = ref_preds.get(spec.key, {})
+        observed = _get_observed_for_outcome(key_record, spec)
+        p["observed"] = observed
+        if p.get("task") == "multiclass":
+            fspec = OUTCOME_BUNDLES[spec.key]["feature_spec"]
+            aps_q = _resolve_aps_q(fspec, X)
+            class_labels = list(fspec.get("class_labels", spec.class_labels))
+            proba = np.asarray(p.get("proba", []))
+            if proba.size > 0:
+                cs = _aps_prediction_set(proba, aps_q)
+                p["conformal_set_letters"] = [class_labels[i] for i in cs]
+
+    # Trajectory figure (SCIM-III timeline with cohort bands + predicted trajectory).
+    traj = _predict_trajectory(X)
+    if traj is not None:
+        ep_row = EP.loc[EP["KeyRecordNumber"] == key_record]
+        baseline = (
+            float(ep_row.iloc[0]["baseline_scim"])
+            if not ep_row.empty and pd.notna(ep_row.iloc[0].get("baseline_scim"))
+            else None
+        )
+        if baseline is not None:
+            traj["timepoints"] = ["0day"] + traj["timepoints"]
+            traj["pred"] = [baseline] + traj["pred"]
+            traj["lo"] = [baseline] + traj["lo"]
+            traj["hi"] = [baseline] + traj["hi"]
+        scim_out = ref_preds.get("scim_total")
+        if scim_out:
+            traj["timepoints"].append("discharge")
+            traj["pred"].append(scim_out["pred"])
+            traj["lo"].append(scim_out["lo"])
+            traj["hi"].append(scim_out["hi"])
+
+    timeline_fig = fg.fig_patient_scim_timeline(
+        LONG, EP, key_record, strata, SCHEMA, lang, trajectory=traj,
+    )
+
+    # SHAP for SCIM-total (the primary outcome).
+    scim_bundle = OUTCOME_BUNDLES.get("scim_total")
+    shap_fig = None
+    if scim_bundle is not None:
+        shap_vals, base = _shap_for_row_regression(X, scim_bundle["median"])
+        shap_fig = _fig_shap_local(shap_vals, X, base, lang)
+
+    outcome_labels = [
+        (s.key, t(SCHEMA, s.display_key, lang), t(SCHEMA, s.unit_key, lang) if s.unit_key else "")
+        for s in OUTCOMES
+    ]
+
+    pdf_bytes = generate_patient_report(
+        meta=meta,
+        predictions=ref_preds,
+        trajectory_fig=timeline_fig,
+        shap_fig=shap_fig,
+        outcome_labels=outcome_labels,
+        lang=lang,
+    )
+
+    pid = meta.get("id_number", "unknown")
+    filename = f"patient_{pid}_episode_{key_record}.pdf"
+    return dcc.send_bytes(pdf_bytes, filename)
 
 
 # ---------- insight engine callbacks ----------

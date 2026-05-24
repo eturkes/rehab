@@ -349,3 +349,8 @@ whatif_ref_label:
 whatif_delta:
   ja: "差分"
   en: "Change"
+
+# --- PDF report (F10) ---
+report_download_button:
+  ja: "PDF レポート"
+  en: "PDF report"

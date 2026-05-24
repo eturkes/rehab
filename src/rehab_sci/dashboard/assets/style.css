@@ -528,6 +528,22 @@ input[type="number"]:focus, input[type="text"]:focus, select:focus {
   transition: background 0.15s ease;
 }
 .whatif-btn:hover { background: var(--accent-700); }
+.report-btn {
+  display: inline-block;
+  margin-top: 14px;
+  margin-left: 10px;
+  background: var(--ink-700);
+  color: #fff;
+  border: none;
+  border-radius: var(--radius);
+  padding: 7px 18px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+.report-btn:hover { background: var(--ink-900); }
+.patient-action-row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
 .whatif-delta { color: var(--warm); font-weight: 600; }
 
 /* Dash slider overrides */

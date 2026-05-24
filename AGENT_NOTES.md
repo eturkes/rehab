@@ -16,7 +16,7 @@ bottom of each section as new lessons land; do **not** delete prior entries.
   Keep it accurate: update sections after every session; prune obsolete
   entries when they conflict with current state.
 * **Default-work pool for fresh sessions: §8 Feature backlog.**
-  F1–F9 shipped as of session 15.  Propose new feature candidates or
+  F1–F10 shipped as of session 16.  Propose new feature candidates or
   maintenance work unless the user redirects.  Historical "Open items
   rolled forward" lists inside prior §7 session entries are
   **superseded** by user decision in session 4 — treat them as history.
@@ -284,6 +284,64 @@ pkill -f 'rehab_sci.dashboard.app'               # stop stale dashboard
 ```
 
 ## 7. Session log (most recent first)
+
+### 2026-05-24 (session 16, F10 PDF patient report shipped)
+
+* Shipped **F10 PDF patient report**.
+* **Problem:** The dashboard is view-only — clinicians had no way to
+  generate a shareable artifact for rounds, referrals, or patient/family
+  discussions.  All prediction results, SHAP explanations, and trajectory
+  charts existed only in the live browser session.
+* **Design:** A "PDF report" button on the patient explorer's prediction
+  card (alongside the existing What-if button).  Clicking it generates a
+  bilingual 2-page PDF and triggers a browser download.
+* **Page 1:** Title with patient ID / episode number, two-column
+  demographics block (age, sex, paralysis, AIS, NLI, LOS), a 6-row
+  predictions table covering all outcomes (prediction value, 80% PI,
+  observed, APS conformal set for AIS), and the SCIM-III recovery
+  trajectory chart with cohort percentile bands + predicted trajectory
+  overlay.
+* **Page 2:** Top-12 SHAP feature contribution bar chart (for SCIM-III
+  total), a methodology summary paragraph, and a research-use disclaimer
+  in the footer.
+* **Implementation:**
+  - New `dashboard/report.py` (230 lines): `_ReportPDF` class extending
+    `fpdf2.FPDF` with header/footer/section_heading/kv_pair helpers.
+    `generate_patient_report()` accepts pre-computed meta, predictions,
+    Plotly figures, and outcome labels; assembles 2-page PDF using
+    `fig.to_image(format="png")` via kaleido for chart embedding.
+    `_shap_fig_for_pdf()` deep-copies the SHAP figure with widened left
+    margin (340px) to prevent label clipping at PDF render width.  All
+    text is bilingual via an internal `_S` dict (not ui_strings.yaml —
+    report-specific strings that are only used in the PDF).
+  - Font: IPAexGothic (system TTF at `/usr/local/share/fonts/truetype/
+    ipaexg.ttf`) — single-weight CJK sans-serif covering all Japanese
+    characters + Latin.  Visual hierarchy via size only (no bold).
+  - `dashboard/app.py`: `dcc.Download(id="report-download")` added to
+    layout.  New `download_report` callback: button click → gathers
+    patient meta, computes all 6 outcome predictions via
+    `_compute_ref_predictions`, computes trajectory, generates SHAP
+    figure for SCIM-total, calls `generate_patient_report()`, returns
+    via `dcc.send_bytes()`.  Guard: returns `no_update` if no admission
+    data.  17 callbacks total (1 new).
+  - `dashboard/assets/style.css`: `.report-btn` style (ink-700 background,
+    matching `.whatif-btn` sizing), `.patient-action-row` flex container
+    for button pair.
+  - `schema/ui_strings.yaml`: 1 new key (`report_download_button`).
+  - `pyproject.toml`: `fpdf2>=2.8,<3` added to dependencies.
+  - Chrome for kaleido installed via `kaleido.get_chrome_sync()` at first
+    use (required by kaleido v1 for Plotly→PNG export).
+* **File sizes:** EN ~152 KB, JA ~167 KB (difference is CJK font subset
+  embedding).  Both are 2-page A4 portrait with embedded high-res
+  (scale=2) PNG charts.
+* **Edge cases tested:** partial-obs patient (null SCIM, non-null AIS) →
+  observed column shows "–" for missing, AIS letter for present.  Second
+  patient → consistent output.  No-admission guard → callback returns
+  `no_update`.
+* Verification: full dashboard HTTP 200 on `/`, `/_dash-layout`,
+  `/_dash-dependencies`.  17 callbacks registered (1 new).
+  `dcc.Download(report-download)` in layout.  Programmatic end-to-end
+  test confirms PDF generation for both EN and JA with correct content.
 
 ### 2026-05-24 (session 15, F9 What-if counterfactual explorer shipped)
 
@@ -1200,3 +1258,26 @@ dependency**.  Ordered by recommended start order (F1 first).
   `dashboard/figures.py` (`fig_sim_trajectory` signature),
   `dashboard/assets/style.css` (4 new style blocks),
   `schema/ui_strings.yaml` (5 new keys).
+
+### F10. PDF patient report — **STATUS: shipped (session 16, 2026-05-24)**
+
+* **What was built:** A "PDF report" button on the patient explorer that
+  generates a bilingual 2-page PDF report for the current patient episode.
+  Page 1: demographics, all 6 discharge predictions (table with
+  prediction, PI, observed, APS set), and the SCIM-III recovery
+  trajectory chart.  Page 2: top-12 SHAP contribution bar chart for
+  SCIM-total, methodology summary, disclaimer footer.  Download
+  triggered via `dcc.Download` + `dcc.send_bytes`.
+* **Why:** The dashboard was view-only.  Clinicians need shareable
+  artifacts for rounds, referrals, and patient/family discussions.  The
+  PDF makes all shipped features (F1–F9) actionable outside the browser
+  session.
+* **Tech:** `fpdf2` for PDF assembly, IPAexGothic (system TTF) for CJK
+  text, `kaleido` (already installed) for Plotly→PNG chart embedding
+  at scale=2.  SHAP figure deep-copied with widened left margin (340px)
+  for label visibility at PDF render width (1000px).
+* **File sizes:** EN ~152 KB, JA ~167 KB (2 pages each).
+* **Files changed:** new `dashboard/report.py`, `dashboard/app.py`
+  (1 new callback, 1 `dcc.Download`, layout modified), `pyproject.toml`
+  (`fpdf2` dep), `dashboard/assets/style.css` (2 new style blocks),
+  `schema/ui_strings.yaml` (1 new key).
