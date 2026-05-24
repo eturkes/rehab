@@ -1,0 +1,204 @@
+"""Methods tab — model documentation + per-outcome performance visualizations."""
+
+from __future__ import annotations
+
+from dash import dcc, html
+
+from rehab_sci.dashboard import figures as fg
+from rehab_sci.dashboard.i18n import t
+from rehab_sci.dashboard.state import METRICS, OUTCOME_BUNDLES, SCHEMA
+from rehab_sci.dashboard.theme import INK
+from rehab_sci.models.outcomes import OUTCOMES, OutcomeSpec
+
+
+def _perf_block_regression(spec: OutcomeSpec, info: dict, lang: str) -> html.Div:
+    cv = info["cv"]
+    te = info["test"]
+    units = (" " + t(SCHEMA, spec.unit_key, lang)) if spec.unit_key else ""
+    bundle = OUTCOME_BUNDLES.get(spec.key, {})
+    shap_pack = bundle.get("shap", {})
+    axis_label = t(SCHEMA, spec.display_key, lang)
+    children = [
+        html.H4(axis_label),
+        html.P(
+            f"CV  R²={cv['r2_mean']:.3f} ± {cv['r2_std']:.3f}   "
+            f"RMSE={cv['rmse_mean']:.2f}{units}   "
+            f"MAE={cv['mae_mean']:.2f}{units}"
+        ),
+        html.P(
+            f"TEST  R²={te['r2']:.3f}   RMSE={te['rmse']:.2f}{units}   "
+            f"MAE={te['mae']:.2f}{units}   "
+            + ("80%予測区間カバレッジ" if lang == "ja" else "80% PI coverage")
+            + f"={te['conformal_coverage_80']:.0%}"
+        ),
+        html.P(
+            ("患者数" if lang == "ja" else "Patients")
+            + f": train={te['n_train']}+calib={te['n_calib']}, test={te['n_test']}"
+        ),
+    ]
+    mondrian = te.get("mondrian_coverage", {})
+    if mondrian:
+        parts: list[str] = []
+        ais_cov = mondrian.get("ais", {})
+        if ais_cov:
+            ais_strs = [f"{g}={d['coverage']:.0%}(n={d['n']})" for g, d in sorted(ais_cov.items())]
+            prefix = "AIS別" if lang == "ja" else "Per-AIS"
+            parts.append(f"{prefix}: {', '.join(ais_strs)}")
+        para_cov = mondrian.get("paralysis", {})
+        if para_cov:
+            para_strs = [f"{g}={d['coverage']:.0%}(n={d['n']})" for g, d in sorted(para_cov.items())]
+            prefix = "麻痺別" if lang == "ja" else "Per-paralysis"
+            parts.append(f"{prefix}: {', '.join(para_strs)}")
+        if parts:
+            label = "Mondrian 80%カバレッジ" if lang == "ja" else "Mondrian 80% coverage"
+            children.append(html.P(
+                f"{label}:  {'   '.join(parts)}",
+                style={"fontSize": "12px", "color": INK["500"]},
+            ))
+    fig_pvo = fg.fig_pred_vs_observed(
+        shap_pack, SCHEMA, lang,
+        clip_min=spec.clip_min, clip_max=spec.clip_max, axis_label=axis_label,
+    )
+    fig_rh = fg.fig_residual_hist(shap_pack, SCHEMA, lang, axis_label=axis_label)
+    if fig_pvo is not None and fig_rh is not None:
+        children.append(html.Div(
+            style={"display": "flex", "gap": "12px", "marginTop": "8px"},
+            children=[
+                dcc.Graph(figure=fig_pvo, config={"displayModeBar": False},
+                          style={"flex": "1", "minWidth": "0"}),
+                dcc.Graph(figure=fig_rh, config={"displayModeBar": False},
+                          style={"flex": "1", "minWidth": "0"}),
+            ],
+        ))
+    return html.Div(className="methods-perf-card", children=children)
+
+
+def _perf_block_multiclass(spec: OutcomeSpec, info: dict, lang: str) -> html.Div:
+    cv = info["cv"]
+    te = info["test"]
+    bundle = OUTCOME_BUNDLES.get(spec.key, {})
+    shap_pack = bundle.get("shap", {})
+    ord_lbl = "順序MAE" if lang == "ja" else "ordinal MAE"
+    children = [
+        html.H4(t(SCHEMA, spec.display_key, lang)),
+        html.P(
+            f"CV  acc={cv['accuracy_mean']:.3f} ± {cv['accuracy_std']:.3f}   "
+            f"κ_quad={cv['kappa_quadratic_mean']:.3f} ± {cv['kappa_quadratic_std']:.3f}   "
+            f"{ord_lbl}={cv['ordinal_mae_mean']:.3f}"
+        ),
+        html.P(
+            f"TEST  acc={te['accuracy']:.3f}   κ_quad={te['kappa_quadratic']:.3f}   "
+            f"{ord_lbl}={te['ordinal_mae']:.3f}"
+        ),
+        html.P(
+            ("患者数" if lang == "ja" else "Patients")
+            + f": train={te['n_train']}+calib={te.get('n_calib', te.get('n_val', '?'))}, test={te['n_test']}"
+        ),
+    ]
+    aps_q = te.get("aps_q_hat")
+    if aps_q is not None:
+        set_lbl = "80%予測集合" if lang == "ja" else "80% prediction set"
+        cov_lbl = "カバレッジ" if lang == "ja" else "coverage"
+        size_lbl = "平均集合サイズ" if lang == "ja" else "avg set size"
+        children.append(html.P(
+            f"APS {set_lbl}: {cov_lbl}={te['aps_coverage_80']:.0%}  "
+            f"{size_lbl}={te['aps_avg_set_size']:.2f}",
+        ))
+        aps_mond = te.get("aps_mondrian_coverage", {})
+        parts: list[str] = []
+        ais_cov = aps_mond.get("ais", {})
+        if ais_cov:
+            ais_strs = [
+                f"{g}={d['coverage']:.0%}(n={d['n']},|C|={d['avg_set_size']:.1f})"
+                for g, d in sorted(ais_cov.items())
+            ]
+            prefix = "AIS別" if lang == "ja" else "Per-AIS"
+            parts.append(f"{prefix}: {', '.join(ais_strs)}")
+        para_cov = aps_mond.get("paralysis", {})
+        if para_cov:
+            para_strs = [
+                f"{g}={d['coverage']:.0%}(n={d['n']},|C|={d['avg_set_size']:.1f})"
+                for g, d in sorted(para_cov.items())
+            ]
+            prefix = "麻痺別" if lang == "ja" else "Per-paralysis"
+            parts.append(f"{prefix}: {', '.join(para_strs)}")
+        if parts:
+            children.append(html.P(
+                "   ".join(parts),
+                style={"fontSize": "12px", "color": INK["500"]},
+            ))
+    fig_cm = fg.fig_confusion_matrix(shap_pack, SCHEMA, lang)
+    fig_cal = fg.fig_calibration_curve(shap_pack, SCHEMA, lang)
+    if fig_cm is not None and fig_cal is not None:
+        children.append(html.Div(
+            style={"display": "flex", "gap": "12px", "marginTop": "8px"},
+            children=[
+                dcc.Graph(figure=fig_cm, config={"displayModeBar": False},
+                          style={"flex": "1", "minWidth": "0"}),
+                dcc.Graph(figure=fig_cal, config={"displayModeBar": False},
+                          style={"flex": "1", "minWidth": "0"}),
+            ],
+        ))
+    return html.Div(className="methods-perf-card", children=children)
+
+
+def _perf_block_trajectory(lang: str) -> html.Div | None:
+    traj = METRICS.get("trajectory")
+    if not traj:
+        return None
+    heading = t(SCHEMA, "methods_trajectory_heading", lang)
+    rows: list[html.Tr] = [
+        html.Tr([
+            html.Th("時点" if lang == "ja" else "Timepoint"),
+            html.Th("n"), html.Th("R²"), html.Th("RMSE"),
+            html.Th("80% PI"),
+        ])
+    ]
+    for tp in METRICS.get("trajectory_timepoints", []):
+        m = traj.get(tp, {})
+        rows.append(html.Tr([
+            html.Td(tp),
+            html.Td(str(m.get("n_total", ""))),
+            html.Td(f"{m.get('r2', 0):.3f}"),
+            html.Td(f"{m.get('rmse', 0):.1f}"),
+            html.Td(f"{m.get('conformal_coverage_80', 0):.0%}"),
+        ]))
+    return html.Div(
+        className="methods-perf-card",
+        children=[html.H4(heading), html.Table(rows, className="patient-isncsci-table")],
+    )
+
+
+def render_methods(lang: str) -> html.Div:
+    perf_children: list = [
+        html.H3(t(SCHEMA, "methods_per_outcome_heading", lang)),
+    ]
+    for spec in OUTCOMES:
+        info = METRICS["outcomes"][spec.key]
+        if info["task"] == "regression":
+            perf_children.append(_perf_block_regression(spec, info, lang))
+        else:
+            perf_children.append(_perf_block_multiclass(spec, info, lang))
+
+    traj_block = _perf_block_trajectory(lang)
+    if traj_block is not None:
+        perf_children.append(traj_block)
+
+    perf_block = html.Div(className="methods-block", children=perf_children)
+
+    blocks = [
+        ("methods_outcome", "methods_outcome_def"),
+        ("methods_model", "methods_model_def"),
+        ("methods_features", "methods_features_def"),
+        ("methods_split", "methods_split_def"),
+        ("methods_explainability", "methods_explainability_def"),
+        ("methods_subgroup", "methods_subgroup_def"),
+    ]
+    md = []
+    for title_key, body_key in blocks:
+        md.append(html.Div(
+            className="methods-block",
+            children=[html.H3(t(SCHEMA, title_key, lang)), html.P(t(SCHEMA, body_key, lang))],
+        ))
+    md.append(perf_block)
+    return html.Div(md, style={"maxWidth": "820px"})

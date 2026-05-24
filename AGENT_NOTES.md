@@ -17,9 +17,10 @@ bottom of each section as new lessons land; do **not** delete prior entries.
   entries when they conflict with current state.
 * **Default-work pool for fresh sessions: §8 Feature backlog.**
   F1–F10 shipped as of session 16; F13 shipped session 18; F16 shipped
-  session 19; F18 shipped session 20.  Propose new feature candidates or
-  maintenance work unless the user redirects.  Historical "Open items
-  rolled forward" lists inside prior §7 session entries are
+  session 19; F18 shipped session 20; F20 (proactive refactor) shipped
+  session 21.  All backlog items are shipped — propose new feature
+  candidates or maintenance work unless the user redirects.  Historical
+  "Open items rolled forward" lists inside prior §7 session entries are
   **superseded** by user decision in session 4 — treat them as history.
 
 ## 0b. Lessons & mistakes (append here; prune when superseded)
@@ -245,6 +246,34 @@ bottom of each section as new lessons land; do **not** delete prior entries.
 
 ## 4. Dashboard conventions
 
+* **Module layout (F20 refactor, session 21):**
+  - `dashboard/app.py` — entry point: `create_app()`, `app`, `server`,
+    3 chrome callbacks (lang toggle, topbar/tab labels, tab dispatch).
+  - `dashboard/state.py` — all startup globals: SCHEMA, EP, LONG,
+    METRICS, SIM_DEFAULTS, FEATURE_SPEC, OUTCOME_BUNDLES,
+    TRAJECTORY_BUNDLE, ARCHETYPE_DATA, PATIENT_OPTIONS, etc.  Has no
+    deps on other dashboard modules (only theme for template init).
+  - `dashboard/compute.py` — pure computation helpers: conformal q
+    resolution, trajectory prediction, APS sets, SHAP inference,
+    episode row prep.  No Dash/Plotly deps.
+  - `dashboard/layout.py` — shared UI components: topbar, kpi_card,
+    chart_card, slider_for, dropdown_for, fig_shap_local,
+    fig_prediction_interval, fig_class_probabilities.
+  - `dashboard/tabs/overview.py` — overview tab layout (no callbacks).
+  - `dashboard/tabs/simulator.py` — simulator layout + simulate
+    callback + 3 what-if callbacks.
+  - `dashboard/tabs/patient.py` — patient explorer layout + 3 patient
+    callbacks + PDF download callback.
+  - `dashboard/tabs/insights.py` — insight engine layout + 9 callbacks.
+  - `dashboard/tabs/methods.py` — methods tab layout (no callbacks).
+  - `dashboard/figures.py` — Plotly figure factories (unchanged).
+  - `dashboard/report.py` — PDF report generator (unchanged).
+  - `dashboard/theme.py` — Plotly template + palettes (unchanged).
+  - `dashboard/i18n.py` — bilingual helpers (unchanged).
+* **Dependency graph (acyclic):** `state` → data/model layers;
+  `compute` → `state`; `layout` → `state`, `compute`;
+  `tabs/*` → `state`, `compute`, `layout`, `figures`;
+  `app` → `tabs/*` (imports trigger `@callback` registration).
 * `dcc.Store("lang-store")` holds `"ja"` / `"en"`.  Every callback that
   renders text takes it as `Input` so swaps are instant.
 * Pattern-matched simulator inputs use IDs `{"type": "num"/"cat", "col": <raw>}`
@@ -313,6 +342,64 @@ pkill -f 'rehab_sci.dashboard.app'               # stop stale dashboard
 ```
 
 ## 7. Session log (most recent first)
+
+### 2026-05-24 (session 21, F20 proactive refactor of app.py)
+
+* Shipped **F20 Proactive refactor of dashboard/app.py**.
+* **Problem:** `app.py` had grown to 2,464 lines across 20 sessions of
+  feature development (F1–F18).  68 functions, 20 callbacks, 5 tab
+  renderers, startup data loading, and shared helpers all lived in a
+  single file.  This made per-session context cost high and new feature
+  additions brittle.
+* **Approach:** Decomposed into 9 files following the tab structure,
+  with shared layers for state, computation, and layout.  No behavioral
+  changes — pure structural refactor.
+* **New module structure:**
+  - `state.py` (77 lines) — all startup globals: SCHEMA, EP, LONG,
+    METRICS, OUTCOME_BUNDLES, TRAJECTORY_BUNDLE, ARCHETYPE_DATA, etc.
+    Only depends on theme (for template registration) and data/model
+    layers.  No circular deps.
+  - `compute.py` (266 lines) — pure computation: conformal q
+    resolution (Mondrian AIS → paralysis → marginal), trajectory
+    prediction, APS prediction sets, SHAP inference (both regression
+    and multiclass), episode row prep, observed value lookup.  No Dash
+    or Plotly dependencies.
+  - `layout.py` (216 lines) — shared layout components: topbar,
+    kpi_card, chart_card, slider_for, dropdown_for, plus 3 prediction
+    figures (fig_shap_local, fig_prediction_interval,
+    fig_class_probabilities) used by both simulator and patient tabs.
+  - `tabs/overview.py` (115 lines) — cohort overview layout.
+  - `tabs/simulator.py` (373 lines) — simulator layout + simulate
+    callback + 3 what-if callbacks.
+  - `tabs/patient.py` (657 lines) — patient explorer layout + 3
+    patient callbacks + PDF download callback.
+  - `tabs/insights.py` (288 lines) — insight engine layout + 9
+    insight callbacks.
+  - `tabs/methods.py` (204 lines) — methods tab layout.
+  - `app.py` (136 lines) — entry point: create_app, chrome callbacks
+    (lang, topbar, tab dispatch), __main__.
+* **Dead code removed during refactor:**
+  - `_split_features()` — defined but never called.
+  - `SIM_NUMERIC_ORDER` / `SIM_CATEGORICAL_ORDER` — defined but
+    never referenced (simulator uses inline feature lists).
+  - Dead `if False` branch in `_fig_shap_local` name formatting.
+* **Line count:** Before: 2,464 in 1 file.  After: 2,332 across 9
+  files (max 657 in `tabs/patient.py`).  Net reduction of 132 lines
+  from dead code removal.
+* **Callback registration:** Dash 4.1.0 `@callback` (function-level)
+  registers callbacks globally.  Tab modules are imported by `app.py`,
+  which triggers decorator execution before `app.run()`.  No
+  `@app.callback` needed.
+* **Verification:** Flask test client confirms HTTP 200 on `/`,
+  `/_dash-layout`, `/_dash-dependencies`.  20 callbacks registered
+  (unchanged).  State module: 899 episodes, 6 outcome bundles, 866
+  patients, archetypes + trajectory loaded.  All assertions pass.
+* **Files changed:** `dashboard/app.py` (rewritten), new
+  `dashboard/state.py`, new `dashboard/compute.py`, new
+  `dashboard/layout.py`, new `dashboard/tabs/__init__.py`, new
+  `dashboard/tabs/overview.py`, new `dashboard/tabs/simulator.py`,
+  new `dashboard/tabs/patient.py`, new `dashboard/tabs/insights.py`,
+  new `dashboard/tabs/methods.py`.
 
 ### 2026-05-24 (session 20, F18 recovery archetype clustering shipped)
 
@@ -1665,3 +1752,21 @@ dependency**.  Ordered by recommended start order (F1 first).
   `dashboard/app.py` (1 new import, 1 startup load, 2 extended functions),
   `schema/ui_strings.yaml` (3 new keys), `dashboard/assets/style.css`
   (1 new style block).
+
+### F20. Proactive refactor of dashboard/app.py — **STATUS: shipped (session 21, 2026-05-24)**
+
+* **What was built:** Decomposed the 2,464-line `dashboard/app.py`
+  monolith into 9 files: `app.py` (entry point, 136), `state.py`
+  (globals, 77), `compute.py` (pure math, 266), `layout.py` (shared
+  components, 216), `tabs/overview.py` (115), `tabs/simulator.py` (373),
+  `tabs/patient.py` (657), `tabs/insights.py` (288), `tabs/methods.py`
+  (204).  Total: 2,332 lines, max file 657.  Acyclic dependency graph.
+  3 dead code items removed.  Zero behavioral changes.
+* **Why:** `app.py` had grown past the point where a single LLM session
+  could hold its full context while also reading AGENT_NOTES.md.
+  Decomposition reduces per-session context cost and makes future feature
+  additions cheaper (only read the relevant tab module).
+* **Files changed:** `dashboard/app.py` (rewritten), 7 new modules
+  (`state.py`, `compute.py`, `layout.py`, `tabs/__init__.py`,
+  `tabs/overview.py`, `tabs/simulator.py`, `tabs/patient.py`,
+  `tabs/insights.py`, `tabs/methods.py`).
