@@ -368,3 +368,14 @@ report_download_button:
 patient_similarity_heading:
   ja: "類似患者 (Gower距離)"
   en: "Similar patients (Gower distance)"
+
+# --- recovery archetypes (F18) ---
+chart_archetype_curves:
+  ja: "回復アーキタイプ (予測軌道)"
+  en: "Recovery archetypes (predicted trajectories)"
+chart_archetype_demographics:
+  ja: "アーキタイプ別 AIS 分布"
+  en: "AIS distribution by archetype"
+patient_archetype_label:
+  ja: "回復タイプ"
+  en: "Recovery type"

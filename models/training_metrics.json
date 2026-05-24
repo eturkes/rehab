@@ -81,7 +81,7 @@
           "abs_mean_shap": 9.145310798890547
         },
         {
-          "feature": "\u5e74\u9f62",
+          "feature": "年齢",
           "abs_mean_shap": 8.397991553597441
         },
         {
@@ -117,7 +117,7 @@
           "abs_mean_shap": 0.6070827556889337
         },
         {
-          "feature": "\u4fdd\u967a",
+          "feature": "保険",
           "abs_mean_shap": 0.5417083840163223
         },
         {
@@ -145,7 +145,7 @@
           "abs_mean_shap": 0.2814414910568285
         },
         {
-          "feature": "\u5bfe\u9ebb\u75fa_\u56db\u80a2\u9ebb\u75fa",
+          "feature": "対麻痺_四肢麻痺",
           "abs_mean_shap": 0.27509693457432194
         },
         {
@@ -153,7 +153,7 @@
           "abs_mean_shap": 0.18586624965049725
         },
         {
-          "feature": "\u7cd6\u5c3f\u75c5",
+          "feature": "糖尿病",
           "abs_mean_shap": 0.15788429141977894
         },
         {
@@ -165,22 +165,22 @@
           "abs_mean_shap": 0.1211642490937169
         },
         {
-          "feature": "\u5916\u50b7\u6027_\u975e\u5916\u50b7\u6027",
+          "feature": "外傷性_非外傷性",
           "abs_mean_shap": 0.08623410754381529
         },
         {
-          "feature": "\u6027\u5225",
+          "feature": "性別",
           "abs_mean_shap": 0.058713545462687276
         }
       ],
       "global_interaction_top25": [
         {
-          "feat_a": "\u5e74\u9f62",
+          "feat_a": "年齢",
           "feat_b": "LEMS",
           "abs_mean_interaction": 1.1240618864314462
         },
         {
-          "feat_a": "\u5e74\u9f62",
+          "feat_a": "年齢",
           "feat_b": "TotalMotor",
           "abs_mean_interaction": 0.819750044789039
         },
@@ -200,7 +200,7 @@
           "abs_mean_interaction": 0.528723048451203
         },
         {
-          "feat_a": "\u5e74\u9f62",
+          "feat_a": "年齢",
           "feat_b": "mFrankel_ord",
           "abs_mean_interaction": 0.5197775370586263
         },
@@ -225,12 +225,12 @@
           "abs_mean_interaction": 0.4088652196453127
         },
         {
-          "feat_a": "\u5e74\u9f62",
+          "feat_a": "年齢",
           "feat_b": "PinPrickTotal",
           "abs_mean_interaction": 0.3611710962543891
         },
         {
-          "feat_a": "\u5e74\u9f62",
+          "feat_a": "年齢",
           "feat_b": "LightTouchTotal",
           "abs_mean_interaction": 0.3456067893812344
         },
@@ -240,7 +240,7 @@
           "abs_mean_interaction": 0.33586208686661423
         },
         {
-          "feat_a": "\u5e74\u9f62",
+          "feat_a": "年齢",
           "feat_b": "UEMS",
           "abs_mean_interaction": 0.31128941800066956
         },
@@ -270,7 +270,7 @@
           "abs_mean_interaction": 0.16006850197306172
         },
         {
-          "feat_a": "\u5e74\u9f62",
+          "feat_a": "年齢",
           "feat_b": "LeftMotorLevel_ord",
           "abs_mean_interaction": 0.15326253951904026
         },
@@ -280,7 +280,7 @@
           "abs_mean_interaction": 0.1482422198571547
         },
         {
-          "feat_a": "\u5e74\u9f62",
+          "feat_a": "年齢",
           "feat_b": "RightMotorLevel_ord",
           "abs_mean_interaction": 0.1474973924485248
         },
@@ -381,7 +381,7 @@
           "abs_mean_shap": 2.76861017563421
         },
         {
-          "feature": "\u5e74\u9f62",
+          "feature": "年齢",
           "abs_mean_shap": 1.742573944039262
         },
         {
@@ -413,7 +413,7 @@
           "abs_mean_shap": 0.1689393973279437
         },
         {
-          "feature": "\u4fdd\u967a",
+          "feature": "保険",
           "abs_mean_shap": 0.12337268346125427
         },
         {
@@ -441,7 +441,7 @@
           "abs_mean_shap": 0.09196958840270372
         },
         {
-          "feature": "\u5bfe\u9ebb\u75fa_\u56db\u80a2\u9ebb\u75fa",
+          "feature": "対麻痺_四肢麻痺",
           "abs_mean_shap": 0.09138829851842808
         },
         {
@@ -457,15 +457,15 @@
           "abs_mean_shap": 0.04146657629339932
         },
         {
-          "feature": "\u6027\u5225",
+          "feature": "性別",
           "abs_mean_shap": 0.03196075286330327
         },
         {
-          "feature": "\u7cd6\u5c3f\u75c5",
+          "feature": "糖尿病",
           "abs_mean_shap": 0.028353520100870337
         },
         {
-          "feature": "\u5916\u50b7\u6027_\u975e\u5916\u50b7\u6027",
+          "feature": "外傷性_非外傷性",
           "abs_mean_shap": 0.020647185873115457
         },
         {
@@ -479,7 +479,7 @@
       ],
       "global_interaction_top25": [
         {
-          "feat_a": "\u5e74\u9f62",
+          "feat_a": "年齢",
           "feat_b": "TotalMotor",
           "abs_mean_interaction": 0.3292753939383444
         },
@@ -514,22 +514,22 @@
           "abs_mean_interaction": 0.10186912776619819
         },
         {
-          "feat_a": "\u5e74\u9f62",
+          "feat_a": "年齢",
           "feat_b": "PinPrickTotal",
           "abs_mean_interaction": 0.09078233050073964
         },
         {
-          "feat_a": "\u5e74\u9f62",
+          "feat_a": "年齢",
           "feat_b": "mFrankel_ord",
           "abs_mean_interaction": 0.08560645793753072
         },
         {
-          "feat_a": "\u5e74\u9f62",
+          "feat_a": "年齢",
           "feat_b": "LEMS",
           "abs_mean_interaction": 0.07988787173004534
         },
         {
-          "feat_a": "\u5e74\u9f62",
+          "feat_a": "年齢",
           "feat_b": "LightTouchTotal",
           "abs_mean_interaction": 0.07489296177592922
         },
@@ -554,7 +554,7 @@
           "abs_mean_interaction": 0.049221003443719956
         },
         {
-          "feat_a": "\u5e74\u9f62",
+          "feat_a": "年齢",
           "feat_b": "UEMS",
           "abs_mean_interaction": 0.04718719110882109
         },
@@ -584,7 +584,7 @@
           "abs_mean_interaction": 0.03502472589706984
         },
         {
-          "feat_a": "\u5e74\u9f62",
+          "feat_a": "年齢",
           "feat_b": "RightMotorLevel_ord",
           "abs_mean_interaction": 0.03486964607873931
         },
@@ -689,7 +689,7 @@
           "abs_mean_shap": 3.4653675113056632
         },
         {
-          "feature": "\u5e74\u9f62",
+          "feature": "年齢",
           "abs_mean_shap": 3.4046540833205445
         },
         {
@@ -745,11 +745,11 @@
           "abs_mean_shap": 0.1754757850129329
         },
         {
-          "feature": "\u4fdd\u967a",
+          "feature": "保険",
           "abs_mean_shap": 0.16347030631614964
         },
         {
-          "feature": "\u6027\u5225",
+          "feature": "性別",
           "abs_mean_shap": 0.16240167459569985
         },
         {
@@ -757,7 +757,7 @@
           "abs_mean_shap": 0.15969440062301632
         },
         {
-          "feature": "\u5bfe\u9ebb\u75fa_\u56db\u80a2\u9ebb\u75fa",
+          "feature": "対麻痺_四肢麻痺",
           "abs_mean_shap": 0.1422216699979292
         },
         {
@@ -773,7 +773,7 @@
           "abs_mean_shap": 0.06925504468748023
         },
         {
-          "feature": "\u5916\u50b7\u6027_\u975e\u5916\u50b7\u6027",
+          "feature": "外傷性_非外傷性",
           "abs_mean_shap": 0.05557656593341454
         },
         {
@@ -783,7 +783,7 @@
       ],
       "global_interaction_top25": [
         {
-          "feat_a": "\u5e74\u9f62",
+          "feat_a": "年齢",
           "feat_b": "LEMS",
           "abs_mean_interaction": 0.5738134681308854
         },
@@ -803,17 +803,17 @@
           "abs_mean_interaction": 0.305293963991257
         },
         {
-          "feat_a": "\u5e74\u9f62",
+          "feat_a": "年齢",
           "feat_b": "TotalMotor",
           "abs_mean_interaction": 0.30480869911342734
         },
         {
-          "feat_a": "\u5e74\u9f62",
+          "feat_a": "年齢",
           "feat_b": "mFrankel_ord",
           "abs_mean_interaction": 0.26213146046827823
         },
         {
-          "feat_a": "\u5e74\u9f62",
+          "feat_a": "年齢",
           "feat_b": "PinPrickTotal",
           "abs_mean_interaction": 0.2415377546394456
         },
@@ -823,12 +823,12 @@
           "abs_mean_interaction": 0.18714516949487084
         },
         {
-          "feat_a": "\u5e74\u9f62",
+          "feat_a": "年齢",
           "feat_b": "LightTouchTotal",
           "abs_mean_interaction": 0.1817384231997143
         },
         {
-          "feat_a": "\u5e74\u9f62",
+          "feat_a": "年齢",
           "feat_b": "UEMS",
           "abs_mean_interaction": 0.17762362935901918
         },
@@ -863,7 +863,7 @@
           "abs_mean_interaction": 0.1250784885921544
         },
         {
-          "feat_a": "\u5e74\u9f62",
+          "feat_a": "年齢",
           "feat_b": "LeftMotorLevel_ord",
           "abs_mean_interaction": 0.11308861868180915
         },
@@ -903,7 +903,7 @@
           "abs_mean_interaction": 0.06932633320506318
         },
         {
-          "feat_a": "\u5e74\u9f62",
+          "feat_a": "年齢",
           "feat_b": "RightSensoryLevel_ord",
           "abs_mean_interaction": 0.0648594062997147
         }
@@ -989,7 +989,7 @@
           "abs_mean_shap": 6.195861675432355
         },
         {
-          "feature": "\u5e74\u9f62",
+          "feature": "年齢",
           "abs_mean_shap": 3.4881749687111574
         },
         {
@@ -1017,7 +1017,7 @@
           "abs_mean_shap": 0.42800745203603774
         },
         {
-          "feature": "\u4fdd\u967a",
+          "feature": "保険",
           "abs_mean_shap": 0.33247892990772493
         },
         {
@@ -1049,7 +1049,7 @@
           "abs_mean_shap": 0.13565717242259415
         },
         {
-          "feature": "\u6027\u5225",
+          "feature": "性別",
           "abs_mean_shap": 0.1277853985780918
         },
         {
@@ -1065,15 +1065,15 @@
           "abs_mean_shap": 0.08522631564719291
         },
         {
-          "feature": "\u7cd6\u5c3f\u75c5",
+          "feature": "糖尿病",
           "abs_mean_shap": 0.07961047444819629
         },
         {
-          "feature": "\u5bfe\u9ebb\u75fa_\u56db\u80a2\u9ebb\u75fa",
+          "feature": "対麻痺_四肢麻痺",
           "abs_mean_shap": 0.06046848252921784
         },
         {
-          "feature": "\u5916\u50b7\u6027_\u975e\u5916\u50b7\u6027",
+          "feature": "外傷性_非外傷性",
           "abs_mean_shap": 0.036342145123516106
         },
         {
@@ -1087,7 +1087,7 @@
       ],
       "global_interaction_top25": [
         {
-          "feat_a": "\u5e74\u9f62",
+          "feat_a": "年齢",
           "feat_b": "LEMS",
           "abs_mean_interaction": 0.49546989157688537
         },
@@ -1097,7 +1097,7 @@
           "abs_mean_interaction": 0.329898912727231
         },
         {
-          "feat_a": "\u5e74\u9f62",
+          "feat_a": "年齢",
           "feat_b": "mFrankel_ord",
           "abs_mean_interaction": 0.2800473188277405
         },
@@ -1107,7 +1107,7 @@
           "abs_mean_interaction": 0.2748413680971213
         },
         {
-          "feat_a": "\u5e74\u9f62",
+          "feat_a": "年齢",
           "feat_b": "TotalMotor",
           "abs_mean_interaction": 0.22434388680114373
         },
@@ -1127,17 +1127,17 @@
           "abs_mean_interaction": 0.17462279923972424
         },
         {
-          "feat_a": "\u5e74\u9f62",
+          "feat_a": "年齢",
           "feat_b": "PinPrickTotal",
           "abs_mean_interaction": 0.16964191412453583
         },
         {
-          "feat_a": "\u5e74\u9f62",
+          "feat_a": "年齢",
           "feat_b": "UEMS",
           "abs_mean_interaction": 0.15032021730244863
         },
         {
-          "feat_a": "\u5e74\u9f62",
+          "feat_a": "年齢",
           "feat_b": "LightTouchTotal",
           "abs_mean_interaction": 0.14069600326355666
         },
@@ -1197,7 +1197,7 @@
           "abs_mean_interaction": 0.06397260326783394
         },
         {
-          "feat_a": "\u5e74\u9f62",
+          "feat_a": "年齢",
           "feat_b": "LeftMotorLevel_ord",
           "abs_mean_interaction": 0.06316870151720927
         },
@@ -1207,7 +1207,7 @@
           "abs_mean_interaction": 0.06203291378536534
         },
         {
-          "feat_a": "\u5e74\u9f62",
+          "feat_a": "年齢",
           "feat_b": "DAP",
           "abs_mean_interaction": 0.0612974636536759
         }
@@ -1347,7 +1347,7 @@
           "abs_mean_shap": 0.10624425974378096
         },
         {
-          "feature": "\u5e74\u9f62",
+          "feature": "年齢",
           "abs_mean_shap": 0.08567475622056563
         },
         {
@@ -1383,7 +1383,7 @@
           "abs_mean_shap": 0.013818507522933577
         },
         {
-          "feature": "\u6027\u5225",
+          "feature": "性別",
           "abs_mean_shap": 0.013239664852816661
         },
         {
@@ -1411,15 +1411,15 @@
           "abs_mean_shap": 0.006117222877282465
         },
         {
-          "feature": "\u4fdd\u967a",
+          "feature": "保険",
           "abs_mean_shap": 0.00609392519027386
         },
         {
-          "feature": "\u7cd6\u5c3f\u75c5",
+          "feature": "糖尿病",
           "abs_mean_shap": 0.005347524016533774
         },
         {
-          "feature": "\u5916\u50b7\u6027_\u975e\u5916\u50b7\u6027",
+          "feature": "外傷性_非外傷性",
           "abs_mean_shap": 0.0041161818965365395
         },
         {
@@ -1434,7 +1434,7 @@
           "abs_mean_interaction": 0.040603881542515215
         },
         {
-          "feat_a": "\u5e74\u9f62",
+          "feat_a": "年齢",
           "feat_b": "LEMS",
           "abs_mean_interaction": 0.022451430816831132
         },
@@ -1454,7 +1454,7 @@
           "abs_mean_interaction": 0.0152138892914504
         },
         {
-          "feat_a": "\u5e74\u9f62",
+          "feat_a": "年齢",
           "feat_b": "AIS_ord",
           "abs_mean_interaction": 0.014895124272978944
         },
@@ -1474,7 +1474,7 @@
           "abs_mean_interaction": 0.012391186433304686
         },
         {
-          "feat_a": "\u5e74\u9f62",
+          "feat_a": "年齢",
           "feat_b": "mFrankel_ord",
           "abs_mean_interaction": 0.011680325249469622
         },
@@ -1489,7 +1489,7 @@
           "abs_mean_interaction": 0.01074131298125138
         },
         {
-          "feat_a": "\u5e74\u9f62",
+          "feat_a": "年齢",
           "feat_b": "LightTouchTotal",
           "abs_mean_interaction": 0.009687758685538998
         },
@@ -1529,7 +1529,7 @@
           "abs_mean_interaction": 0.007937425112082412
         },
         {
-          "feat_a": "\u5e74\u9f62",
+          "feat_a": "年齢",
           "feat_b": "PinPrickTotal",
           "abs_mean_interaction": 0.007910199480194861
         },
@@ -1539,7 +1539,7 @@
           "abs_mean_interaction": 0.007507874306228813
         },
         {
-          "feat_a": "\u5e74\u9f62",
+          "feat_a": "年齢",
           "feat_b": "Frankel_ord",
           "abs_mean_interaction": 0.007389356984876735
         },
@@ -1648,7 +1648,7 @@
           "abs_mean_shap": 0.17038809231172833
         },
         {
-          "feature": "\u5e74\u9f62",
+          "feature": "年齢",
           "abs_mean_shap": 0.11127124948789276
         },
         {
@@ -1684,11 +1684,11 @@
           "abs_mean_shap": 0.016021690147581483
         },
         {
-          "feature": "\u4fdd\u967a",
+          "feature": "保険",
           "abs_mean_shap": 0.015838654921103784
         },
         {
-          "feature": "\u5bfe\u9ebb\u75fa_\u56db\u80a2\u9ebb\u75fa",
+          "feature": "対麻痺_四肢麻痺",
           "abs_mean_shap": 0.013898293334943863
         },
         {
@@ -1708,7 +1708,7 @@
           "abs_mean_shap": 0.01268202365145745
         },
         {
-          "feature": "\u5916\u50b7\u6027_\u975e\u5916\u50b7\u6027",
+          "feature": "外傷性_非外傷性",
           "abs_mean_shap": 0.01202476688513176
         },
         {
@@ -1736,18 +1736,18 @@
           "abs_mean_shap": 0.006846561510644991
         },
         {
-          "feature": "\u6027\u5225",
+          "feature": "性別",
           "abs_mean_shap": 0.006438849695461937
         }
       ],
       "global_interaction_top25": [
         {
-          "feat_a": "\u5e74\u9f62",
+          "feat_a": "年齢",
           "feat_b": "TotalMotor",
           "abs_mean_interaction": 0.027245713071071424
         },
         {
-          "feat_a": "\u5e74\u9f62",
+          "feat_a": "年齢",
           "feat_b": "PinPrickTotal",
           "abs_mean_interaction": 0.017414887346767518
         },
@@ -1757,12 +1757,12 @@
           "abs_mean_interaction": 0.01736626439499495
         },
         {
-          "feat_a": "\u5e74\u9f62",
+          "feat_a": "年齢",
           "feat_b": "LEMS",
           "abs_mean_interaction": 0.01695767191307883
         },
         {
-          "feat_a": "\u5e74\u9f62",
+          "feat_a": "年齢",
           "feat_b": "LightTouchTotal",
           "abs_mean_interaction": 0.013801933754518865
         },
@@ -1787,7 +1787,7 @@
           "abs_mean_interaction": 0.008743841715225787
         },
         {
-          "feat_a": "\u5e74\u9f62",
+          "feat_a": "年齢",
           "feat_b": "mFrankel_ord",
           "abs_mean_interaction": 0.007329797199077591
         },
@@ -1827,7 +1827,7 @@
           "abs_mean_interaction": 0.005866891109898421
         },
         {
-          "feat_a": "\u5e74\u9f62",
+          "feat_a": "年齢",
           "feat_b": "UEMS",
           "abs_mean_interaction": 0.005793414905155393
         },
@@ -1837,17 +1837,17 @@
           "abs_mean_interaction": 0.005681596441417261
         },
         {
-          "feat_a": "\u5e74\u9f62",
+          "feat_a": "年齢",
           "feat_b": "SCIM_mobility",
           "abs_mean_interaction": 0.0052333050391314
         },
         {
-          "feat_a": "\u5e74\u9f62",
+          "feat_a": "年齢",
           "feat_b": "Frankel_ord",
           "abs_mean_interaction": 0.004802465424769636
         },
         {
-          "feat_a": "\u5e74\u9f62",
+          "feat_a": "年齢",
           "feat_b": "DAP",
           "abs_mean_interaction": 0.0047589688850878335
         },
@@ -2004,5 +2004,113 @@
   "random_state": 20260518,
   "n_episodes_total": 899,
   "n_patients_total": 866,
-  "n_features": 30
+  "n_features": 30,
+  "archetypes": {
+    "k": 3,
+    "silhouette_scores": {
+      "3": 0.4509836900548964,
+      "4": 0.4043736007096767,
+      "5": 0.38984683583500107
+    },
+    "summaries": [
+      {
+        "id": 0,
+        "n": 334,
+        "mean_age": 70.68468468468468,
+        "pct_tetra": 88.32335329341318,
+        "ais_distribution": {
+          "A": 0.3623693379790941,
+          "B": 0.16376306620209058,
+          "C": 0.4425087108013937,
+          "D": 0.0313588850174216,
+          "E": 0.0
+        },
+        "mean_discharge_scim": 23.681818181818183,
+        "median_discharge_scim": 14.5,
+        "mean_los": 212.54761904761904
+      },
+      {
+        "id": 1,
+        "n": 301,
+        "mean_age": 62.48172757475083,
+        "pct_tetra": 73.421926910299,
+        "ais_distribution": {
+          "A": 0.1,
+          "B": 0.06153846153846154,
+          "C": 0.3576923076923077,
+          "D": 0.47692307692307695,
+          "E": 0.0038461538461538464
+        },
+        "mean_discharge_scim": 73.42328042328042,
+        "median_discharge_scim": 80.0,
+        "mean_los": 179.89669421487602
+      },
+      {
+        "id": 2,
+        "n": 237,
+        "mean_age": 58.838297872340426,
+        "pct_tetra": 72.57383966244726,
+        "ais_distribution": {
+          "A": 0.012987012987012988,
+          "B": 0.004329004329004329,
+          "C": 0.025974025974025976,
+          "D": 0.8354978354978355,
+          "E": 0.12121212121212122
+        },
+        "mean_discharge_scim": 95.75187969924812,
+        "median_discharge_scim": 100.0,
+        "mean_los": 66.82758620689656
+      }
+    ],
+    "centroids": [
+      [
+        9.689805016504486,
+        13.90019145126256,
+        12.88447306457416,
+        16.15708744274603,
+        17.248576904719673,
+        20.982020272354266,
+        20.61769572525192,
+        25.19681911507792,
+        26.21709101166735,
+        29.023849531527915
+      ],
+      [
+        12.074782204184395,
+        20.795510931108012,
+        29.808441827016345,
+        39.728911578148626,
+        46.57860186729518,
+        52.84504374896374,
+        58.13662060028123,
+        61.177414173679075,
+        61.53982010694459,
+        70.88495779871101
+      ],
+      [
+        28.20781835650094,
+        46.76371358627608,
+        73.55431186490604,
+        73.8500957712372,
+        78.33301898027031,
+        82.49403489822511,
+        85.00063943763348,
+        81.9624039730225,
+        81.66701796956431,
+        94.94949680086194
+      ]
+    ],
+    "timepoint_labels": [
+      "72h",
+      "2w",
+      "4w",
+      "6w",
+      "2m",
+      "3m",
+      "4m",
+      "5m",
+      "6m",
+      "discharge"
+    ]
+  }
 }

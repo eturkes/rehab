@@ -39,7 +39,9 @@ from rehab_sci.data.episodes import (
     patient_meta,
     patient_timeline,
 )
+from rehab_sci.data.archetypes import assign_single
 from rehab_sci.data.similarity import find_nearest
+from rehab_sci.dashboard.figures import ARCHETYPE_NAMES_EN, ARCHETYPE_NAMES_JA, PALETTE_ARCHETYPE
 from rehab_sci.models.outcomes import OUTCOMES, OutcomeSpec
 from rehab_sci.schema import load_schema
 
@@ -97,6 +99,10 @@ else:
 # Trajectory bundle (per-timepoint SCIM-total regression models)
 _traj_path = MODELS_DIR / "trajectory" / "bundle.joblib"
 TRAJECTORY_BUNDLE: dict | None = joblib.load(_traj_path) if _traj_path.exists() else None
+
+# Recovery archetypes (k-means on predicted trajectories)
+_arch_path = MODELS_DIR / "archetypes" / "archetypes.joblib"
+ARCHETYPE_DATA: dict | None = joblib.load(_arch_path) if _arch_path.exists() else None
 
 # Patient-tab picker options (one entry per IDNumber).  Built once at startup;
 # the list is small (~866 patients) and stable per process.
@@ -391,7 +397,38 @@ def render_overview(lang: str) -> html.Div:
         ],
     )
 
-    return html.Div([kpi_row, row1, row2, row3])
+    rows = [kpi_row, row1, row2, row3]
+
+    if ARCHETYPE_DATA is not None:
+        row4 = html.Div(
+            className="chart-row",
+            children=[
+                chart_card(
+                    t(SCHEMA, "chart_archetype_curves", lang),
+                    dcc.Graph(
+                        figure=fg.fig_archetype_curves(
+                            ARCHETYPE_DATA["centroids"],
+                            ARCHETYPE_DATA["timepoint_labels"],
+                            ARCHETYPE_DATA["summaries"],
+                            SCHEMA, lang,
+                        ),
+                        config={"displayModeBar": False},
+                    ),
+                ),
+                chart_card(
+                    t(SCHEMA, "chart_archetype_demographics", lang),
+                    dcc.Graph(
+                        figure=fg.fig_archetype_demographics(
+                            ARCHETYPE_DATA["summaries"], SCHEMA, lang,
+                        ),
+                        config={"displayModeBar": False},
+                    ),
+                ),
+            ],
+        )
+        rows.append(row4)
+
+    return html.Div(rows)
 
 
 # ---------- TAB: simulator ----------
@@ -638,19 +675,38 @@ def _meta_strip(meta: dict, lang: str) -> html.Div:
             lang,
         )
     )
-    return html.Div(
-        className="patient-meta-row",
-        children=[
-            chip(t(SCHEMA, "patient_meta_age", lang), age),
-            chip(t(SCHEMA, "patient_meta_sex", lang), sex),
-            chip(t(SCHEMA, "patient_meta_paralysis", lang), para),
-            chip(t(SCHEMA, "patient_meta_ais_admit", lang), ais),
-            chip(t(SCHEMA, "patient_meta_nli_admit", lang), nli),
-            chip(t(SCHEMA, "patient_meta_los", lang), los),
-            chip(t(SCHEMA, "patient_meta_discharge_scim", lang), discharge_scim),
-            chip(t(SCHEMA, "patient_meta_discharge_ais", lang), discharge_ais),
-        ],
-    )
+    chips = [
+        chip(t(SCHEMA, "patient_meta_age", lang), age),
+        chip(t(SCHEMA, "patient_meta_sex", lang), sex),
+        chip(t(SCHEMA, "patient_meta_paralysis", lang), para),
+        chip(t(SCHEMA, "patient_meta_ais_admit", lang), ais),
+        chip(t(SCHEMA, "patient_meta_nli_admit", lang), nli),
+        chip(t(SCHEMA, "patient_meta_los", lang), los),
+        chip(t(SCHEMA, "patient_meta_discharge_scim", lang), discharge_scim),
+        chip(t(SCHEMA, "patient_meta_discharge_ais", lang), discharge_ais),
+    ]
+
+    if ARCHETYPE_DATA is not None:
+        kr = meta.get("key_record")
+        arch_id = ARCHETYPE_DATA["assignments"].get(kr if isinstance(kr, int) else None)
+        if arch_id is not None:
+            names = ARCHETYPE_NAMES_JA if lang == "ja" else ARCHETYPE_NAMES_EN
+            arch_color = PALETTE_ARCHETYPE[arch_id % len(PALETTE_ARCHETYPE)]
+            chips.append(
+                html.Span(
+                    className="patient-meta-chip archetype-chip",
+                    style={"borderColor": arch_color, "color": arch_color},
+                    children=[
+                        html.Span(
+                            t(SCHEMA, "patient_archetype_label", lang),
+                            className="patient-meta-chip-label",
+                        ),
+                        html.Span(names[arch_id], className="patient-meta-chip-value"),
+                    ],
+                )
+            )
+
+    return html.Div(className="patient-meta-row", children=chips)
 
 
 def _isncsci_table(long_df: pd.DataFrame, key_record: int, lang: str) -> html.Table:

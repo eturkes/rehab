@@ -17,10 +17,10 @@ bottom of each section as new lessons land; do **not** delete prior entries.
   entries when they conflict with current state.
 * **Default-work pool for fresh sessions: §8 Feature backlog.**
   F1–F10 shipped as of session 16; F13 shipped session 18; F16 shipped
-  session 19.  Propose new feature candidates or maintenance work unless
-  the user redirects.  Historical "Open items rolled forward" lists inside
-  prior §7 session entries are **superseded** by user decision in session 4
-  — treat them as history.
+  session 19; F18 shipped session 20.  Propose new feature candidates or
+  maintenance work unless the user redirects.  Historical "Open items
+  rolled forward" lists inside prior §7 session entries are
+  **superseded** by user decision in session 4 — treat them as history.
 
 ## 0b. Lessons & mistakes (append here; prune when superseded)
 
@@ -307,11 +307,95 @@ uv sync                                          # install deps
 uv run python scripts/01_profile_raw.py          # refresh schema profile
 uv run python -m rehab_sci.models.train          # train + conformal + SHAP
 uv run python -m rehab_sci.models.subgroups      # subgroup discovery
+uv run python -m rehab_sci.models.archetypes     # recovery archetype clustering
 uv run python -m rehab_sci.dashboard.app         # serve at :8050
 pkill -f 'rehab_sci.dashboard.app'               # stop stale dashboard
 ```
 
 ## 7. Session log (most recent first)
+
+### 2026-05-24 (session 20, F18 recovery archetype clustering shipped)
+
+* Shipped **F18 Recovery archetype clustering**.
+* **Problem:** The dashboard showed individual patient predictions and
+  cohort-level recovery curves stratified by paralysis type, but there
+  was no data-driven patient phenotyping.  Clinicians had no way to see
+  "what recovery pattern does this patient belong to?" or compare
+  outcomes across empirically discovered patient subgroups.
+* **Algorithm:** K-means clustering on predicted 10-point SCIM-III
+  recovery trajectories (9 intermediate timepoints from the F7 trajectory
+  models + discharge from the SCIM-total model).  Predicted trajectories
+  used rather than raw observations to avoid sparsity (~15-20% intermediate
+  timepoint coverage) and ensure complete coverage for all 872 eligible
+  episodes.  Trajectories standardized (z-score per timepoint) before
+  clustering.  K selected by silhouette score: k=3 (sil=0.451) beat k=4
+  (0.404) and k=5 (0.390).  Archetypes ordered by discharge SCIM
+  (low→high).
+* **Three archetypes discovered:**
+  - **0 (Limited recovery):** n=334, mean age 70.7, 88% tetra, AIS A/C
+    dominant, median discharge SCIM=14, mean LOS=213d.  Near-flat
+    trajectory: 9.7→29.0.
+  - **1 (Gradual recovery):** n=301, mean age 62.5, 73% tetra, AIS C/D
+    mix, median discharge SCIM=80, mean LOS=180d.  Steady climb:
+    12.1→70.9.
+  - **2 (Rapid recovery):** n=237, mean age 58.8, 73% tetra, AIS D
+    dominant (84%), median discharge SCIM=100, mean LOS=67d.  Steep
+    early curve reaching plateau quickly: 28.2→94.9.
+* **New module:** `data/archetypes.py` (175 lines).
+  - `build_trajectory_matrix(ep, traj_bundle, discharge_model, ...)` —
+    builds n×10 predicted trajectory matrix for all eligible episodes.
+  - `find_best_k(traj_matrix, k_range)` — evaluates silhouette scores.
+  - `cluster_trajectories(traj_matrix, k)` — k-means + scaler.
+  - `order_archetypes_by_discharge(labels, centroids)` — ensures
+    archetype 0 = lowest discharge SCIM.
+  - `archetype_summary(ep_eligible, labels)` — per-archetype demographics.
+  - `assign_single(X_row, traj_bundle, ...)` — assigns a new patient to
+    the nearest archetype at inference time.
+* **New script:** `models/archetypes.py` — standalone `main()` that
+  computes archetypes and persists `models/archetypes/archetypes.joblib`
+  (assignments, centroids, scaler, summaries).  Also updates
+  `training_metrics.json` with archetype metadata.
+* **Dashboard figures** (`dashboard/figures.py`), 2 new functions:
+  - `fig_archetype_curves(centroids, tp_labels, summaries, ...)` —
+    per-archetype centroid line with diamond markers, light ribbon,
+    hover showing n/age/tetra%.  Colors: crimson (limited), bronze
+    (gradual), green (rapid).
+  - `fig_archetype_demographics(summaries, ...)` — stacked bar chart
+    of AIS grade distribution per archetype using PALETTE_AIS colors.
+* **Dashboard app** (`dashboard/app.py`):
+  - Loads `ARCHETYPE_DATA` from `models/archetypes/archetypes.joblib`
+    at startup.
+  - `render_overview()` extended with a 4th row containing archetype
+    curves + AIS demographics charts.
+  - `_meta_strip()` extended: when archetype data is available, appends
+    a colored chip showing the patient's recovery type (e.g., "Recovery
+    type: Gradual recovery" / "回復タイプ: 段階的回復").  Chip border
+    and text color match the archetype's palette color.
+  - No new callbacks — archetype charts are rendered statically at
+    tab-switch time, and the meta chip is computed inside the existing
+    `_compute_patient_tab` → `_meta_strip` path.
+  - Total: 20 callbacks (unchanged).
+* **New constants in `figures.py`:**
+  - `PALETTE_ARCHETYPE`: 5-color palette (crimson, bronze, green, ocean,
+    mauve) — avoids overlap with PALETTE_PARA.
+  - `ARCHETYPE_NAMES_JA` / `ARCHETYPE_NAMES_EN`: bilingual archetype
+    labels ordered by discharge severity.
+* **New UI strings (3):** `chart_archetype_curves`, `chart_archetype_demographics`,
+  `patient_archetype_label`.
+* **New CSS:** `.archetype-chip` (colored border + bold text matching
+  archetype palette).
+* **Files changed:** new `data/archetypes.py`, new `models/archetypes.py`,
+  `dashboard/figures.py` (2 new functions + 3 constants),
+  `dashboard/app.py` (1 new import line, 1 new startup load, 1 extended
+  function `render_overview`, 1 extended function `_meta_strip`),
+  `schema/ui_strings.yaml` (3 new keys),
+  `dashboard/assets/style.css` (1 new style block).
+* Verification: app module imports cleanly, Flask test client confirms
+  HTTP 200 on `/`, `/_dash-layout`, `/_dash-dependencies`.  20 callbacks
+  registered (unchanged).  Archetype curves render 6 traces (3 lines +
+  3 ribbons) for both EN and JA.  Demographics render 5 traces (AIS
+  A–E bars).  Patient meta strip includes archetype chip for both
+  languages.  `assign_single()` matches precomputed assignments.
 
 ### 2026-05-24 (session 19, F16 patient similarity explorer shipped)
 
@@ -1552,3 +1636,32 @@ dependency**.  Ordered by recommended start order (F1 first).
   (2 new functions), `dashboard/app.py` (1 new import, 1 new function,
   1 extended function, 1 modified callback, layout), `schema/ui_strings.yaml`
   (1 new key), `dashboard/assets/style.css` (5 new styles).
+
+### F18. Recovery archetype clustering — **STATUS: shipped (session 20, 2026-05-24)**
+
+* **What was built:** K-means clustering on predicted 10-point SCIM-III
+  recovery trajectories to discover recovery phenotypes.  Three archetypes
+  found (silhouette=0.451): limited recovery (n=334, severe/older, SCIM→14),
+  gradual recovery (n=301, moderate, SCIM→80), rapid recovery (n=237,
+  mild/younger, SCIM→100).  Cohort overview gains archetype trajectory
+  curves + AIS distribution stacked bar.  Patient explorer meta strip
+  gains a colored archetype chip.
+* **Why:** Clinicians benefit from data-driven phenotyping beyond simple
+  paralysis/AIS stratification.  The archetypes answer "what recovery
+  pattern does this patient belong to?" and provide empirical groupings
+  for outcome expectations and treatment planning.
+* **Algorithm:** Predicted trajectories from F7 trajectory models (9
+  timepoints) + F2 discharge model → 10-point vector per patient.
+  StandardScaler + k-means (k=3, selected by silhouette over k=3..5).
+  Archetypes ordered by discharge SCIM.  `assign_single()` enables
+  runtime assignment for new/hypothetical patients.
+* **Key finding:** Archetype 0 (limited) is strongly associated with AIS
+  A/C and high age (mean 70.7); archetype 2 (rapid) is 84% AIS D with
+  youngest cohort (mean 58.8).  AIS grade and age are the primary
+  separators of recovery phenotype — consistent with F13 SHAP interaction
+  findings (Age × LEMS is the dominant interaction).
+* **Files changed:** new `data/archetypes.py`, new `models/archetypes.py`,
+  `dashboard/figures.py` (2 new functions + 3 constants),
+  `dashboard/app.py` (1 new import, 1 startup load, 2 extended functions),
+  `schema/ui_strings.yaml` (3 new keys), `dashboard/assets/style.css`
+  (1 new style block).

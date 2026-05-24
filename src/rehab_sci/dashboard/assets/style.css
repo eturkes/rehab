@@ -585,6 +585,13 @@ input[type="number"]:focus, input[type="text"]:focus, select:focus {
 }
 .patient-sim-table td { color: var(--ink-700); }
 
+/* Recovery archetype chip (F18) */
+.archetype-chip {
+  border: 2px solid currentColor;
+  border-radius: 12px;
+  font-weight: 600;
+}
+
 /* Dash slider overrides */
 .dash-slider-range { background: var(--accent) !important; }
 .dash-slider-thumb { border-color: var(--accent) !important; }

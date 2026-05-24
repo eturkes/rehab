@@ -1445,3 +1445,123 @@ def fig_neighbor_ais_distribution(
     )
     return fig
 
+
+# ---------- Recovery archetypes (F18) ----------
+PALETTE_ARCHETYPE = [
+    "#a3354e",  # crimson — limited recovery
+    "#9b6a3a",  # bronze — gradual recovery
+    "#2c8a6b",  # forest green — rapid recovery
+    "#42688f",  # ocean — spare slot if k=4
+    "#6d4f78",  # mauve — spare slot if k=5
+]
+
+ARCHETYPE_NAMES_JA = ["限定的回復", "段階的回復", "急速回復", "タイプ 4", "タイプ 5"]
+ARCHETYPE_NAMES_EN = ["Limited recovery", "Gradual recovery", "Rapid recovery", "Type 4", "Type 5"]
+
+
+def fig_archetype_curves(
+    centroids: np.ndarray,
+    timepoint_labels: list[str],
+    summaries: list[dict],
+    schema: Schema,
+    lang: str,
+) -> go.Figure:
+    """Archetype recovery trajectory curves with centroid lines and member count annotations."""
+    x_disp = [level_label(schema, "time_name", tp, lang) for tp in timepoint_labels]
+    names = ARCHETYPE_NAMES_JA if lang == "ja" else ARCHETYPE_NAMES_EN
+    fig = go.Figure()
+
+    for i, (row, s) in enumerate(zip(centroids, summaries)):
+        color = PALETTE_ARCHETYPE[i % len(PALETTE_ARCHETYPE)]
+        label = f"{names[i]} (n={s['n']})"
+
+        fig.add_trace(
+            go.Scatter(
+                x=x_disp,
+                y=row,
+                mode="lines+markers",
+                line=dict(color=color, width=3),
+                marker=dict(size=7, color=color, symbol="diamond"),
+                name=label,
+                customdata=np.stack([
+                    np.full(len(row), s["n"]),
+                    np.full(len(row), s["mean_age"] or 0),
+                    np.full(len(row), s["pct_tetra"]),
+                ], axis=-1),
+                hovertemplate=(
+                    "<b>%{x}</b><br>"
+                    + ("予測 SCIM" if lang == "ja" else "Predicted SCIM")
+                    + ": %{y:.1f}<br>"
+                    + "n=%{customdata[0]:.0f}<br>"
+                    + ("平均年齢" if lang == "ja" else "Mean age")
+                    + ": %{customdata[1]:.0f}<br>"
+                    + ("四肢麻痺" if lang == "ja" else "Tetraplegia")
+                    + ": %{customdata[2]:.0f}%"
+                    + "<extra></extra>"
+                ),
+            )
+        )
+
+        fill_color = _hex_to_rgba(color, 0.10)
+        upper = np.minimum(row + 10, 100.0)
+        lower = np.maximum(row - 10, 0.0)
+        fig.add_trace(
+            go.Scatter(
+                x=x_disp + x_disp[::-1],
+                y=list(upper) + list(lower)[::-1],
+                fill="toself",
+                fillcolor=fill_color,
+                line=dict(width=0),
+                hoverinfo="skip",
+                showlegend=False,
+            )
+        )
+
+    fig.update_layout(
+        height=400,
+        yaxis_title="SCIM-III" + (" (予測)" if lang == "ja" else " (predicted)"),
+        yaxis_range=[0, 105],
+        xaxis_title=("評価時点" if lang == "ja" else "Timepoint"),
+        legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1),
+        margin=dict(l=50, r=20, t=20, b=44),
+    )
+    return fig
+
+
+def fig_archetype_demographics(
+    summaries: list[dict],
+    schema: Schema,
+    lang: str,
+) -> go.Figure:
+    """Stacked bar chart showing AIS grade distribution per archetype."""
+    names = ARCHETYPE_NAMES_JA if lang == "ja" else ARCHETYPE_NAMES_EN
+    arch_labels = [f"{names[s['id']]}" for s in summaries]
+
+    ais_grades = ["A", "B", "C", "D", "E"]
+    fig = go.Figure()
+
+    for grade in ais_grades:
+        vals = [s["ais_distribution"].get(grade, 0.0) * 100 for s in summaries]
+        fig.add_trace(
+            go.Bar(
+                x=arch_labels,
+                y=vals,
+                name=f"AIS {grade}",
+                marker_color=PALETTE_AIS.get(grade, PALETTE_CATEGORICAL[0]),
+                hovertemplate=(
+                    "<b>%{x}</b><br>"
+                    + f"AIS {grade}: " + "%{y:.1f}%"
+                    + "<extra></extra>"
+                ),
+            )
+        )
+
+    fig.update_layout(
+        barmode="stack",
+        height=320,
+        yaxis_title="%" if lang == "en" else "割合 (%)",
+        legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1),
+        margin=dict(l=50, r=20, t=20, b=44),
+    )
+    return fig
+
