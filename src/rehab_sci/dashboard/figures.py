@@ -115,7 +115,7 @@ def fig_discharge_scim(ep: pd.DataFrame, schema: Schema, lang: str) -> go.Figure
     return fig
 
 
-def fig_injury_sunburst(ep: pd.DataFrame, schema: Schema, lang: str) -> go.Figure:
+def fig_injury_treemap(ep: pd.DataFrame, schema: Schema, lang: str) -> go.Figure:
     sub = ep[["対麻痺_四肢麻痺", "AIS", "NLI"]].dropna(subset=["対麻痺_四肢麻痺"]).copy()
     sub["AIS"] = sub["AIS"].fillna("?")
     sub["NLI"] = sub["NLI"].fillna("?")
@@ -128,17 +128,20 @@ def fig_injury_sunburst(ep: pd.DataFrame, schema: Schema, lang: str) -> go.Figur
     sub["nli_label"] = sub["NLI"].map(
         lambda v: level_label(schema, "cord_level", str(v), lang) if v != "?" else ("不明" if lang == "ja" else "Unknown")
     )
+    raw_to_label = dict(zip(sub["対麻痺_四肢麻痺"].astype(str), sub["para_label"]))
+    label_to_color = {
+        raw_to_label.get(raw, raw): color
+        for raw, color in PALETTE_PARA.items()
+        if raw_to_label.get(raw) is not None
+    }
+    fallback_color = PALETTE_CATEGORICAL[0]
+
     grouped = (
         sub.groupby(["para_label", "ais_label", "nli_label"], observed=True)
         .size()
         .reset_index(name="n")
     )
-    # Build sunburst nodes; with branchvalues="total" each parent's value MUST
-    # equal the sum of its children, so we accumulate leaf counts into every
-    # ancestor as we go.
     ids, labels, parents, values, colors = [], [], [], [], []
-    para_palette = list(PALETTE_PARA.values())
-    para_label_to_color: dict[str, str] = {}
     idx_by_id: dict[str, int] = {}
 
     def _upsert(node_id: str, label: str, parent: str, color: str) -> int:
@@ -161,11 +164,7 @@ def fig_injury_sunburst(ep: pd.DataFrame, schema: Schema, lang: str) -> go.Figur
         para_id = para
         ais_id = f"{para}|{ais}"
         nli_id = f"{para}|{ais}|{nli}"
-        if para_id not in para_label_to_color:
-            para_label_to_color[para_id] = para_palette[
-                len(para_label_to_color) % len(para_palette)
-            ]
-        c = para_label_to_color[para_id]
+        c = label_to_color.get(para, fallback_color)
         i_para = _upsert(para_id, para, "", c)
         i_ais = _upsert(ais_id, ais, para_id, c)
         i_nli = _upsert(nli_id, nli, ais_id, c)
@@ -174,7 +173,7 @@ def fig_injury_sunburst(ep: pd.DataFrame, schema: Schema, lang: str) -> go.Figur
         values[i_nli] += n
 
     fig = go.Figure(
-        go.Sunburst(
+        go.Treemap(
             ids=ids,
             labels=labels,
             parents=parents,
@@ -182,9 +181,11 @@ def fig_injury_sunburst(ep: pd.DataFrame, schema: Schema, lang: str) -> go.Figur
             branchvalues="total",
             marker=dict(colors=colors, line=dict(color="#fff", width=1.5)),
             hovertemplate="<b>%{label}</b><br>" + ("患者数" if lang == "ja" else "Patients") + ": %{value}<extra></extra>",
+            textinfo="label+value",
+            pathbar=dict(visible=True),
         )
     )
-    fig.update_layout(height=440, margin=dict(l=10, r=10, t=10, b=10))
+    fig.update_layout(height=440, margin=dict(l=10, r=10, t=30, b=10))
     return fig
 
 

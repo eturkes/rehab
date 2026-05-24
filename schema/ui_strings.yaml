@@ -64,7 +64,7 @@ chart_age_dist:
 chart_sex_dist:
   ja: "性別構成"
   en: "Sex distribution"
-chart_injury_sunburst:
+chart_injury_treemap:
   ja: "損傷階層 (麻痺型 → AIS → 神経学的高位)"
   en: "Injury hierarchy (paralysis type → AIS → NLI)"
 chart_mechanism:

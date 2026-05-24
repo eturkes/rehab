@@ -192,8 +192,8 @@ def update_overview_content(ais, para, age_range, arch, lang):
 
     children.append(html.Div(className="chart-row", children=[
         chart_card(
-            t(SCHEMA, "chart_injury_sunburst", lang),
-            dcc.Graph(figure=fg.fig_injury_sunburst(ep, SCHEMA, lang), config=_gc),
+            t(SCHEMA, "chart_injury_treemap", lang),
+            dcc.Graph(figure=fg.fig_injury_treemap(ep, SCHEMA, lang), config=_gc),
         ),
         chart_card(
             t(SCHEMA, "chart_ais_admit_discharge", lang),
