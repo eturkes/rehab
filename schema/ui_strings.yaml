@@ -111,6 +111,9 @@ sim_prediction_interval:
 sim_local_explanation:
   ja: "この症例の寄与要因 (SHAP)"
   en: "Local feature contributions (SHAP)"
+sim_trajectory_heading:
+  ja: "予測回復軌道 (SCIM-III)"
+  en: "Predicted recovery trajectory (SCIM-III)"
 sim_pushes_up:
   ja: "予測を押し上げる要因"
   en: "Factors pushing score higher"
@@ -311,6 +314,9 @@ sim_predicted_class_label:
 methods_per_outcome_heading:
   ja: "アウトカム別性能"
   en: "Per-outcome performance"
+methods_trajectory_heading:
+  ja: "回復軌道予測モデル (SCIM-III 各時点)"
+  en: "Recovery trajectory models (SCIM-III per timepoint)"
 insight_outcome_label:
   ja: "分析対象アウトカム"
   en: "Outcome to analyze"

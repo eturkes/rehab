@@ -69,6 +69,8 @@ AIS_ORD_COL = "AIS_ord"
 PARALYSIS_COL = "対麻痺_四肢麻痺"
 MONDRIAN_MIN_N = 8
 
+TRAJECTORY_TIMEPOINTS = ("72h", "2w", "4w", "6w", "2m", "3m", "4m", "5m", "6m")
+
 
 # ----------------------------- prep helpers ------------------------------
 
@@ -791,6 +793,130 @@ def _train_multiclass(
     }
 
 
+# ----------------------------- trajectory training -----------------------
+
+
+def _train_trajectory(af: AnalysisFrame, out_root: Path) -> dict:
+    """Train per-timepoint SCIM-total models for recovery trajectory forecasting.
+
+    One LightGBM regression head per timepoint in ``TRAJECTORY_TIMEPOINTS``,
+    using the same 32 admission features as the discharge models.  Artifacts
+    are bundled into ``models/trajectory/bundle.joblib``.
+    """
+    long = af.longitudinal
+    ep = af.df.copy()
+
+    for tp in TRAJECTORY_TIMEPOINTS:
+        tp_data = long.loc[long["TIME_Name"] == tp, ["KeyRecordNumber", "SCIM_total"]]
+        tp_data = tp_data.set_index("KeyRecordNumber")["SCIM_total"]
+        ep[f"_traj_{tp}"] = tp_data.reindex(ep["KeyRecordNumber"]).values
+
+    all_models: dict[str, dict] = {}
+    all_conformal: dict[str, dict] = {}
+    all_metrics: dict[str, dict] = {}
+    print("=" * 60)
+    print("TRAJECTORY  training (SCIM-total at intermediate timepoints)")
+    print("=" * 60)
+
+    for tp in TRAJECTORY_TIMEPOINTS:
+        target_col = f"_traj_{tp}"
+        X, y_raw, groups, cat_cols = _prep(
+            ep, af.feature_cols, af.numeric_cols, af.categorical_cols, target_col
+        )
+        y_arr = pd.to_numeric(y_raw, errors="coerce").to_numpy(dtype=float)
+        print(
+            f"[trajectory/{tp}]  n={len(X)}  patients={groups.nunique()}"
+        )
+
+        train_idx, test_idx = _grouped_holdout(X, y_arr, groups, test_size=0.2)
+        X_dev, X_te = X.iloc[train_idx], X.iloc[test_idx]
+        y_dev, y_te = y_arr[train_idx], y_arr[test_idx]
+        g_dev = groups.iloc[train_idx]
+
+        train_idx2, calib_idx = _grouped_holdout(X_dev, y_dev, g_dev, test_size=0.20)
+        X_tr, X_cal = X_dev.iloc[train_idx2], X_dev.iloc[calib_idx]
+        y_tr, y_cal = y_dev[train_idx2], y_dev[calib_idx]
+
+        median_dev = _fit_reg(_params_lgbm_reg(), X_tr, y_tr, X_cal, y_cal, cat_cols)
+        p10_dev = _fit_reg(_params_quantile(0.1), X_tr, y_tr, X_cal, y_cal, cat_cols)
+        p90_dev = _fit_reg(_params_quantile(0.9), X_tr, y_tr, X_cal, y_cal, cat_cols)
+
+        pred_cal = median_dev.predict(X_cal)
+        residuals = np.abs(y_cal - pred_cal)
+        alpha = 0.2
+        conformal_q = _conformal_q(residuals, alpha)
+        q_by_group = _compute_mondrian_q(residuals, X_cal, alpha)
+        q_by_group["marginal"] = conformal_q
+        q_by_group["min_n"] = MONDRIAN_MIN_N
+
+        pred_te = np.clip(median_dev.predict(X_te), 0.0, 100.0)
+        q_te = _resolve_mondrian_q_array(conformal_q, q_by_group, X_te)
+        lo_te = np.clip(pred_te - q_te, 0.0, 100.0)
+        hi_te = np.clip(pred_te + q_te, 0.0, 100.0)
+        covered = float(((y_te >= lo_te) & (y_te <= hi_te)).mean())
+
+        pred10_te = np.clip(p10_dev.predict(X_te), 0.0, 100.0)
+        pred90_te = np.clip(p90_dev.predict(X_te), 0.0, 100.0)
+        qcov = float(((y_te >= pred10_te) & (y_te <= pred90_te)).mean())
+
+        test_m = {
+            "r2": float(r2_score(y_te, pred_te)),
+            "rmse": float(np.sqrt(mean_squared_error(y_te, pred_te))),
+            "mae": float(mean_absolute_error(y_te, pred_te)),
+            "conformal_q": conformal_q,
+            "conformal_coverage_80": covered,
+            "raw_quantile_coverage_80": qcov,
+            "n_train": int(len(X_tr)),
+            "n_calib": int(len(X_cal)),
+            "n_test": int(len(X_te)),
+            "n_total": int(len(X)),
+        }
+        print(
+            f"   TEST  R²={test_m['r2']:.3f}  RMSE={test_m['rmse']:.3f}  "
+            f"MAE={test_m['mae']:.3f}  conf80={covered:.2%}  q={conformal_q:.1f}"
+        )
+
+        # Refit on all data
+        full_params = _params_lgbm_reg()
+        full_params["n_estimators"] = int(median_dev.best_iteration_ or 400)
+        final_median = lgb.LGBMRegressor(**full_params)
+        final_median.fit(X, y_arr, categorical_feature=cat_cols)
+
+        fp10 = _params_quantile(0.1)
+        fp10["n_estimators"] = int(p10_dev.best_iteration_ or 400)
+        final_p10 = lgb.LGBMRegressor(**fp10)
+        final_p10.fit(X, y_arr, categorical_feature=cat_cols)
+
+        fp90 = _params_quantile(0.9)
+        fp90["n_estimators"] = int(p90_dev.best_iteration_ or 400)
+        final_p90 = lgb.LGBMRegressor(**fp90)
+        final_p90.fit(X, y_arr, categorical_feature=cat_cols)
+
+        all_models[tp] = {
+            "median": final_median,
+            "p10": final_p10,
+            "p90": final_p90,
+        }
+        all_conformal[tp] = {
+            "q_transformed": conformal_q,
+            "q_by_group": q_by_group,
+        }
+        all_metrics[tp] = test_m
+
+    traj_dir = out_root / "trajectory"
+    traj_dir.mkdir(parents=True, exist_ok=True)
+    bundle = {
+        "timepoints": list(TRAJECTORY_TIMEPOINTS),
+        "models": all_models,
+        "conformal": all_conformal,
+        "clip_min": 0.0,
+        "clip_max": 100.0,
+    }
+    joblib.dump(bundle, traj_dir / "bundle.joblib")
+    print(f"\nTrajectory bundle → {traj_dir / 'bundle.joblib'}")
+    return all_metrics
+
+
 # ----------------------------- shared feature defaults -------------------
 
 def _simulator_defaults(af: AnalysisFrame) -> tuple[dict, dict]:
@@ -856,6 +982,10 @@ def main() -> None:
         all_metrics[spec.key] = m
         print()
 
+    # trajectory models (SCIM-total at intermediate timepoints)
+    traj_metrics = _train_trajectory(af, OUT)
+    print()
+
     defaults, feature_universe = _simulator_defaults(af)
     # one shared feature_spec for the simulator's input-builder layer
     shared_feature_spec = {
@@ -871,6 +1001,8 @@ def main() -> None:
     metrics_payload = {
         "outcomes": all_metrics,
         "outcome_keys": [s.key for s in OUTCOMES],
+        "trajectory": traj_metrics,
+        "trajectory_timepoints": list(TRAJECTORY_TIMEPOINTS),
         "random_state": RANDOM_STATE,
         "n_episodes_total": int(len(af.df)),
         "n_patients_total": int(af.df["IDNumber"].nunique(dropna=True)),

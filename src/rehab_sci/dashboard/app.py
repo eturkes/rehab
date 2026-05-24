@@ -92,6 +92,10 @@ if "results" in _raw_subgroups:
 else:
     SUBGROUPS = _raw_subgroups
 
+# Trajectory bundle (per-timepoint SCIM-total regression models)
+_traj_path = MODELS_DIR / "trajectory" / "bundle.joblib"
+TRAJECTORY_BUNDLE: dict | None = joblib.load(_traj_path) if _traj_path.exists() else None
+
 # Patient-tab picker options (one entry per IDNumber).  Built once at startup;
 # the list is small (~866 patients) and stable per process.
 PATIENT_OPTIONS = list_patient_options(EP)
@@ -154,6 +158,50 @@ def _resolve_aps_q(fspec: dict, X: pd.DataFrame) -> float:
         float(fspec.get("aps_q_hat", 1.0)),
         X,
     )
+
+
+def _predict_trajectory(X: pd.DataFrame) -> dict | None:
+    """Predict SCIM-total at each trajectory timepoint for a single-row input.
+
+    Returns ``{"timepoints": [...], "pred": [...], "lo": [...], "hi": [...]}``
+    or ``None`` if the trajectory bundle is not loaded.
+    """
+    if TRAJECTORY_BUNDLE is None:
+        return None
+    tps = TRAJECTORY_BUNDLE["timepoints"]
+    models = TRAJECTORY_BUNDLE["models"]
+    conf = TRAJECTORY_BUNDLE["conformal"]
+    clip_min = TRAJECTORY_BUNDLE.get("clip_min", 0.0)
+    clip_max = TRAJECTORY_BUNDLE.get("clip_max", 100.0)
+
+    out_tps: list[str] = []
+    out_pred: list[float] = []
+    out_lo: list[float] = []
+    out_hi: list[float] = []
+
+    for tp in tps:
+        tp_models = models[tp]
+        tp_conf = conf[tp]
+        pred_t = float(tp_models["median"].predict(X)[0])
+        pred = max(clip_min, min(clip_max, pred_t))
+        q_t = _resolve_group_q(
+            tp_conf["q_by_group"],
+            float(tp_conf["q_transformed"]),
+            X,
+        )
+        lo_conf = max(clip_min, min(clip_max, pred_t - q_t))
+        hi_conf = max(clip_min, min(clip_max, pred_t + q_t))
+        lo_q = max(clip_min, min(clip_max, float(tp_models["p10"].predict(X)[0])))
+        hi_q = max(clip_min, min(clip_max, float(tp_models["p90"].predict(X)[0])))
+        lo = min(lo_conf, lo_q)
+        hi = max(hi_conf, hi_q)
+
+        out_tps.append(tp)
+        out_pred.append(pred)
+        out_lo.append(lo)
+        out_hi.append(hi)
+
+    return {"timepoints": out_tps, "pred": out_pred, "lo": out_lo, "hi": out_hi}
 
 
 def _aps_prediction_set(proba_row: np.ndarray, q_hat: float) -> list[int]:
@@ -447,6 +495,11 @@ def render_simulator(lang: str) -> html.Div:
                 style={"marginTop": "16px", "fontSize": "14.5px", "fontWeight": 600, "color": INK["900"]},
             ),
             dcc.Graph(id="sim-shap-graph", config={"displayModeBar": False}),
+            html.H2(
+                t(SCHEMA, "sim_trajectory_heading", lang),
+                style={"marginTop": "22px", "fontSize": "14.5px", "fontWeight": 600, "color": INK["900"]},
+            ),
+            dcc.Graph(id="sim-traj-graph", config={"displayModeBar": False}),
         ],
     )
 
@@ -972,6 +1025,36 @@ def _perf_block_multiclass(spec: OutcomeSpec, info: dict, lang: str) -> html.Div
     return html.Div(className="methods-perf-card", children=children)
 
 
+def _perf_block_trajectory(lang: str) -> html.Div | None:
+    """Methods-tab card summarising per-timepoint trajectory model accuracy."""
+    traj = METRICS.get("trajectory")
+    if not traj:
+        return None
+    heading = t(SCHEMA, "methods_trajectory_heading", lang)
+    rows: list[html.Tr] = [
+        html.Tr([
+            html.Th(("時点" if lang == "ja" else "Timepoint")),
+            html.Th("n"),
+            html.Th("R²"),
+            html.Th("RMSE"),
+            html.Th(("80% PI" if lang == "en" else "80% PI")),
+        ])
+    ]
+    for tp in METRICS.get("trajectory_timepoints", []):
+        m = traj.get(tp, {})
+        rows.append(html.Tr([
+            html.Td(tp),
+            html.Td(str(m.get("n_total", ""))),
+            html.Td(f"{m.get('r2', 0):.3f}"),
+            html.Td(f"{m.get('rmse', 0):.1f}"),
+            html.Td(f"{m.get('conformal_coverage_80', 0):.0%}"),
+        ]))
+    return html.Div(
+        className="methods-perf-card",
+        children=[html.H4(heading), html.Table(rows, className="patient-isncsci-table")],
+    )
+
+
 def render_methods(lang: str) -> html.Div:
     perf_children: list = [
         html.H3(t(SCHEMA, "methods_per_outcome_heading", lang)),
@@ -982,6 +1065,11 @@ def render_methods(lang: str) -> html.Div:
             perf_children.append(_perf_block_regression(spec, info, lang))
         else:
             perf_children.append(_perf_block_multiclass(spec, info, lang))
+
+    traj_block = _perf_block_trajectory(lang)
+    if traj_block is not None:
+        perf_children.append(traj_block)
+
     perf_block = html.Div(className="methods-block", children=perf_children)
 
     blocks = [
@@ -1375,6 +1463,7 @@ def _simulate_multiclass(bundle: dict, X: pd.DataFrame, lang: str):
     Output("sim-readout", "children"),
     Output("sim-pi-graph", "figure"),
     Output("sim-shap-graph", "figure"),
+    Output("sim-traj-graph", "figure"),
     Input({"type": "num", "col": dash.ALL}, "value"),
     Input({"type": "cat", "col": dash.ALL}, "value"),
     State({"type": "num", "col": dash.ALL}, "id"),
@@ -1384,12 +1473,47 @@ def _simulate_multiclass(bundle: dict, X: pd.DataFrame, lang: str):
 )
 def simulate(num_vals, cat_vals, num_ids, cat_ids, outcome_key, lang):  # noqa: ANN001
     if not num_ids and not cat_ids:
-        return [], go.Figure(), go.Figure()
+        return [], go.Figure(), go.Figure(), go.Figure()
     bundle = OUTCOME_BUNDLES.get(outcome_key) or SCIM_TOTAL_BUNDLE
     X = _collect_sim_inputs(num_vals, num_ids, cat_vals, cat_ids)
     if bundle["task"] == "regression":
-        return _simulate_regression(bundle, X, lang)
-    return _simulate_multiclass(bundle, X, lang)
+        readout, pi_fig, shap_fig = _simulate_regression(bundle, X, lang)
+    else:
+        readout, pi_fig, shap_fig = _simulate_multiclass(bundle, X, lang)
+
+    # Trajectory chart: predicted SCIM-total recovery arc
+    traj = _predict_trajectory(X)
+    if traj is not None:
+        # Prepend admission baseline from the simulator's SCIM_total slider
+        scim_val = None
+        for ident, v in zip(num_ids, num_vals, strict=False):
+            if ident.get("col") == "SCIM_total":
+                scim_val = v
+                break
+        if scim_val is not None:
+            traj["timepoints"] = ["0day"] + traj["timepoints"]
+            traj["pred"] = [float(scim_val)] + traj["pred"]
+            traj["lo"] = [float(scim_val)] + traj["lo"]
+            traj["hi"] = [float(scim_val)] + traj["hi"]
+        # Append discharge prediction from SCIM-total model
+        scim_bundle = OUTCOME_BUNDLES.get("scim_total")
+        if scim_bundle is not None:
+            fspec = scim_bundle["feature_spec"]
+            q_dis = _resolve_conformal_q(fspec, X)
+            pred_dis_t = float(scim_bundle["median"].predict(X)[0])
+            pred_dis = max(0.0, min(100.0, pred_dis_t))
+            lo_c = max(0.0, min(100.0, pred_dis_t - q_dis))
+            hi_c = max(0.0, min(100.0, pred_dis_t + q_dis))
+            lo_q = max(0.0, min(100.0, float(scim_bundle["p10"].predict(X)[0])))
+            hi_q = max(0.0, min(100.0, float(scim_bundle["p90"].predict(X)[0])))
+            traj["timepoints"].append("discharge")
+            traj["pred"].append(pred_dis)
+            traj["lo"].append(min(lo_c, lo_q))
+            traj["hi"].append(max(hi_c, hi_q))
+        traj_fig = fg.fig_sim_trajectory(traj, SCHEMA, lang)
+    else:
+        traj_fig = go.Figure()
+    return readout, pi_fig, shap_fig, traj_fig
 
 
 # ---------- patient explorer callbacks ----------
@@ -1549,10 +1673,10 @@ def _compute_patient_tab(key_record, strata, outcome_key, lang):  # noqa: ANN001
 
     meta = patient_meta(EP, key_record)
     meta_strip = _meta_strip(meta, lang)
-    timeline_fig = fg.fig_patient_scim_timeline(LONG, EP, key_record, strata, SCHEMA, lang)
     isncsci_table = _isncsci_table(LONG, key_record, lang)
 
     if not _episode_has_admission(key_record):
+        timeline_fig = fg.fig_patient_scim_timeline(LONG, EP, key_record, strata, SCHEMA, lang)
         return (
             meta_strip,
             timeline_fig,
@@ -1566,6 +1690,43 @@ def _compute_patient_tab(key_record, strata, outcome_key, lang):  # noqa: ANN001
 
     bundle = OUTCOME_BUNDLES.get(outcome_key) or SCIM_TOTAL_BUNDLE
     X = _episode_row_for_model(key_record)
+
+    # Build predicted recovery trajectory for the timeline chart.
+    traj = _predict_trajectory(X)
+    if traj is not None:
+        # Prepend admission baseline SCIM (observed anchor) and append discharge prediction.
+        ep_row = EP.loc[EP["KeyRecordNumber"] == key_record]
+        baseline_scim_val = (
+            float(ep_row.iloc[0]["baseline_scim"])
+            if not ep_row.empty and pd.notna(ep_row.iloc[0].get("baseline_scim"))
+            else None
+        )
+
+        if baseline_scim_val is not None:
+            traj["timepoints"] = ["0day"] + traj["timepoints"]
+            traj["pred"] = [baseline_scim_val] + traj["pred"]
+            traj["lo"] = [baseline_scim_val] + traj["lo"]
+            traj["hi"] = [baseline_scim_val] + traj["hi"]
+
+        # Append discharge prediction from the SCIM-total model
+        scim_bundle = OUTCOME_BUNDLES.get("scim_total")
+        if scim_bundle is not None:
+            fspec = scim_bundle["feature_spec"]
+            q_dis = _resolve_conformal_q(fspec, X)
+            pred_dis_t = float(scim_bundle["median"].predict(X)[0])
+            pred_dis = max(0.0, min(100.0, pred_dis_t))
+            lo_dis_c = max(0.0, min(100.0, pred_dis_t - q_dis))
+            hi_dis_c = max(0.0, min(100.0, pred_dis_t + q_dis))
+            lo_dis_q = max(0.0, min(100.0, float(scim_bundle["p10"].predict(X)[0])))
+            hi_dis_q = max(0.0, min(100.0, float(scim_bundle["p90"].predict(X)[0])))
+            traj["timepoints"].append("discharge")
+            traj["pred"].append(pred_dis)
+            traj["lo"].append(min(lo_dis_c, lo_dis_q))
+            traj["hi"].append(max(hi_dis_c, hi_dis_q))
+
+    timeline_fig = fg.fig_patient_scim_timeline(
+        LONG, EP, key_record, strata, SCHEMA, lang, trajectory=traj
+    )
 
     if bundle["task"] == "regression":
         readout, pred_fig, shap_fig, note = _patient_regression(bundle, X, key_record, lang)

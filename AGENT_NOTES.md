@@ -16,7 +16,7 @@ bottom of each section as new lessons land; do **not** delete prior entries.
   Keep it accurate: update sections after every session; prune obsolete
   entries when they conflict with current state.
 * **Default-work pool for fresh sessions: §8 Feature backlog.**
-  All features F1–F6 are shipped as of session 12.  Propose new feature
+  All features F1–F7 are shipped as of session 13.  Propose new feature
   candidates or maintenance work unless the user redirects.  Historical
   "Open items rolled forward" lists inside prior §7 session entries are
   **superseded** by user decision in session 4 — treat them as history.
@@ -197,6 +197,17 @@ bottom of each section as new lessons land; do **not** delete prior entries.
 * **Holm correction**: running **max** over sorted p × (n−k+1), not
   running min.  (Fixed 2026-05-18; previous values were ~10⁻⁵⁵ for every
   test.)
+* **Trajectory models (F7, session 13)** — 9 independent LightGBM
+  regression models predicting SCIM-total at intermediate timepoints
+  (72h, 2w, 4w, 6w, 2m, 3m, 4m, 5m, 6m) from the same 32 admission
+  features.  Bundled in `models/trajectory/bundle.joblib` (dict with
+  keys `timepoints`, `models`, `conformal`, `clip_min`, `clip_max`).
+  Each timepoint entry has `median`, `p10`, `p90` LightGBM models and
+  Mondrian conformal q.  No SHAP (redundant with per-outcome SHAP).
+  Dashboard renders the predicted trajectory + PI ribbon on the patient
+  explorer timeline chart and as a standalone graph in the simulator.
+  R² ranges from 0.724 (4w, most predictable) to 0.364 (5m, least
+  predictable).  Conformal q widens from 6.3 (72h) to 32.2 (6m).
 
 ## 4. Dashboard conventions
 
@@ -262,6 +273,85 @@ pkill -f 'rehab_sci.dashboard.app'               # stop stale dashboard
 ```
 
 ## 7. Session log (most recent first)
+
+### 2026-05-24 (session 13, F7 Recovery trajectory forecasting shipped)
+
+* Shipped **F7 Recovery trajectory forecasting**.
+* **Problem:** The dashboard predicted discharge outcomes only.
+  Clinicians want to know the *shape* of the recovery curve — when will
+  the patient plateau?  Is a dip at 4w expected?  Early detection of
+  stalled recovery enables intervention.
+* **Training side** (`models/train.py`):
+  - New constant `TRAJECTORY_TIMEPOINTS = ("72h", "2w", "4w", "6w",
+    "2m", "3m", "4m", "5m", "6m")`.
+  - New function `_train_trajectory(af, out_root)`:
+    * For each of the 9 timepoints, extracts SCIM-total at that
+      timepoint from the long frame and joins it to the episode frame
+      as a target column.
+    * Trains median + p10 + p90 LightGBM (same hyperparams as discharge
+      heads) with grouped holdout and calibration fold.
+    * Computes split-conformal PI with Mondrian per-AIS/per-paralysis
+      quantiles.
+    * No SHAP (redundant; the insight engine already provides per-feature
+      analysis via the discharge model).
+    * Refits on all data and persists final models.
+  - Artifacts bundled in `models/trajectory/bundle.joblib` (all 27
+    models + 9 conformal specs in a single dict).
+  - `training_metrics.json` extended with `trajectory` and
+    `trajectory_timepoints` keys.
+  - `main()` calls `_train_trajectory()` after the outcome loop.
+* **Per-timepoint test-set metrics:**
+  - 72h: R²=0.565, RMSE=10.5, conf80=86%, q=6.3 (narrowest PI)
+  - 2w: R²=0.595, RMSE=15.3, conf80=79%, q=18.7
+  - 4w: R²=0.724, RMSE=14.7, conf80=90%, q=17.6 (best R²)
+  - 6w: R²=0.576, RMSE=17.5, conf80=79%, q=21.1
+  - 2m: R²=0.508, RMSE=23.0, conf80=72%, q=16.8
+  - 3m: R²=0.655, RMSE=16.1, conf80=90%, q=31.3
+  - 4m: R²=0.438, RMSE=23.0, conf80=80%, q=29.0
+  - 5m: R²=0.364, RMSE=20.7, conf80=82%, q=30.1
+  - 6m: R²=0.604, RMSE=20.0, conf80=84%, q=32.2 (widest PI)
+  - R² peaks at 4w (admission features most predictive of 1-month
+    outcomes) and dips at 5m (intermediate events dominate).
+* **Dashboard figures** (`dashboard/figures.py`):
+  - `fig_patient_scim_timeline()` gains optional `trajectory` parameter.
+    When provided, renders a dashed blue-purple (`#5B6CC1`) predicted
+    line with diamond markers and a semi-transparent PI ribbon, layered
+    behind patient observed lines but above cohort bands.
+  - New `fig_sim_trajectory()` renders a standalone predicted SCIM-III
+    recovery chart for the simulator (no cohort bands, no observed data).
+* **Dashboard app** (`dashboard/app.py`):
+  - Loads `TRAJECTORY_BUNDLE` from `models/trajectory/bundle.joblib`
+    at startup.
+  - New `_predict_trajectory(X)` helper: runs all 9 timepoint models on
+    a single-row input, resolves Mondrian conformal q per timepoint,
+    computes union PI (conformal ∪ quantile), returns a dict with
+    `timepoints`, `pred`, `lo`, `hi`.
+  - `_compute_patient_tab()` builds the full trajectory arc:
+    * Prepends observed admission SCIM (0day, from `baseline_scim` on the
+      episode frame) as the anchor.
+    * 72h–6m: trajectory models.
+    * Appends discharge prediction from the existing SCIM-total model.
+    * Passes the trajectory to `fig_patient_scim_timeline()`.
+  - `simulate()` callback extended: gains a 4th output (`sim-traj-graph`).
+    Computes trajectory from the simulator's input features, prepends
+    the admission SCIM slider value as anchor, appends discharge
+    prediction, renders via `fig_sim_trajectory()`.
+  - New `_perf_block_trajectory(lang)` renders a per-timepoint metrics
+    table (n, R², RMSE, 80% PI coverage) in the Methods tab.
+  - Simulator layout gains a "Predicted recovery trajectory" heading +
+    graph below the SHAP explanation.
+* New UI strings: `sim_trajectory_heading` (ja: "予測回復軌道 (SCIM-III)",
+  en: "Predicted recovery trajectory (SCIM-III)"),
+  `methods_trajectory_heading` (ja: "回復軌道予測モデル (SCIM-III 各時点)",
+  en: "Recovery trajectory models (SCIM-III per timepoint)").
+* Verification: full pipeline `uv run python -m rehab_sci.models.train`
+  produces all trajectory artifacts; dashboard HTTP 200 on `/`,
+  `/_dash-layout`, `/_dash-dependencies`.  Functional tests confirm:
+  (1) patient explorer timeline shows trajectory PI + predicted line
+  (9 traces total), (2) simulator trajectory renders with 2 traces,
+  (3) bilingual labels correct (JA: 予測回復軌道, 予測 80% PI),
+  (4) Methods tab trajectory table has 10 rows (1 header + 9 timepoints),
+  (5) trajectory skipped for episodes without admission features.
 
 ### 2026-05-24 (session 12, F6 SHAP class selector for AIS shipped)
 
@@ -890,3 +980,32 @@ dependency**.  Ordered by recommended start order (F1 first).
 * **Files changed:** `dashboard/figures.py` (`fig_dependence`
   signature), `dashboard/app.py` (layout + 1 new callback + 1 modified
   callback), `schema/ui_strings.yaml` (1 new key).
+
+### F7. Recovery trajectory forecasting — **STATUS: shipped (session 13, 2026-05-24)**
+
+* **What was built:** 9 LightGBM regression models predicting SCIM-III
+  total at intermediate timepoints (72h through 6m) from the same 32
+  admission features used by discharge models.  Bundled in a single
+  `models/trajectory/bundle.joblib` with per-timepoint median/p10/p90
+  models and Mondrian conformal PIs.  The patient explorer's timeline
+  chart now overlays the predicted recovery trajectory (dashed line +
+  PI ribbon) alongside the observed SCIM and cohort percentile bands.
+  The simulator gains a standalone trajectory chart.  The Methods tab
+  shows a per-timepoint metrics table.
+* **Why:** Clinicians' key question is not just "what will the discharge
+  outcome be?" but "what does the recovery trajectory look like?" and
+  "is this patient on track?"  The trajectory enables early detection
+  of stalled recovery at intermediate timepoints.
+* **Key finding:** R² peaks at 4w (0.724) and is lowest at 5m (0.364);
+  admission features are most predictive of 1-month outcomes and least
+  predictive of 5-month outcomes (intermediate events dominate).
+  Conformal q widens from 6.3 (72h, PI width ≈13) to 32.2 (6m,
+  PI width ≈64).  The trajectory's clinical value is the *shape* (when
+  does recovery plateau?) rather than per-timepoint point accuracy.
+* **Metrics:** See session 13 log for full per-timepoint table.
+* **Files changed:** `models/train.py` (TRAJECTORY_TIMEPOINTS +
+  `_train_trajectory()`), `dashboard/figures.py`
+  (`fig_patient_scim_timeline` trajectory param + `fig_sim_trajectory`),
+  `dashboard/app.py` (TRAJECTORY_BUNDLE load + `_predict_trajectory()` +
+  simulator 4th output + `_perf_block_trajectory()` + layout),
+  `schema/ui_strings.yaml` (2 new keys).

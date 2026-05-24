@@ -475,6 +475,7 @@ def fig_patient_scim_timeline(
     strata: str,
     schema: Schema,
     lang: str,
+    trajectory: dict | None = None,
 ) -> go.Figure:
     """SCIM-III timeline for a single episode against cohort percentile bands.
 
@@ -482,6 +483,10 @@ def fig_patient_scim_timeline(
     Band stratum is determined by the chosen episode's admission attributes;
     if those attributes are missing in the episode row, the figure falls back
     to the wider strata (paralysis-only → no band).
+
+    ``trajectory`` is an optional dict with keys ``timepoints`` (list[str]),
+    ``pred`` (list[float]), ``lo`` (list[float]), ``hi`` (list[float])``
+    rendered as a dashed predicted-recovery line with a PI ribbon.
     """
     pt = patient_timeline(long_df, key_record)
     pt_total = pt["SCIM_total"]
@@ -585,6 +590,57 @@ def fig_patient_scim_timeline(
             )
         )
 
+    # Predicted trajectory (PI ribbon + dashed line), drawn after cohort bands
+    # but before patient lines so the prediction sits behind the observed data.
+    _TRAJ_COLOR = "#5B6CC1"
+    if trajectory is not None and trajectory.get("pred"):
+        traj_tps = trajectory["timepoints"]
+        traj_pred = trajectory["pred"]
+        traj_lo = trajectory["lo"]
+        traj_hi = trajectory["hi"]
+        traj_x = [x_pos.get(tp, tp) for tp in traj_tps]
+        # PI ribbon
+        fig.add_trace(
+            go.Scatter(
+                x=traj_x + traj_x[::-1],
+                y=list(traj_hi) + list(traj_lo)[::-1],
+                fill="toself",
+                fillcolor=_hex_to_rgba(_TRAJ_COLOR, 0.12),
+                line=dict(width=0),
+                hoverinfo="skip",
+                showlegend=True,
+                name=(
+                    "予測 80% PI" if lang == "ja" else "Predicted 80% PI"
+                ),
+            )
+        )
+        # Predicted line
+        fig.add_trace(
+            go.Scatter(
+                x=traj_x,
+                y=traj_pred,
+                mode="lines+markers",
+                line=dict(color=_TRAJ_COLOR, width=2.2, dash="dash"),
+                marker=dict(size=7, color=_TRAJ_COLOR, symbol="diamond",
+                            line=dict(color="#fff", width=1)),
+                name=(
+                    "予測回復軌道" if lang == "ja" else "Predicted trajectory"
+                ),
+                connectgaps=False,
+                customdata=np.stack(
+                    [traj_lo, traj_hi], axis=-1
+                ),
+                hovertemplate=(
+                    "<b>%{x}</b><br>"
+                    + ("予測" if lang == "ja" else "Predicted")
+                    + ": %{y:.0f}<br>"
+                    + ("80% PI" if lang == "en" else "80% PI")
+                    + ": %{customdata[0]:.0f}–%{customdata[1]:.0f}"
+                    + "<extra></extra>"
+                ),
+            )
+        )
+
     # Subscale lines first (so the SCIM_total line sits on top)
     for col, style in _SUBSCALE_STYLES.items():
         if col not in pt.columns:
@@ -642,6 +698,72 @@ def fig_patient_scim_timeline(
         margin=dict(l=56, r=24, t=20, b=48),
     )
     # Force x-axis to show every canonical timepoint, even those the patient lacks.
+    fig.update_xaxes(categoryorder="array", categoryarray=x_labels)
+    return fig
+
+
+def fig_sim_trajectory(
+    trajectory: dict,
+    schema: Schema,
+    lang: str,
+) -> go.Figure:
+    """Predicted SCIM-total recovery trajectory for a hypothetical patient (simulator).
+
+    ``trajectory`` has keys ``timepoints``, ``pred``, ``lo``, ``hi``.
+    """
+    tps = trajectory["timepoints"]
+    pred = trajectory["pred"]
+    lo = trajectory["lo"]
+    hi = trajectory["hi"]
+
+    x_labels = [level_label(schema, "time_name", tp, lang) for tp in tps]
+    traj_color = "#5B6CC1"
+
+    fig = go.Figure()
+    # PI ribbon
+    fig.add_trace(
+        go.Scatter(
+            x=x_labels + x_labels[::-1],
+            y=list(hi) + list(lo)[::-1],
+            fill="toself",
+            fillcolor=_hex_to_rgba(traj_color, 0.14),
+            line=dict(width=0),
+            hoverinfo="skip",
+            showlegend=True,
+            name=("80% 予測区間" if lang == "ja" else "80% prediction interval"),
+        )
+    )
+    # Predicted line
+    fig.add_trace(
+        go.Scatter(
+            x=x_labels,
+            y=pred,
+            mode="lines+markers",
+            line=dict(color=traj_color, width=2.5),
+            marker=dict(size=8, color=traj_color, symbol="diamond",
+                        line=dict(color="#fff", width=1.2)),
+            name=("予測 SCIM-III" if lang == "ja" else "Predicted SCIM-III"),
+            customdata=np.stack([lo, hi], axis=-1),
+            hovertemplate=(
+                "<b>%{x}</b><br>"
+                + ("予測" if lang == "ja" else "Predicted")
+                + ": %{y:.0f}<br>"
+                + "80% PI: %{customdata[0]:.0f}–%{customdata[1]:.0f}"
+                + "<extra></extra>"
+            ),
+        )
+    )
+    fig.update_layout(
+        height=340,
+        xaxis_title=("評価時点" if lang == "ja" else "Timepoint"),
+        yaxis_title="SCIM-III (0–100)",
+        yaxis=dict(range=[0, 102]),
+        legend=dict(
+            orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1,
+            font=dict(size=11),
+        ),
+        margin=dict(l=56, r=24, t=20, b=48),
+    )
     fig.update_xaxes(categoryorder="array", categoryarray=x_labels)
     return fig
 
