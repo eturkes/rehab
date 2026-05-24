@@ -217,6 +217,44 @@ def _aps_prediction_set(proba_row: np.ndarray, q_hat: float) -> list[int]:
     return sorted(pred_set)
 
 
+def _compute_ref_predictions(X: pd.DataFrame) -> dict:
+    """Compute predictions for all outcomes on a single-row X. Used by What-if reference."""
+    outcomes: dict[str, dict] = {}
+    for spec in OUTCOMES:
+        bundle = OUTCOME_BUNDLES[spec.key]
+        fspec = bundle["feature_spec"]
+        if spec.task == "regression":
+            transform = fspec.get("transform")
+            clip_min = fspec.get("clip_min")
+            clip_max = fspec.get("clip_max")
+            q_t = _resolve_conformal_q(fspec, X)
+            pred_t = float(bundle["median"].predict(X)[0])
+            pred_p10_t = float(bundle["p10"].predict(X)[0])
+            pred_p90_t = float(bundle["p90"].predict(X)[0])
+            pred = _clip_scalar(_inv_transform_scalar(pred_t, transform), clip_min, clip_max)
+            lo_conf = _clip_scalar(_inv_transform_scalar(pred_t - q_t, transform), clip_min, clip_max)
+            hi_conf = _clip_scalar(_inv_transform_scalar(pred_t + q_t, transform), clip_min, clip_max)
+            lo_q = _clip_scalar(_inv_transform_scalar(pred_p10_t, transform), clip_min, clip_max)
+            hi_q = _clip_scalar(_inv_transform_scalar(pred_p90_t, transform), clip_min, clip_max)
+            outcomes[spec.key] = {
+                "task": "regression",
+                "pred": pred,
+                "lo": min(lo_conf, lo_q),
+                "hi": max(hi_conf, hi_q),
+            }
+        else:
+            class_labels = list(fspec.get("class_labels", spec.class_labels))
+            proba = np.asarray(bundle["clf"].predict_proba(X)[0], dtype=float)
+            pred_idx = int(np.argmax(proba))
+            outcomes[spec.key] = {
+                "task": "multiclass",
+                "pred_class": class_labels[pred_idx],
+                "pred_prob": float(proba[pred_idx]),
+                "proba": proba.tolist(),
+            }
+    return outcomes
+
+
 def _format_value(col: str, value: object) -> str:
     if value is None or (isinstance(value, float) and np.isnan(value)):
         return "–"
@@ -369,9 +407,9 @@ SIM_CATEGORICAL_ORDER = [
 ]
 
 
-def _slider_for(feature: str, lang: str) -> html.Div:
+def _slider_for(feature: str, lang: str, defaults: dict | None = None) -> html.Div:
     rng = FEATURE_SPEC["ranges"].get(feature)
-    default = SIM_DEFAULTS.get(feature)
+    default = (defaults or SIM_DEFAULTS).get(feature)
     if rng is None:
         return html.Div()
     lo = rng["min"]
@@ -399,7 +437,7 @@ def _slider_for(feature: str, lang: str) -> html.Div:
     )
 
 
-def _dropdown_for(feature: str, lang: str) -> html.Div:
+def _dropdown_for(feature: str, lang: str, defaults: dict | None = None) -> html.Div:
     cats = FEATURE_SPEC["categories"].get(feature, [])
     spec = SCHEMA.by_raw(feature)
     level_key = spec.levels if spec else None
@@ -410,7 +448,7 @@ def _dropdown_for(feature: str, lang: str) -> html.Div:
         }
         for c in cats
     ]
-    default = SIM_DEFAULTS.get(feature)
+    default = (defaults or SIM_DEFAULTS).get(feature)
     return html.Div(
         className="sim-field",
         children=[
@@ -426,7 +464,12 @@ def _dropdown_for(feature: str, lang: str) -> html.Div:
     )
 
 
-def render_simulator(lang: str) -> html.Div:
+def render_simulator(lang: str, ref_data: dict | None = None) -> html.Div:
+    # When ref_data is provided (What-if mode), use patient features as defaults.
+    defaults = SIM_DEFAULTS
+    if ref_data and ref_data.get("features"):
+        defaults = {**SIM_DEFAULTS, **{k: v for k, v in ref_data["features"].items() if v is not None}}
+
     sections = []
     sections.append(html.Div(t(SCHEMA, "sim_intro", lang),
                              style={"color": INK["500"], "marginBottom": "10px", "fontSize": "13px"}))
@@ -434,32 +477,32 @@ def render_simulator(lang: str) -> html.Div:
     sections.append(html.Div(t(SCHEMA, "sim_input_demographics", lang), className="sim-section-title"))
     for f in ["年齢", "性別"]:
         if f in FEATURE_SPEC["numeric_cols"]:
-            sections.append(_slider_for(f, lang))
+            sections.append(_slider_for(f, lang, defaults))
         else:
-            sections.append(_dropdown_for(f, lang))
+            sections.append(_dropdown_for(f, lang, defaults))
 
     sections.append(html.Div(t(SCHEMA, "sim_input_injury", lang), className="sim-section-title"))
     for f in ["外傷性_非外傷性", "対麻痺_四肢麻痺", "OPLL", "DISH", "糖尿病"]:
-        sections.append(_dropdown_for(f, lang))
+        sections.append(_dropdown_for(f, lang, defaults))
 
     sections.append(html.Div(t(SCHEMA, "sim_input_isncsci", lang), className="sim-section-title"))
     for f in ["AIS_ord", "mFrankel_ord", "NLI_ord", "RightMotorLevel_ord", "LeftMotorLevel_ord"]:
-        sections.append(_slider_for(f, lang))
+        sections.append(_slider_for(f, lang, defaults))
     for f in ["VAC", "DAP"]:
-        sections.append(_dropdown_for(f, lang))
+        sections.append(_dropdown_for(f, lang, defaults))
 
     sections.append(html.Div(t(SCHEMA, "sim_input_motor", lang), className="sim-section-title"))
     for f in ["UEMS", "LEMS", "TotalMotor"]:
-        sections.append(_slider_for(f, lang))
+        sections.append(_slider_for(f, lang, defaults))
 
     sections.append(html.Div(t(SCHEMA, "sim_input_sensory", lang), className="sim-section-title"))
     for f in ["LightTouchTotal", "PinPrickTotal", "RightSensoryLevel_ord", "LeftSensoryLevel_ord"]:
-        sections.append(_slider_for(f, lang))
+        sections.append(_slider_for(f, lang, defaults))
 
     sections.append(html.Div(("入院時の SCIM (任意)" if lang == "ja" else "Admission SCIM (optional)"),
                              className="sim-section-title"))
     for f in ["SCIM_total", "SCIM_self_care", "SCIM_respiration_sphincter", "SCIM_mobility"]:
-        sections.append(_slider_for(f, lang))
+        sections.append(_slider_for(f, lang, defaults))
 
     input_panel = html.Div(className="sim-input-card", children=sections)
 
@@ -484,6 +527,7 @@ def render_simulator(lang: str) -> html.Div:
     result_panel = html.Div(
         className="sim-result-card",
         children=[
+            html.Div(id="whatif-banner"),
             outcome_selector,
             html.Div(id="sim-readout", className="sim-readout"),
             html.Div(
@@ -778,6 +822,12 @@ def render_patient(lang: str) -> html.Div:
                 ),
                 dcc.Graph(id="patient-shap-graph", config={"displayModeBar": False}),
                 html.Div(id="patient-pred-note", className="patient-pred-note"),
+                html.Button(
+                    t(SCHEMA, "whatif_button", lang),
+                    id="patient-whatif-btn",
+                    n_clicks=0,
+                    className="whatif-btn",
+                ),
             ]
         ),
     )
@@ -1136,6 +1186,7 @@ def create_app() -> Dash:
         className="app-shell",
         children=[
             dcc.Store(id="lang-store", data="ja"),
+            dcc.Store(id="patient-ref", storage_type="session"),
             html.Div(id="topbar-container"),
             html.Div(
                 className="tabs-container",
@@ -1207,12 +1258,13 @@ def update_chrome(lang):  # noqa: ANN001
     Output("tab-body", "children"),
     Input("tabs", "value"),
     Input("lang-store", "data"),
+    State("patient-ref", "data"),
 )
-def update_tab(tab, lang):  # noqa: ANN001
+def update_tab(tab, lang, ref_data):  # noqa: ANN001
     if tab == "overview":
         return render_overview(lang)
     if tab == "simulator":
-        return render_simulator(lang)
+        return render_simulator(lang, ref_data)
     if tab == "patient":
         return render_patient(lang)
     if tab == "insights":
@@ -1502,19 +1554,68 @@ def _simulate_multiclass(bundle: dict, X: pd.DataFrame, lang: str):
     State({"type": "cat", "col": dash.ALL}, "id"),
     Input("sim-outcome", "value"),
     Input("lang-store", "data"),
+    State("patient-ref", "data"),
 )
-def simulate(num_vals, cat_vals, num_ids, cat_ids, outcome_key, lang):  # noqa: ANN001
+def simulate(num_vals, cat_vals, num_ids, cat_ids, outcome_key, lang, ref_data):  # noqa: ANN001
     if not num_ids and not cat_ids:
         return [], go.Figure(), go.Figure(), go.Figure()
     bundle = OUTCOME_BUNDLES.get(outcome_key) or SCIM_TOTAL_BUNDLE
+    spec: OutcomeSpec = bundle["spec"]
     X = _collect_sim_inputs(num_vals, num_ids, cat_vals, cat_ids)
+
+    # Resolve reference prediction for the selected outcome (if What-if mode active).
+    ref_pred_for_outcome: dict | None = None
+    if ref_data and ref_data.get("outcomes"):
+        ref_pred_for_outcome = ref_data["outcomes"].get(outcome_key or DEFAULT_OUTCOME)
+
     if bundle["task"] == "regression":
         readout, pi_fig, shap_fig = _simulate_regression(bundle, X, lang)
+        # Overlay reference marker on PI bar.
+        if ref_pred_for_outcome and ref_pred_for_outcome.get("task") == "regression":
+            ref_p = ref_pred_for_outcome["pred"]
+            ref_label = t(SCHEMA, "whatif_ref_label", lang)
+            pi_fig.add_trace(
+                go.Scatter(
+                    x=[ref_p],
+                    y=[t(SCHEMA, "sim_prediction_interval", lang)],
+                    mode="markers",
+                    marker=dict(color="#a3354e", size=12, symbol="circle",
+                                line=dict(color="#fff", width=1.5)),
+                    hovertemplate=f"{ref_label}: %{{x:.0f}}<extra></extra>",
+                    showlegend=False,
+                )
+            )
+            delta_label = t(SCHEMA, "whatif_delta", lang)
+            current_pred = ref_pred_for_outcome["pred"]
+            for item in readout:
+                if hasattr(item, "className") and getattr(item, "className", "") == "pred":
+                    try:
+                        current_pred = float(item.children)
+                    except (TypeError, ValueError):
+                        pass
+                    break
+            delta = current_pred - ref_p
+            readout.append(
+                html.Div(
+                    f"{ref_label} : {ref_p:.0f} · {delta_label} : {delta:+.0f}",
+                    className="pi whatif-delta",
+                )
+            )
     else:
         readout, pi_fig, shap_fig = _simulate_multiclass(bundle, X, lang)
+        if ref_pred_for_outcome and ref_pred_for_outcome.get("task") == "multiclass":
+            ref_label = t(SCHEMA, "whatif_ref_label", lang)
+            ref_cls = ref_pred_for_outcome["pred_class"]
+            readout.append(
+                html.Div(
+                    f"{ref_label} : AIS {ref_cls}",
+                    className="pi whatif-delta",
+                )
+            )
 
     # Trajectory chart: predicted SCIM-total recovery arc
     traj = _predict_trajectory(X)
+    ref_traj = ref_data.get("trajectory") if ref_data else None
     if traj is not None:
         # Prepend admission baseline from the simulator's SCIM_total slider
         scim_val = None
@@ -1542,7 +1643,7 @@ def simulate(num_vals, cat_vals, num_ids, cat_ids, outcome_key, lang):  # noqa: 
             traj["pred"].append(pred_dis)
             traj["lo"].append(min(lo_c, lo_q))
             traj["hi"].append(max(hi_c, hi_q))
-        traj_fig = fg.fig_sim_trajectory(traj, SCHEMA, lang)
+        traj_fig = fg.fig_sim_trajectory(traj, SCHEMA, lang, ref_trajectory=ref_traj)
     else:
         traj_fig = go.Figure()
     return readout, pi_fig, shap_fig, traj_fig
@@ -1783,6 +1884,91 @@ def _compute_patient_tab(key_record, strata, outcome_key, lang):  # noqa: ANN001
 )
 def update_patient_tab(key_record, strata, outcome_key, lang):  # noqa: ANN001
     return _compute_patient_tab(key_record, strata, outcome_key, lang)
+
+
+# ---------- what-if counterfactual callbacks ----------
+@callback(
+    Output("patient-ref", "data"),
+    Output("tabs", "value", allow_duplicate=True),
+    Input("patient-whatif-btn", "n_clicks"),
+    State("patient-episode-radio", "value"),
+    State("patient-id-dropdown", "value"),
+    prevent_initial_call=True,
+)
+def launch_whatif(n_clicks, key_record, id_number):  # noqa: ANN001
+    if not n_clicks or key_record is None or not _episode_has_admission(int(key_record)):
+        return dash.no_update, dash.no_update
+    key_record = int(key_record)
+    feat = episode_admission_features(EP, key_record, FEATURE_SPEC["feature_cols"])
+    for c in FEATURE_SPEC["feature_cols"]:
+        if feat.get(c) is None:
+            feat[c] = SIM_DEFAULTS.get(c)
+    X = pd.DataFrame([{c: feat.get(c) for c in FEATURE_SPEC["feature_cols"]}])
+    for c in FEATURE_SPEC["categorical_cols"]:
+        if c in X.columns:
+            X[c] = X[c].astype("category")
+    for c in FEATURE_SPEC["numeric_cols"]:
+        if c in X.columns:
+            X[c] = pd.to_numeric(X[c], errors="coerce")
+    ref_outcomes = _compute_ref_predictions(X)
+    ref_traj = _predict_trajectory(X)
+    if ref_traj is not None:
+        scim_val = feat.get("SCIM_total")
+        if scim_val is not None:
+            ref_traj["timepoints"] = ["0day"] + ref_traj["timepoints"]
+            ref_traj["pred"] = [float(scim_val)] + ref_traj["pred"]
+            ref_traj["lo"] = [float(scim_val)] + ref_traj["lo"]
+            ref_traj["hi"] = [float(scim_val)] + ref_traj["hi"]
+        scim_out = ref_outcomes.get("scim_total")
+        if scim_out:
+            ref_traj["timepoints"].append("discharge")
+            ref_traj["pred"].append(scim_out["pred"])
+            ref_traj["lo"].append(scim_out["lo"])
+            ref_traj["hi"].append(scim_out["hi"])
+    serializable_feat = {k: (float(v) if isinstance(v, (np.floating, np.integer)) else v)
+                         for k, v in feat.items()}
+    ref = {
+        "id_number": int(id_number) if id_number is not None else None,
+        "key_record": key_record,
+        "features": serializable_feat,
+        "outcomes": ref_outcomes,
+        "trajectory": ref_traj,
+    }
+    return ref, "simulator"
+
+
+@callback(
+    Output("whatif-banner", "children"),
+    Input("patient-ref", "data"),
+    Input("lang-store", "data"),
+)
+def update_whatif_banner(ref_data, lang):  # noqa: ANN001
+    if not ref_data:
+        return []
+    tmpl = t(SCHEMA, "whatif_banner", lang)
+    text = tmpl.replace("{id}", str(ref_data.get("id_number", "?")))
+    text = text.replace("{kr}", str(ref_data.get("key_record", "?")))
+    return html.Div(
+        className="whatif-banner",
+        children=[
+            html.Span(text, className="whatif-banner-text"),
+            html.Button(
+                t(SCHEMA, "whatif_clear", lang),
+                id="whatif-clear-btn",
+                n_clicks=0,
+                className="whatif-clear-btn",
+            ),
+        ],
+    )
+
+
+@callback(
+    Output("patient-ref", "data", allow_duplicate=True),
+    Input("whatif-clear-btn", "n_clicks"),
+    prevent_initial_call=True,
+)
+def clear_whatif(_n):  # noqa: ANN001
+    return None
 
 
 # ---------- insight engine callbacks ----------

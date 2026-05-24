@@ -332,3 +332,20 @@ patient_outcome_label:
 sim_conformal_set:
   ja: "80%予測集合 (APS)"
   en: "80% prediction set (APS)"
+
+# --- what-if counterfactual (F9) ---
+whatif_button:
+  ja: "What-if 分析"
+  en: "What-if analysis"
+whatif_banner:
+  ja: "患者 #{id} · 症例 #{kr} の参考値と比較中"
+  en: "Comparing against Patient #{id} · Episode #{kr}"
+whatif_clear:
+  ja: "比較をクリア"
+  en: "Clear comparison"
+whatif_ref_label:
+  ja: "参考値"
+  en: "Reference"
+whatif_delta:
+  ja: "差分"
+  en: "Change"

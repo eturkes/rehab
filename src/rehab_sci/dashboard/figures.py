@@ -706,10 +706,14 @@ def fig_sim_trajectory(
     trajectory: dict,
     schema: Schema,
     lang: str,
+    *,
+    ref_trajectory: dict | None = None,
 ) -> go.Figure:
     """Predicted SCIM-total recovery trajectory for a hypothetical patient (simulator).
 
     ``trajectory`` has keys ``timepoints``, ``pred``, ``lo``, ``hi``.
+    ``ref_trajectory`` (optional) overlays the reference patient's trajectory as a
+    dashed line with a muted PI ribbon for What-if comparison.
     """
     tps = trajectory["timepoints"]
     pred = trajectory["pred"]
@@ -718,8 +722,44 @@ def fig_sim_trajectory(
 
     x_labels = [level_label(schema, "time_name", tp, lang) for tp in tps]
     traj_color = "#5B6CC1"
+    ref_color = "#a3354e"
 
     fig = go.Figure()
+
+    # Reference trajectory (behind current, if provided)
+    if ref_trajectory:
+        ref_tps = ref_trajectory["timepoints"]
+        ref_pred = ref_trajectory["pred"]
+        ref_lo = ref_trajectory["lo"]
+        ref_hi = ref_trajectory["hi"]
+        ref_x = [level_label(schema, "time_name", tp, lang) for tp in ref_tps]
+        ref_label = ("参考値" if lang == "ja" else "Reference")
+        fig.add_trace(
+            go.Scatter(
+                x=ref_x + ref_x[::-1],
+                y=list(ref_hi) + list(ref_lo)[::-1],
+                fill="toself",
+                fillcolor=_hex_to_rgba(ref_color, 0.08),
+                line=dict(width=0),
+                hoverinfo="skip",
+                showlegend=False,
+            )
+        )
+        fig.add_trace(
+            go.Scatter(
+                x=ref_x,
+                y=ref_pred,
+                mode="lines+markers",
+                line=dict(color=ref_color, width=2, dash="dash"),
+                marker=dict(size=6, color=ref_color, symbol="circle",
+                            line=dict(color="#fff", width=1)),
+                name=ref_label,
+                hovertemplate=(
+                    f"<b>%{{x}}</b><br>{ref_label}: %{{y:.0f}}<extra></extra>"
+                ),
+            )
+        )
+
     # PI ribbon
     fig.add_trace(
         go.Scatter(
@@ -764,7 +804,14 @@ def fig_sim_trajectory(
         ),
         margin=dict(l=56, r=24, t=20, b=48),
     )
-    fig.update_xaxes(categoryorder="array", categoryarray=x_labels)
+    # Merge timepoints from both trajectories for x-axis ordering.
+    all_x = list(x_labels)
+    if ref_trajectory:
+        for tp in ref_trajectory["timepoints"]:
+            lbl = level_label(schema, "time_name", tp, lang)
+            if lbl not in all_x:
+                all_x.append(lbl)
+    fig.update_xaxes(categoryorder="array", categoryarray=all_x)
     return fig
 
 

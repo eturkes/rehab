@@ -16,9 +16,9 @@ bottom of each section as new lessons land; do **not** delete prior entries.
   Keep it accurate: update sections after every session; prune obsolete
   entries when they conflict with current state.
 * **Default-work pool for fresh sessions: §8 Feature backlog.**
-  All features F1–F8 are shipped as of session 14.  Propose new feature
-  candidates or maintenance work unless the user redirects.  Historical
-  "Open items rolled forward" lists inside prior §7 session entries are
+  F1–F9 shipped as of session 15.  Propose new feature candidates or
+  maintenance work unless the user redirects.  Historical "Open items
+  rolled forward" lists inside prior §7 session entries are
   **superseded** by user decision in session 4 — treat them as history.
 
 ## 0b. Lessons & mistakes (append here; prune when superseded)
@@ -228,6 +228,11 @@ bottom of each section as new lessons land; do **not** delete prior entries.
   colors per chart.
 * Japanese rendering needs the font stack `"Hiragino Sans", "Noto Sans
   JP", "Yu Gothic UI"` in both Plotly and CSS.
+* `dcc.Store("patient-ref")` (session-scoped) carries the What-if
+  counterfactual reference: `{id_number, key_record, features,
+  outcomes, trajectory}`.  `update_tab()` reads it as State to
+  pre-fill simulator defaults; `simulate()` reads it as State for
+  reference overlay rendering.
 
 ## 5. Known gotchas
 
@@ -279,6 +284,73 @@ pkill -f 'rehab_sci.dashboard.app'               # stop stale dashboard
 ```
 
 ## 7. Session log (most recent first)
+
+### 2026-05-24 (session 15, F9 What-if counterfactual explorer shipped)
+
+* Shipped **F9 What-if counterfactual explorer**.
+* **Problem:** The simulator lets clinicians explore hypothetical
+  patients, and the patient explorer shows predictions for real patients,
+  but there was no way to answer "what if this real patient's admission
+  features had been different?"  Bridging the two tabs for counterfactual
+  analysis required manually re-entering all 32 features.
+* **Design:** A "What-if" button on the patient explorer's prediction
+  card.  Clicking it: (1) captures the patient's 32 admission features +
+  predictions for all 6 outcomes + the SCIM-III recovery trajectory,
+  (2) stores them in a `dcc.Store(id="patient-ref")`, (3) switches to
+  the simulator tab with all sliders/dropdowns pre-filled with the
+  patient's actual values.  The clinician edits any feature and
+  immediately sees the prediction change relative to the reference.
+* **Reference overlay — regression PI bar:** a crimson circle marker at
+  the reference prediction, plus a readout line showing
+  "Reference: 65 · Change: +12".
+* **Reference overlay — trajectory:** a dashed crimson line with a muted
+  PI ribbon behind the current prediction's solid blue-purple trajectory.
+* **Reference overlay — multiclass:** text readout showing the reference
+  class ("Reference: AIS D").
+* **Banner:** a warm-background bar at the top of the simulator result
+  panel showing "Comparing against Patient #X · Episode #Y" with a
+  "Clear comparison" button that resets the store.
+* **Implementation:**
+  - `dashboard/app.py`: `dcc.Store("patient-ref")` added to layout.
+    `render_simulator()` now accepts `ref_data` and uses patient features
+    as slider/dropdown defaults.  `_slider_for()` and `_dropdown_for()`
+    accept a `defaults` dict parameter.  New `_compute_ref_predictions()`
+    computes predictions for all 6 outcomes on a single-row X.
+    `simulate()` gains `State("patient-ref")` and renders reference
+    overlays when present.  3 new callbacks: `launch_whatif` (button →
+    store + tab switch), `update_whatif_banner` (store → banner),
+    `clear_whatif` (clear button → store=None).  `update_tab()` gains
+    `State("patient-ref")` to pass ref_data to `render_simulator()`.
+  - `dashboard/figures.py`: `fig_sim_trajectory()` gains optional
+    `ref_trajectory` keyword — renders a dashed reference line + muted
+    PI ribbon behind the current trajectory.
+  - `schema/ui_strings.yaml`: 5 new keys (`whatif_button`,
+    `whatif_banner`, `whatif_clear`, `whatif_ref_label`, `whatif_delta`),
+    all bilingual JA/EN.
+  - `dashboard/assets/style.css`: `.whatif-banner`, `.whatif-clear-btn`,
+    `.whatif-btn`, `.whatif-delta` styles.
+* **Data flow:**
+  1. User views Patient #1234 in explorer → clicks "What-if"
+  2. `launch_whatif` callback: extracts features, computes all
+     predictions via `_compute_ref_predictions()`, computes trajectory
+     via `_predict_trajectory()`, stores in `patient-ref`, sets
+     `tabs.value = "simulator"`
+  3. `update_tab` fires: renders `render_simulator(lang, ref_data)` with
+     patient features as defaults → sliders/dropdowns pre-filled
+  4. `update_whatif_banner` fires: shows banner with patient info
+  5. `simulate` fires: computes current prediction, adds reference
+     overlays to PI bar and trajectory figure
+  6. User edits a slider → `simulate` re-fires → delta updates
+  7. User clicks "Clear" → `clear_whatif` clears store → banner
+     disappears, reference markers removed on next simulate
+* Verification: full dashboard HTTP 200 on `/`, `/_dash-layout`,
+  `/_dash-dependencies`.  16 callbacks registered (5 What-if related).
+  Programmatic tests confirm: (1) `patient-ref` store in layout,
+  (2) What-if button in patient tab, (3) whatif-banner in simulator,
+  (4) render_simulator accepts ref_data, (5) `_compute_ref_predictions`
+  returns 6 outcomes with correct types, (6) trajectory computed with
+  9 timepoints, (7) trajectory figure renders 4 traces with reference
+  vs 2 without, (8) bilingual labels verified.
 
 ### 2026-05-24 (session 14, F8 Calibration & performance visualizations shipped)
 
@@ -1105,3 +1177,26 @@ dependency**.  Ordered by recommended start order (F1 first).
   `fig_residual_hist`, `fig_confusion_matrix`, `fig_calibration_curve`),
   `dashboard/app.py` (2 modified functions: `_perf_block_regression`,
   `_perf_block_multiclass`).
+
+### F9. What-if counterfactual explorer — **STATUS: shipped (session 15, 2026-05-24)**
+
+* **What was built:** A "What-if analysis" button on the patient
+  explorer that sends the patient's 32 admission features to the
+  simulator tab, pre-filling all inputs.  The simulator then shows
+  reference markers (crimson circle on PI bar, dashed line on trajectory)
+  and a delta readout so the clinician can edit features and immediately
+  see how predictions shift relative to the actual patient.  A banner
+  at the top of the simulator shows which patient is the reference, with
+  a "Clear comparison" button.  Reference data (features + predictions
+  for all 6 outcomes + trajectory) is stored in a session-scoped
+  `dcc.Store`.
+* **Why:** The simulator and patient explorer were disconnected.
+  Clinicians want to ask "what if this patient's AIS grade had been
+  different?" without manually re-entering 32 features.  The
+  counterfactual bridges the two tabs and enables treatment-scenario
+  exploration anchored to a real patient.
+* **Files changed:** `dashboard/app.py` (1 new store, 3 new callbacks,
+  2 modified callbacks, 1 new helper, 2 modified layout functions),
+  `dashboard/figures.py` (`fig_sim_trajectory` signature),
+  `dashboard/assets/style.css` (4 new style blocks),
+  `schema/ui_strings.yaml` (5 new keys).
