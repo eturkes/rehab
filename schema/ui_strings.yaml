@@ -311,3 +311,12 @@ sim_predicted_class_label:
 methods_per_outcome_heading:
   ja: "アウトカム別性能"
   en: "Per-outcome performance"
+insight_outcome_label:
+  ja: "分析対象アウトカム"
+  en: "Outcome to analyze"
+insight_dependence_regression_only:
+  ja: "SHAP依存プロットは回帰アウトカムのみ利用可能です。"
+  en: "SHAP dependence plots are available for regression outcomes only."
+patient_outcome_label:
+  ja: "予測対象"
+  en: "Predicted outcome"

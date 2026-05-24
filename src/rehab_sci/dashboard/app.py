@@ -84,7 +84,13 @@ DEFAULT_OUTCOME = "scim_total"
 SCIM_TOTAL_BUNDLE = OUTCOME_BUNDLES[DEFAULT_OUTCOME]
 
 with (MODELS_DIR / "subgroups.json").open(encoding="utf-8") as f:
-    SUBGROUPS = json.load(f)
+    _raw_subgroups = json.load(f)
+# Multi-keyed format: {outcome_key: {results, n_tested, outcome}, ...}
+# Legacy flat format (pre-F4): {results, n_tested, outcome}
+if "results" in _raw_subgroups:
+    SUBGROUPS: dict[str, dict] = {DEFAULT_OUTCOME: _raw_subgroups}
+else:
+    SUBGROUPS = _raw_subgroups
 
 # Patient-tab picker options (one entry per IDNumber).  Built once at startup;
 # the list is small (~866 patients) and stable per process.
@@ -643,6 +649,21 @@ def render_patient(lang: str) -> html.Div:
                     ),
                 ],
             ),
+            html.Div(
+                className="patient-picker-field",
+                children=[
+                    html.Label(t(SCHEMA, "patient_outcome_label", lang)),
+                    dcc.Dropdown(
+                        id="patient-outcome",
+                        options=[
+                            {"label": t(SCHEMA, s.display_key, lang), "value": s.key}
+                            for s in OUTCOMES
+                        ],
+                        value=DEFAULT_OUTCOME,
+                        clearable=False,
+                    ),
+                ],
+            ),
         ],
     )
 
@@ -694,24 +715,41 @@ def render_patient(lang: str) -> html.Div:
 
 
 # ---------- TAB: insight engine ----------
-def render_insights(lang: str) -> html.Div:
-    # Insight engine is anchored on the headline outcome (SCIM-III total).  A
-    # per-outcome variant is on the F4 backlog — until then the global SHAP /
-    # dependence plots reflect the SCIM-total model.
-    scim_metrics = METRICS["outcomes"][DEFAULT_OUTCOME]
-    importance_card = chart_card(
-        t(SCHEMA, "insight_global_importance", lang),
-        dcc.Graph(figure=fg.fig_global_shap_importance(scim_metrics, SCHEMA, lang),
-                  config={"displayModeBar": False}),
-    )
+def _insight_outcome_options(lang: str) -> list[dict]:
+    return [
+        {"label": t(SCHEMA, s.display_key, lang), "value": s.key}
+        for s in OUTCOMES
+    ]
 
-    # subgroup picker
+
+def render_insights(lang: str) -> html.Div:
     cat_features_in_data = [c for c in CATEGORICAL_FEATURES if c in EP.columns]
     num_features_in_data = [c for c in NUMERIC_FEATURES if c in EP.columns]
     sub_options = [
         {"label": col_label(SCHEMA, c, lang), "value": c}
         for c in cat_features_in_data + num_features_in_data
     ]
+
+    outcome_selector = html.Div(
+        className="sim-outcome-selector",
+        children=[
+            html.Label(
+                t(SCHEMA, "insight_outcome_label", lang),
+                style={"fontSize": "12px", "color": INK["500"]},
+            ),
+            dcc.Dropdown(
+                id="ins-outcome",
+                options=_insight_outcome_options(lang),
+                value=DEFAULT_OUTCOME,
+                clearable=False,
+            ),
+        ],
+    )
+
+    importance_card = chart_card(
+        t(SCHEMA, "insight_global_importance", lang),
+        dcc.Graph(id="ins-importance-graph", config={"displayModeBar": False}),
+    )
 
     subgroup_card = chart_card(
         t(SCHEMA, "insight_subgroup_compare", lang),
@@ -743,17 +781,6 @@ def render_insights(lang: str) -> html.Div:
         ),
     )
 
-    feat_options = [
-        {"label": col_label(SCHEMA, c, lang), "value": c}
-        for c in scim_metrics["global_importance_top25"][:15]
-        for c in [c["feature"]]
-    ]
-    # collapse to unique while preserving order
-    seen, feat_opts_unique = set(), []
-    for o in feat_options:
-        if o["value"] not in seen:
-            seen.add(o["value"])
-            feat_opts_unique.append(o)
     dep_card = chart_card(
         t(SCHEMA, "insight_pair_dependence", lang),
         html.Div(
@@ -767,19 +794,21 @@ def render_insights(lang: str) -> html.Div:
                         ),
                         dcc.Dropdown(
                             id="ins-dep-feature",
-                            options=feat_opts_unique,
-                            value=feat_opts_unique[0]["value"] if feat_opts_unique else None,
+                            options=[],
+                            value=None,
                             clearable=False,
                         ),
                     ],
                 ),
                 dcc.Graph(id="ins-dep-graph", config={"displayModeBar": False}),
+                html.Div(id="ins-dep-note"),
             ]
         ),
     )
 
     return html.Div(
         [
+            outcome_selector,
             html.Div(className="chart-row", children=[importance_card, subgroup_card]),
             html.Div(className="chart-row", children=[dep_card]),
         ]
@@ -1280,11 +1309,119 @@ def reset_episode_on_patient_change(id_number, current):  # noqa: ANN001
     return krs[0]
 
 
-def _compute_patient_tab(key_record, strata, lang):  # noqa: ANN001
-    """Pure-function payload for the patient tab. Returns a 7-tuple matching the callback's Outputs.
+def _get_observed_for_outcome(key_record: int, spec: OutcomeSpec) -> float | None:
+    """Look up the observed discharge value for any outcome from the episode frame."""
+    row = EP.loc[EP["KeyRecordNumber"] == key_record]
+    if row.empty or spec.target_col not in row.columns:
+        return None
+    v = row.iloc[0][spec.target_col]
+    return None if pd.isna(v) else float(v)
 
-    Split out from the @callback so it is directly callable for tests and probes.
-    """
+
+def _patient_regression(bundle: dict, X: pd.DataFrame, key_record: int, lang: str):
+    """Patient explorer prediction for a regression outcome. Returns (readout, pred_fig, shap_fig, note)."""
+    spec: OutcomeSpec = bundle["spec"]
+    fspec = bundle["feature_spec"]
+    transform = fspec.get("transform")
+    clip_min = fspec.get("clip_min")
+    clip_max = fspec.get("clip_max")
+    q_t = _resolve_conformal_q(fspec, X)
+
+    pred_t = float(bundle["median"].predict(X)[0])
+    pred_p10_t = float(bundle["p10"].predict(X)[0])
+    pred_p90_t = float(bundle["p90"].predict(X)[0])
+    pred = _clip_scalar(_inv_transform_scalar(pred_t, transform), clip_min, clip_max)
+    lo_conf = _clip_scalar(_inv_transform_scalar(pred_t - q_t, transform), clip_min, clip_max)
+    hi_conf = _clip_scalar(_inv_transform_scalar(pred_t + q_t, transform), clip_min, clip_max)
+    lo_q = _clip_scalar(_inv_transform_scalar(pred_p10_t, transform), clip_min, clip_max)
+    hi_q = _clip_scalar(_inv_transform_scalar(pred_p90_t, transform), clip_min, clip_max)
+    lo = min(lo_conf, lo_q)
+    hi = max(hi_conf, hi_q)
+
+    observed = _get_observed_for_outcome(key_record, spec)
+    label = t(SCHEMA, spec.display_key, lang)
+    unit = t(SCHEMA, spec.unit_key, lang) if spec.unit_key else ""
+    range_suffix = ""
+    if spec.clip_max is not None and spec.clip_min is not None:
+        range_suffix = f"/ {spec.clip_max:.0f}"
+
+    readout: list = [
+        html.Div(label, style={"color": INK["500"], "fontSize": "13px"}),
+        html.Div(f"{pred:.0f}", className="pred"),
+        html.Div(f"{range_suffix}  {unit}".strip(), className="pred-unit"),
+        html.Div(
+            f"{t(SCHEMA, 'sim_prediction_interval', lang)} : {lo:.0f} – {hi:.0f}",
+            className="pi",
+        ),
+    ]
+    note: list = []
+    if observed is None:
+        note.append(html.Div(t(SCHEMA, "patient_no_outcome_note", lang),
+                             className="patient-pred-empty"))
+    else:
+        residual = pred - observed
+        readout.append(
+            html.Div(
+                f"{t(SCHEMA, 'patient_prediction_observed', lang)} : {observed:.0f} · "
+                f"{t(SCHEMA, 'patient_prediction_residual', lang)} : {residual:+.0f}",
+                className="pi",
+            )
+        )
+
+    axis_label = f"{label} ({unit})" if unit else label
+    pred_fig = fg.fig_patient_prediction(
+        pred, lo, hi, observed, SCHEMA, lang,
+        clip_min=spec.clip_min or 0.0,
+        clip_max=spec.clip_max,
+        axis_label=axis_label,
+    )
+    shap_vals, base = _shap_for_row_regression(X, bundle["median"])
+    shap_fig = _fig_shap_local(shap_vals, X, base, lang)
+    return readout, pred_fig, shap_fig, note
+
+
+def _patient_multiclass(bundle: dict, X: pd.DataFrame, key_record: int, lang: str):
+    """Patient explorer prediction for a multiclass outcome. Returns (readout, pred_fig, shap_fig, note)."""
+    spec: OutcomeSpec = bundle["spec"]
+    fspec = bundle["feature_spec"]
+    class_labels = list(fspec.get("class_labels", spec.class_labels))
+    clf = bundle["clf"]
+    proba = np.asarray(clf.predict_proba(X)[0], dtype=float)
+    pred_idx = int(np.argmax(proba))
+    pred_class = class_labels[pred_idx]
+    pred_prob = float(proba[pred_idx])
+
+    observed_ord = _get_observed_for_outcome(key_record, spec)
+    label = t(SCHEMA, spec.display_key, lang)
+    pcls_label = t(SCHEMA, "sim_predicted_class_label", lang)
+
+    readout: list = [
+        html.Div(label, style={"color": INK["500"], "fontSize": "13px"}),
+        html.Div(f"AIS {pred_class}", className="pred"),
+        html.Div(f"{pred_prob:.0%}", className="pred-unit"),
+        html.Div(f"{pcls_label} : AIS {pred_class}", className="pi"),
+    ]
+    note: list = []
+    if observed_ord is not None:
+        obs_letter = AIS_ORD_TO_LETTER.get(int(observed_ord), "?")
+        readout.append(
+            html.Div(
+                f"{t(SCHEMA, 'patient_prediction_observed', lang)} : AIS {obs_letter}",
+                className="pi",
+            )
+        )
+    else:
+        note.append(html.Div(t(SCHEMA, "patient_no_outcome_note", lang),
+                             className="patient-pred-empty"))
+
+    pred_fig = _fig_class_probabilities(proba, class_labels, spec, lang)
+    shap_vals, base = _shap_for_row_class(X, clf, pred_idx, len(class_labels))
+    shap_fig = _fig_shap_local(shap_vals, X, base, lang)
+    return readout, pred_fig, shap_fig, note
+
+
+def _compute_patient_tab(key_record, strata, outcome_key, lang):  # noqa: ANN001
+    """Pure-function payload for the patient tab. Returns a 7-tuple matching the callback's Outputs."""
     if key_record is None:
         empty = go.Figure()
         return html.Div(), empty, html.Div(), [], empty, empty, ""
@@ -1307,46 +1444,15 @@ def _compute_patient_tab(key_record, strata, lang):  # noqa: ANN001
             "",
         )
 
+    bundle = OUTCOME_BUNDLES.get(outcome_key) or SCIM_TOTAL_BUNDLE
     X = _episode_row_for_model(key_record)
-    b = SCIM_TOTAL_BUNDLE
-    bfspec = b["feature_spec"]
-    q = _resolve_conformal_q(bfspec, X)
-    pred = float(b["median"].predict(X)[0])
-    pred_p10 = float(b["p10"].predict(X)[0])
-    pred_p90 = float(b["p90"].predict(X)[0])
-    lo = max(0.0, min(pred - q, pred_p10))
-    hi = min(100.0, max(pred + q, pred_p90))
-    observed = meta.get("y_discharge_scim")
 
-    readout_children: list = [
-        html.Div(t(SCHEMA, "patient_prediction_predicted", lang),
-                 style={"color": INK["500"], "fontSize": "13px"}),
-        html.Div(f"{pred:.0f}", className="pred"),
-        html.Div("/ 100 " + t(SCHEMA, "unit_score", lang), className="pred-unit"),
-        html.Div(
-            f"{t(SCHEMA, 'sim_prediction_interval', lang)} : {lo:.0f} – {hi:.0f}",
-            className="pi",
-        ),
-    ]
-    note: list = []
-    if observed is None:
-        note.append(html.Div(t(SCHEMA, "patient_no_outcome_note", lang),
-                             className="patient-pred-empty"))
+    if bundle["task"] == "regression":
+        readout, pred_fig, shap_fig, note = _patient_regression(bundle, X, key_record, lang)
     else:
-        residual = pred - observed
-        readout_children.append(
-            html.Div(
-                f"{t(SCHEMA, 'patient_prediction_observed', lang)} : {observed:.0f} · "
-                f"{t(SCHEMA, 'patient_prediction_residual', lang)} : {residual:+.0f}",
-                className="pi",
-            )
-        )
+        readout, pred_fig, shap_fig, note = _patient_multiclass(bundle, X, key_record, lang)
 
-    pred_fig = fg.fig_patient_prediction(pred, lo, hi, observed, SCHEMA, lang)
-    shap_vals, base = _shap_for_row_regression(X, SCIM_TOTAL_BUNDLE["median"])
-    shap_fig = _fig_shap_local(shap_vals, X, base, lang)
-
-    return meta_strip, timeline_fig, isncsci_table, readout_children, pred_fig, shap_fig, note
+    return meta_strip, timeline_fig, isncsci_table, readout, pred_fig, shap_fig, note
 
 
 @callback(
@@ -1359,23 +1465,50 @@ def _compute_patient_tab(key_record, strata, lang):  # noqa: ANN001
     Output("patient-pred-note", "children"),
     Input("patient-episode-radio", "value"),
     Input("patient-strata-radio", "value"),
+    Input("patient-outcome", "value"),
     Input("lang-store", "data"),
 )
-def update_patient_tab(key_record, strata, lang):  # noqa: ANN001
-    return _compute_patient_tab(key_record, strata, lang)
+def update_patient_tab(key_record, strata, outcome_key, lang):  # noqa: ANN001
+    return _compute_patient_tab(key_record, strata, outcome_key, lang)
 
 
 # ---------- insight engine callbacks ----------
 @callback(
+    Output("ins-outcome", "options"),
+    Input("lang-store", "data"),
+)
+def update_insight_outcome_options(lang):  # noqa: ANN001
+    return _insight_outcome_options(lang)
+
+
+@callback(
+    Output("ins-importance-graph", "figure"),
+    Input("ins-outcome", "value"),
+    Input("lang-store", "data"),
+)
+def update_importance(outcome_key, lang):  # noqa: ANN001
+    m = METRICS["outcomes"].get(outcome_key or DEFAULT_OUTCOME, METRICS["outcomes"][DEFAULT_OUTCOME])
+    return fg.fig_global_shap_importance(m, SCHEMA, lang)
+
+
+@callback(
     Output("ins-subgroup-graph", "figure"),
     Output("ins-effect-size", "children"),
     Input("ins-subgroup-feature", "value"),
+    Input("ins-outcome", "value"),
     Input("lang-store", "data"),
 )
-def update_subgroup(feature, lang):  # noqa: ANN001
-    fig = fg.fig_subgroup_box(EP, feature, SCHEMA, lang)
-    # find effect-size summary in subgroups.json
-    info = next((r for r in SUBGROUPS["results"] if r["feature"] == feature and not r.get("skipped")), None)
+def update_subgroup(feature, outcome_key, lang):  # noqa: ANN001
+    outcome_key = outcome_key or DEFAULT_OUTCOME
+    bundle = OUTCOME_BUNDLES.get(outcome_key) or SCIM_TOTAL_BUNDLE
+    spec: OutcomeSpec = bundle["spec"]
+    outcome_label = t(SCHEMA, spec.display_key, lang)
+    fig = fg.fig_subgroup_box(EP, feature, SCHEMA, lang,
+                              outcome_col=spec.target_col,
+                              outcome_label=outcome_label)
+    sg = SUBGROUPS.get(outcome_key, {})
+    results = sg.get("results", [])
+    info = next((r for r in results if r["feature"] == feature and not r.get("skipped")), None)
     if info is None:
         return fig, ""
     if "cliffs_delta" in info:
@@ -1391,13 +1524,44 @@ def update_subgroup(feature, lang):  # noqa: ANN001
 
 
 @callback(
-    Output("ins-dep-graph", "figure"),
-    Input("ins-dep-feature", "value"),
+    Output("ins-dep-feature", "options"),
+    Output("ins-dep-feature", "value"),
+    Input("ins-outcome", "value"),
     Input("lang-store", "data"),
 )
-def update_dependence(feature, lang):  # noqa: ANN001
-    shap_pack = SCIM_TOTAL_BUNDLE["shap"]
-    return fg.fig_dependence(shap_pack, shap_pack["X_test"], feature, SCHEMA, lang)
+def update_dep_feature_options(outcome_key, lang):  # noqa: ANN001
+    outcome_key = outcome_key or DEFAULT_OUTCOME
+    m = METRICS["outcomes"].get(outcome_key, METRICS["outcomes"][DEFAULT_OUTCOME])
+    items = m.get("global_importance_top25", [])[:15]
+    seen, opts = set(), []
+    for item in items:
+        f = item["feature"]
+        if f not in seen:
+            seen.add(f)
+            opts.append({"label": col_label(SCHEMA, f, lang), "value": f})
+    val = opts[0]["value"] if opts else None
+    return opts, val
+
+
+@callback(
+    Output("ins-dep-graph", "figure"),
+    Output("ins-dep-note", "children"),
+    Input("ins-dep-feature", "value"),
+    Input("ins-outcome", "value"),
+    Input("lang-store", "data"),
+)
+def update_dependence(feature, outcome_key, lang):  # noqa: ANN001
+    outcome_key = outcome_key or DEFAULT_OUTCOME
+    bundle = OUTCOME_BUNDLES.get(outcome_key) or SCIM_TOTAL_BUNDLE
+    if bundle["task"] != "regression":
+        return go.Figure(), html.Div(
+            t(SCHEMA, "insight_dependence_regression_only", lang),
+            style={"fontSize": "13px", "color": INK["500"], "marginTop": "8px"},
+        )
+    if feature is None:
+        return go.Figure(), ""
+    shap_pack = bundle["shap"]
+    return fg.fig_dependence(shap_pack, shap_pack["X_test"], feature, SCHEMA, lang), ""
 
 
 if __name__ == "__main__":

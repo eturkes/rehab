@@ -1,4 +1,4 @@
-"""Subgroup discovery + effect sizes for the discharge SCIM outcome.
+"""Subgroup discovery + effect sizes for all prediction outcomes.
 
 For every categorical admission feature, the function ``run_all_subgroups`` computes:
   - Mann–Whitney U (2-level) or Kruskal–Wallis H (3+-level) test
@@ -11,8 +11,9 @@ For every categorical admission feature, the function ``run_all_subgroups`` comp
 Numeric features are stratified into quantile bins (default 4) before running the same tests
 so we capture monotone dose-response patterns automatically.
 
-Output is a pandas DataFrame; nothing is persisted to disk by this module (the caller saves a
-small ``models/subgroups.json`` with only aggregate stats).
+``main()`` iterates over every outcome in the registry and writes
+``models/subgroups.json`` keyed by outcome key (e.g. ``"scim_total"``,
+``"ais_discharge"``).
 """
 
 from __future__ import annotations
@@ -187,24 +188,7 @@ def run_all_subgroups(
     return {"results": results, "n_tested": len(keep), "outcome": outcome}
 
 
-def main() -> None:
-    from rehab_sci.data.dataset import (
-        CATEGORICAL_FEATURES,
-        NUMERIC_FEATURES,
-        build_analysis_dataset,
-    )
-
-    af = build_analysis_dataset()
-    out = run_all_subgroups(
-        af.df, af.outcome_col, CATEGORICAL_FEATURES, NUMERIC_FEATURES
-    )
-
-    OUT.mkdir(parents=True, exist_ok=True)
-    (OUT / "subgroups.json").write_text(
-        json.dumps(out, indent=2, ensure_ascii=False, default=float), encoding="utf-8"
-    )
-
-    # console summary, ranked by BH-adjusted p then effect size
+def _console_summary(key: str, out: dict) -> None:
     rows = []
     for r in out["results"]:
         if r.get("skipped"):
@@ -226,7 +210,35 @@ def main() -> None:
             }
         )
     summary = pd.DataFrame(rows).sort_values(["p_bh", "feature"]).reset_index(drop=True)
+    print(f"\n=== {key} ===")
     print(summary.to_string(index=False))
+
+
+def main() -> None:
+    from rehab_sci.data.dataset import (
+        CATEGORICAL_FEATURES,
+        NUMERIC_FEATURES,
+        build_analysis_dataset,
+    )
+    from rehab_sci.models.outcomes import OUTCOMES
+
+    af = build_analysis_dataset()
+    all_results: dict[str, dict] = {}
+    for spec in OUTCOMES:
+        if spec.target_col not in af.df.columns:
+            print(f"skipping {spec.key}: target {spec.target_col} missing from episode frame")
+            continue
+        out = run_all_subgroups(
+            af.df, spec.target_col, CATEGORICAL_FEATURES, NUMERIC_FEATURES
+        )
+        all_results[spec.key] = out
+        _console_summary(spec.key, out)
+
+    OUT.mkdir(parents=True, exist_ok=True)
+    (OUT / "subgroups.json").write_text(
+        json.dumps(all_results, indent=2, ensure_ascii=False, default=float),
+        encoding="utf-8",
+    )
 
 
 if __name__ == "__main__":

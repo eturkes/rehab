@@ -252,6 +252,55 @@ pkill -f 'rehab_sci.dashboard.app'               # stop stale dashboard
 
 ## 7. Session log (most recent first)
 
+### 2026-05-24 (session 10, F4 multi-outcome insight + patient explorer shipped)
+
+* Shipped **F4 Multi-outcome insight engine + patient explorer**.
+* **Insight engine** gains an outcome selector (`ins-outcome` dropdown)
+  controlling all three panels:
+  - **Global SHAP importance**: moved from inline static rendering to a
+    callback (`update_importance`); now shows the top-15 features for the
+    selected outcome.
+  - **Subgroup comparison**: `update_subgroup` now dispatches to the
+    selected outcome's subgroups data and target column; box-plot y-axis
+    shows the outcome's display label.
+  - **SHAP dependence**: `update_dependence` uses the selected outcome's
+    SHAP bundle; feature dropdown updates per outcome via
+    `update_dep_feature_options`.  For multiclass (AIS), the dependence
+    panel shows a "regression only" note instead of a broken plot.
+* **Patient explorer** gains an outcome selector (`patient-outcome`
+  dropdown) in the picker card.  `_compute_patient_tab` accepts
+  `outcome_key` and branches:
+  - **Regression outcomes**: prediction readout shows value ± PI,
+    observed value, residual; `fig_patient_prediction` uses the outcome's
+    `clip_min`/`clip_max`/label for the x-axis range.
+  - **Multiclass (AIS)**: shows class-probability bar chart and SHAP for
+    the predicted class; observed value mapped back to letter via
+    `AIS_ORD_TO_LETTER`.
+  - Timeline chart remains SCIM-based (the only longitudinal measure).
+* **`models/subgroups.py`** — `main()` now iterates over all six
+  `OUTCOMES` and writes a multi-keyed `subgroups.json`:
+  `{"scim_total": {...}, "ais_discharge": {...}, ...}`.
+  `run_all_subgroups` is unchanged; the loop happens in `main()`.
+  Backward-compatible loading in `app.py` handles both old flat and new
+  keyed formats.
+* **`dashboard/figures.py`** — `fig_subgroup_box` gains `outcome_col`
+  and `outcome_label` params (defaults preserve backward compat).
+  `fig_patient_prediction` gains `clip_min`, `clip_max`, `axis_label`
+  params (defaults preserve backward compat).
+* New UI strings: `insight_outcome_label`, `insight_dependence_regression_only`,
+  `patient_outcome_label`.
+* New helpers in `app.py`: `_insight_outcome_options(lang)`,
+  `_get_observed_for_outcome(key_record, spec)`,
+  `_patient_regression(bundle, X, key_record, lang)`,
+  `_patient_multiclass(bundle, X, key_record, lang)`.
+* New callbacks: `update_insight_outcome_options`, `update_importance`,
+  `update_dep_feature_options`.  Modified callbacks: `update_subgroup`,
+  `update_dependence`, `update_patient_tab`.
+* Verification: `uv run python -m rehab_sci.models.subgroups` produces
+  all six outcome blocks; dashboard HTTP 200 on `/`, `/_dash-layout`,
+  `/_dash-dependencies`.  Smoke test confirms all six outcomes produce
+  correct predictions in both patient explorer and insight engine.
+
 ### 2026-05-24 (session 9, F3 Mondrian conformal shipped)
 
 * Shipped **F3 Mondrian per-AIS / per-paralysis conformal calibration**
@@ -676,22 +725,21 @@ dependency**.  Ordered by recommended start order (F1 first).
   C=91 %(n=23), A=67 %(n=18).  Small-group undercoverage is a known
   artifact of n_cal≈8; acceptable given the dominant-group improvement.
 
-### F4. Multi-outcome insight engine + patient explorer
+### F4. Multi-outcome insight engine + patient explorer — **STATUS: shipped (session 10, 2026-05-24)**
 
-* **What:** Add an outcome selector to the patient explorer (predict
-  whichever outcome the clinician picks for the chosen episode) and
-  to the insight engine (global SHAP, subgroup box, dependence
-  scatter all keyed off the selected outcome).
-* **Why:** Today both tabs are anchored on SCIM-III total — fine as
-  the headline, but the F2 selector creates a UX inconsistency.
-* **Effort:** medium.
-* **Files:** `dashboard/app.py` (selectors + callbacks),
-  `dashboard/figures.py` (`fig_global_shap_importance`,
-  `fig_subgroup_box`, `fig_dependence` all accept the outcome's
-  target column), `models/subgroups.py` (run subgroup discovery for
-  every regression outcome, not just SCIM total — produces a
-  `subgroups.json` keyed by outcome).
-* **Data dependency:** none new; everything is on the episode frame.
+* **What was built:** Outcome selector added to both the insight engine
+  and the patient explorer tabs.  Insight engine's global SHAP
+  importance, subgroup box, and SHAP dependence all respond to the
+  selected outcome.  Patient explorer predicts whichever outcome the
+  clinician picks — regression outcomes show PI bar + residual;
+  multiclass (AIS) shows class-probability chart.  `subgroups.py` now
+  runs discovery for all six outcomes, producing a multi-keyed
+  `subgroups.json`.  SHAP dependence is disabled for multiclass (3-D
+  SHAP tensor needs a class selector — deferred).
+* **Files changed:** `dashboard/app.py` (selectors, callbacks,
+  helpers), `dashboard/figures.py` (`fig_subgroup_box`,
+  `fig_patient_prediction` parameterized), `models/subgroups.py`
+  (multi-outcome loop), `schema/ui_strings.yaml` (3 new keys).
 
 ### F5. APS / RAPS conformal classification sets for AIS
 

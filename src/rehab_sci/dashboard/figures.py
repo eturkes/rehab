@@ -329,44 +329,50 @@ def fig_global_shap_importance(metrics: dict, schema: Schema, lang: str, top_n: 
 
 
 def fig_subgroup_box(
-    ep: pd.DataFrame, feature: str, schema: Schema, lang: str
+    ep: pd.DataFrame,
+    feature: str,
+    schema: Schema,
+    lang: str,
+    outcome_col: str = "y_discharge_scim",
+    outcome_label: str | None = None,
 ) -> go.Figure:
     spec = schema.by_raw(feature)
-    sub = ep[[feature, "y_discharge_scim"]].dropna().copy()
+    cols = [feature, outcome_col]
+    sub = ep[cols].dropna().copy()
     if spec and spec.dtype == "categorical" and spec.levels:
         sub["_label"] = sub[feature].astype(str).map(
             lambda v: level_label(schema, spec.levels, v, lang)
         )
         order = [level_label(schema, spec.levels, lv, lang)
                  for lv, _ in all_levels_in_order(schema, spec.levels, lang)]
-        # keep only labels present
         present = [o for o in order if o in sub["_label"].unique()]
         sub["_label"] = pd.Categorical(sub["_label"], categories=present, ordered=True)
         x = sub["_label"]
         xtitle = col_label(schema, feature, lang)
     else:
-        # numeric → quartile bins
         sub["_q"] = pd.qcut(sub[feature], q=4, duplicates="drop")
         sub["_label"] = sub["_q"].astype(str)
         x = sub["_label"]
         xtitle = col_label(schema, feature, lang) + (" (四分位)" if lang == "ja" else " (quartile)")
 
+    ytitle = outcome_label if outcome_label else t(schema, "chart_discharge_scim", lang)
+
     fig = go.Figure()
     fig.add_trace(
         go.Box(
             x=x,
-            y=sub["y_discharge_scim"],
+            y=sub[outcome_col],
             boxpoints="outliers",
             marker=dict(color=PALETTE_CATEGORICAL[0], size=3),
             line=dict(color=PALETTE_CATEGORICAL[0]),
             fillcolor="rgba(17,122,139,0.15)",
-            hovertemplate="%{x}<br>%{y:.0f}<extra></extra>",
+            hovertemplate="%{x}<br>%{y:.1f}<extra></extra>",
         )
     )
     fig.update_layout(
         height=400,
         xaxis_title=xtitle,
-        yaxis_title=t(schema, "chart_discharge_scim", lang),
+        yaxis_title=ytitle,
         margin=dict(l=60, r=20, t=10, b=80),
         xaxis_tickangle=-25,
     )
@@ -633,8 +639,15 @@ def fig_patient_prediction(
     observed: float | None,
     schema: Schema,
     lang: str,
+    clip_min: float = 0.0,
+    clip_max: float | None = 100.0,
+    axis_label: str | None = None,
 ) -> go.Figure:
-    """Predicted discharge SCIM-III with 80% PI and the observed value (if any)."""
+    """Predicted discharge outcome with 80% PI and the observed value (if any).
+
+    ``clip_min``/``clip_max`` control the x-axis range.  ``axis_label`` sets the
+    x-axis title; defaults to ``SCIM-III (0–100)`` for backward compatibility.
+    """
     fig = go.Figure()
     band_label = t(schema, "sim_prediction_interval", lang)
     pred_label = ("予測中央値" if lang == "ja" else "Predicted median")
@@ -680,10 +693,17 @@ def fig_patient_prediction(
                 showlegend=False,
             )
         )
+    x_lo = float(clip_min) if clip_min is not None else min(0.0, lo or 0.0)
+    if clip_max is not None:
+        x_hi = float(clip_max)
+    else:
+        x_hi = float(max(hi or 0.0, pred or 0.0, observed or 0.0) * 1.1 + 1.0)
+    if axis_label is None:
+        axis_label = "SCIM-III (0–100)"
     fig.update_layout(
         height=140,
         margin=dict(l=130, r=20, t=10, b=30),
-        xaxis=dict(range=[0, 100], title="SCIM-III (0–100)"),
+        xaxis=dict(range=[x_lo, x_hi], title=axis_label),
         yaxis=dict(showticklabels=True, tickfont=dict(size=12), showgrid=False),
         showlegend=False,
     )
