@@ -21,6 +21,49 @@
         "mae": 13.671207829154518,
         "conformal_q_half_width_transformed": 24.59446009941589,
         "conformal_coverage_80": 0.83,
+        "conformal_coverage_80_mondrian": 0.8,
+        "mondrian_coverage": {
+          "ais": {
+            "A": {
+              "n": 18,
+              "coverage": 0.6667
+            },
+            "B": {
+              "n": 7,
+              "coverage": 0.7143
+            },
+            "C": {
+              "n": 23,
+              "coverage": 0.913
+            },
+            "D": {
+              "n": 48,
+              "coverage": 0.8333
+            }
+          },
+          "paralysis": {
+            "TETRA": {
+              "n": 84,
+              "coverage": 0.8095
+            },
+            "PARA": {
+              "n": 13,
+              "coverage": 0.6923
+            }
+          }
+        },
+        "mondrian_q_by_group": {
+          "ais": {
+            "A": 17.831053361664434,
+            "C": 35.74534871866943,
+            "D": 18.013352764097164
+          },
+          "paralysis": {
+            "TETRA": 25.49770554304471,
+            "PARA": 24.59446009941589
+          },
+          "marginal": 24.59446009941589
+        },
         "raw_quantile_coverage_80": 0.86,
         "n_train": 318,
         "n_calib": 80,
@@ -155,6 +198,49 @@
         "mae": 2.9710719238280636,
         "conformal_q_half_width_transformed": 4.840614677760525,
         "conformal_coverage_80": 0.77,
+        "conformal_coverage_80_mondrian": 0.78,
+        "mondrian_coverage": {
+          "ais": {
+            "A": {
+              "n": 18,
+              "coverage": 0.8333
+            },
+            "B": {
+              "n": 7,
+              "coverage": 0.2857
+            },
+            "C": {
+              "n": 23,
+              "coverage": 0.9565
+            },
+            "D": {
+              "n": 48,
+              "coverage": 0.7917
+            }
+          },
+          "paralysis": {
+            "TETRA": {
+              "n": 84,
+              "coverage": 0.7857
+            },
+            "PARA": {
+              "n": 13,
+              "coverage": 0.6923
+            }
+          }
+        },
+        "mondrian_q_by_group": {
+          "ais": {
+            "A": 4.039177020272015,
+            "C": 8.742698568968112,
+            "D": 3.875342905922185
+          },
+          "paralysis": {
+            "TETRA": 5.406651489863644,
+            "PARA": 4.11538037359934
+          },
+          "marginal": 4.840614677760525
+        },
         "raw_quantile_coverage_80": 0.91,
         "n_train": 318,
         "n_calib": 80,
@@ -289,6 +375,49 @@
         "mae": 5.751974277363095,
         "conformal_q_half_width_transformed": 11.671576289164904,
         "conformal_coverage_80": 0.81,
+        "conformal_coverage_80_mondrian": 0.79,
+        "mondrian_coverage": {
+          "ais": {
+            "A": {
+              "n": 18,
+              "coverage": 0.7222
+            },
+            "B": {
+              "n": 7,
+              "coverage": 0.8571
+            },
+            "C": {
+              "n": 23,
+              "coverage": 0.8261
+            },
+            "D": {
+              "n": 48,
+              "coverage": 0.7917
+            }
+          },
+          "paralysis": {
+            "TETRA": {
+              "n": 84,
+              "coverage": 0.7857
+            },
+            "PARA": {
+              "n": 13,
+              "coverage": 0.7692
+            }
+          }
+        },
+        "mondrian_q_by_group": {
+          "ais": {
+            "A": 10.37251667555884,
+            "C": 13.620564272705133,
+            "D": 5.6233180263467375
+          },
+          "paralysis": {
+            "TETRA": 11.896093026359978,
+            "PARA": 8.727275508388331
+          },
+          "marginal": 11.671576289164904
+        },
         "raw_quantile_coverage_80": 0.85,
         "n_train": 318,
         "n_calib": 80,
@@ -423,6 +552,49 @@
         "mae": 6.098583221177662,
         "conformal_q_half_width_transformed": 10.936938943465275,
         "conformal_coverage_80": 0.82,
+        "conformal_coverage_80_mondrian": 0.83,
+        "mondrian_coverage": {
+          "ais": {
+            "A": {
+              "n": 18,
+              "coverage": 0.6667
+            },
+            "B": {
+              "n": 7,
+              "coverage": 0.7143
+            },
+            "C": {
+              "n": 23,
+              "coverage": 0.8261
+            },
+            "D": {
+              "n": 48,
+              "coverage": 0.9375
+            }
+          },
+          "paralysis": {
+            "TETRA": {
+              "n": 84,
+              "coverage": 0.8452
+            },
+            "PARA": {
+              "n": 13,
+              "coverage": 0.6923
+            }
+          }
+        },
+        "mondrian_q_by_group": {
+          "ais": {
+            "A": 5.159538316690517,
+            "C": 13.433503892859907,
+            "D": 16.343541109691323
+          },
+          "paralysis": {
+            "TETRA": 10.936938943465275,
+            "PARA": 19.495306666950924
+          },
+          "marginal": 10.936938943465275
+        },
         "raw_quantile_coverage_80": 0.86,
         "n_train": 318,
         "n_calib": 80,
@@ -713,6 +885,58 @@
         "mae": 75.61908124193852,
         "conformal_q_half_width_transformed": 0.8081887714565541,
         "conformal_coverage_80": 0.8134328358208955,
+        "conformal_coverage_80_mondrian": 0.8134328358208955,
+        "mondrian_coverage": {
+          "ais": {
+            "A": {
+              "n": 24,
+              "coverage": 0.9583
+            },
+            "B": {
+              "n": 16,
+              "coverage": 0.75
+            },
+            "C": {
+              "n": 31,
+              "coverage": 0.9677
+            },
+            "D": {
+              "n": 40,
+              "coverage": 0.825
+            },
+            "E": {
+              "n": 5,
+              "coverage": 0.6
+            }
+          },
+          "paralysis": {
+            "TETRA": {
+              "n": 111,
+              "coverage": 0.8288
+            },
+            "PARA": {
+              "n": 18,
+              "coverage": 0.7778
+            },
+            "NONE": {
+              "n": 1,
+              "coverage": 1.0
+            }
+          }
+        },
+        "mondrian_q_by_group": {
+          "ais": {
+            "A": 0.8081887714565541,
+            "C": 0.8110046583342045,
+            "D": 0.7970511602282917,
+            "E": 0.7035577531756689
+          },
+          "paralysis": {
+            "TETRA": 0.7970511602282917,
+            "PARA": 0.8182803293555816
+          },
+          "marginal": 0.8081887714565541
+        },
         "raw_quantile_coverage_80": 0.6791044776119403,
         "n_train": 426,
         "n_calib": 108,

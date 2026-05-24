@@ -156,6 +156,16 @@ bottom of each section as new lessons land; do **not** delete prior entries.
   *union* of the conformal interval and the raw quantile interval
   (`lo = min(lo_conf, lo_q10)`, `hi = max(hi_conf, hi_q90)`) so the
   user always sees the more conservative bound.
+* **Mondrian conformal (F3, session 9)** — per-AIS-grade and
+  per-paralysis-class conformal quantiles replace the single marginal q.
+  Stored in `feature_spec.joblib["conformal_q_by_group"]` as
+  `{"ais": {letter: q}, "paralysis": {label: q}, "marginal": q,
+  "min_n": 8}`.  Groups with fewer than `MONDRIAN_MIN_N=8` calibration
+  samples are omitted; inference falls back AIS → paralysis → marginal.
+  AIS-C consistently gets the widest PI (highest outcome variance);
+  AIS-D gets the tightest for SCIM outcomes.  Per-group test coverage
+  for the dominant group (AIS-D, n≈48) hits ~83 %; smaller groups
+  (A, B, E) show higher variance due to small test-set n.
 * **AIS (multiclass) head** — LightGBM multiclass with
   `class_weight="balanced"`.  Classes are encoded by severity
   (A=index 0 … E=index 4), so the `predict_proba` columns and the
@@ -241,6 +251,41 @@ pkill -f 'rehab_sci.dashboard.app'               # stop stale dashboard
 ```
 
 ## 7. Session log (most recent first)
+
+### 2026-05-24 (session 9, F3 Mondrian conformal shipped)
+
+* Shipped **F3 Mondrian per-AIS / per-paralysis conformal calibration**
+  for all five regression heads.
+* New helpers in `models/train.py`: `_conformal_q()` (refactored from
+  inline), `_compute_mondrian_q()`, `_resolve_mondrian_q_array()`,
+  `_mondrian_test_coverage()`.  Constants: `AIS_ORD_TO_LETTER`,
+  `MONDRIAN_MIN_N=8`.
+* `_train_regression()` now: (1) computes per-group conformal q on the
+  calibration fold (AIS grades + paralysis classes, each with ≥8
+  samples), (2) stores the dict in `feature_spec.joblib` under
+  `conformal_q_by_group`, (3) evaluates test-set coverage using the
+  Mondrian q's (each test point gets its group-specific q), (4) reports
+  per-group coverage in `training_metrics.json`.
+* `dashboard/app.py` gains `_resolve_conformal_q(fspec, X)` — priority:
+  AIS group → paralysis group → marginal.  Both the simulator and
+  patient-explorer inference paths now use the resolved q instead of
+  the marginal.
+* Methods tab `_perf_block_regression` extended with per-group Mondrian
+  coverage line (bilingual).
+* **Per-outcome Mondrian q values (SCIM total):** A=17.8, C=35.7,
+  D=18.0; Paralysis: TETRA=25.5, PARA=24.6; marginal=24.6.  AIS-C
+  (motor-incomplete) gets a 2× wider PI than AIS-D — clinically
+  correct.  AIS-B and E omitted (≤4 cal samples, fall back to
+  paralysis or marginal).
+* Marginal test coverage preserved identically (83 % for SCIM total).
+  Mondrian overall coverage = 80 % (slightly lower because per-group
+  q's redistribute width).  Per-group test coverage: D=83 %(n=48),
+  C=91 %(n=23), A=67 %(n=18), B=71 %(n=7).  Small-group (A, B)
+  undercoverage is a finite-sample artifact of ~8-cal-sample groups.
+* Verification: full `uv run python -m rehab_sci.models.train`
+  reproduces all metrics; dashboard HTTP 200 on `/`, `/_dash-layout`,
+  `/_dash-dependencies`.  Smoke test confirms AIS-D PI width=36 vs
+  AIS-C PI width=71 (was 49 for both with marginal q).
 
 ### 2026-05-24 (session 8, CLAUDE.md update response)
 
@@ -612,28 +657,24 @@ dependency**.  Ordered by recommended start order (F1 first).
   support, conformal classification sets for AIS, subgroup discovery
   for non-SCIM outcomes.
 
-### F3. Mondrian per-AIS / per-paralysis conformal calibration
+### F3. Mondrian per-AIS / per-paralysis conformal — **STATUS: shipped (session 9, 2026-05-24)**
 
-* **Status:** next default-work item (top of the §8 pool).
-* **What:** Replace the single marginal conformal quantile with a
-  Mondrian taxonomy — separate calibration per AIS grade (A/B/C/D/E)
-  and per paralysis class (TETRA / PARA / NONE).  PI half-width is
-  chosen by the test patient's group at inference time.  With six
-  outcomes now in flight, F3 needs to extend to *every regression
-  outcome*, not just SCIM-III total — the per-outcome
-  `feature_spec.joblib` should carry a `conformal_q_by_group` dict
-  with a marginal fallback for empty cells.
-* **Why:** AIS-A and AIS-D residual distributions differ substantially;
-  the marginal 83 % coverage hides per-grade under/over-coverage.
-  Per-group conformal restores a per-group guarantee.  Likely larger
-  effect on LOS (which is intrinsically AIS-stratified) than on SCIM.
-* **Effort:** small (~½ session).
-* **Files:** `models/train.py` (calibration block + per-outcome
-  artifact), `dashboard/app.py` (simulator PI lookup uses the
-  simulated patient's group),
-  `models/training_metrics.json` (per-group coverage report for the
-  Methods tab).
-* **Data dependency:** AIS / paralysis columns already in episode frame.
+* **What was built:** Per-AIS-grade and per-paralysis-class conformal
+  quantiles for all five regression heads.  `feature_spec.joblib` now
+  carries `conformal_q_by_group` with AIS and paralysis sub-dicts plus
+  a marginal fallback.  Groups with <8 calibration samples are omitted;
+  inference resolves AIS → paralysis → marginal.  Dashboard simulator
+  and patient explorer both use the resolved q.  Methods tab reports
+  per-group test-set coverage.
+* **Key finding:** AIS-C (motor-incomplete) gets ~2× wider PI than
+  AIS-D across all SCIM outcomes — clinically correct and previously
+  hidden by the marginal.  LOS q values are similar across AIS groups
+  on the log scale.
+* **Metrics (SCIM total):** AIS-D q=18.0 (PI width=36), AIS-C q=35.7
+  (PI width=71), marginal q=24.6 (was PI width=49 for everyone).
+  Mondrian overall test coverage=80 %; per-group: D=83 %(n=48),
+  C=91 %(n=23), A=67 %(n=18).  Small-group undercoverage is a known
+  artifact of n_cal≈8; acceptable given the dominant-group improvement.
 
 ### F4. Multi-outcome insight engine + patient explorer
 

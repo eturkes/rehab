@@ -104,6 +104,35 @@ def _input_id(prefix: str, col: str) -> dict:
     return {"type": prefix, "col": col}
 
 
+AIS_ORD_TO_LETTER = {1: "A", 2: "B", 3: "C", 4: "D", 5: "E"}
+
+
+def _resolve_conformal_q(fspec: dict, X: pd.DataFrame) -> float:
+    """Resolve Mondrian conformal q for a single-row input.
+
+    Priority: AIS group -> paralysis group -> marginal.
+    """
+    q_by_group = fspec.get("conformal_q_by_group")
+    marginal = float(fspec.get("conformal_q_transformed", 0.0))
+    if q_by_group is None or len(X) == 0:
+        return marginal
+    row = X.iloc[0]
+    ais_qs = q_by_group.get("ais", {})
+    if ais_qs and "AIS_ord" in X.columns:
+        ais_val = row["AIS_ord"]
+        if pd.notna(ais_val):
+            letter = AIS_ORD_TO_LETTER.get(int(ais_val))
+            if letter and letter in ais_qs:
+                return float(ais_qs[letter])
+    para_qs = q_by_group.get("paralysis", {})
+    if para_qs and "対麻痺_四肢麻痺" in X.columns:
+        para_val = row["対麻痺_四肢麻痺"]
+        if pd.notna(para_val):
+            if str(para_val) in para_qs:
+                return float(para_qs[str(para_val)])
+    return marginal
+
+
 def _format_value(col: str, value: object) -> str:
     if value is None or (isinstance(value, float) and np.isnan(value)):
         return "–"
@@ -762,27 +791,46 @@ def _perf_block_regression(spec: OutcomeSpec, info: dict, lang: str) -> html.Div
     cv = info["cv"]
     te = info["test"]
     units = (" " + t(SCHEMA, spec.unit_key, lang)) if spec.unit_key else ""
-    return html.Div(
-        className="methods-perf-card",
-        children=[
-            html.H4(t(SCHEMA, spec.display_key, lang)),
-            html.P(
-                f"CV  R²={cv['r2_mean']:.3f} ± {cv['r2_std']:.3f}   "
-                f"RMSE={cv['rmse_mean']:.2f}{units}   "
-                f"MAE={cv['mae_mean']:.2f}{units}"
-            ),
-            html.P(
-                f"TEST  R²={te['r2']:.3f}   RMSE={te['rmse']:.2f}{units}   "
-                f"MAE={te['mae']:.2f}{units}   "
-                + ("80%予測区間カバレッジ" if lang == "ja" else "80% PI coverage")
-                + f"={te['conformal_coverage_80']:.0%}"
-            ),
-            html.P(
-                ("患者数" if lang == "ja" else "Patients")
-                + f": train={te['n_train']}+calib={te['n_calib']}, test={te['n_test']}"
-            ),
-        ],
-    )
+    children = [
+        html.H4(t(SCHEMA, spec.display_key, lang)),
+        html.P(
+            f"CV  R²={cv['r2_mean']:.3f} ± {cv['r2_std']:.3f}   "
+            f"RMSE={cv['rmse_mean']:.2f}{units}   "
+            f"MAE={cv['mae_mean']:.2f}{units}"
+        ),
+        html.P(
+            f"TEST  R²={te['r2']:.3f}   RMSE={te['rmse']:.2f}{units}   "
+            f"MAE={te['mae']:.2f}{units}   "
+            + ("80%予測区間カバレッジ" if lang == "ja" else "80% PI coverage")
+            + f"={te['conformal_coverage_80']:.0%}"
+        ),
+        html.P(
+            ("患者数" if lang == "ja" else "Patients")
+            + f": train={te['n_train']}+calib={te['n_calib']}, test={te['n_test']}"
+        ),
+    ]
+    mondrian = te.get("mondrian_coverage", {})
+    if mondrian:
+        parts: list[str] = []
+        ais_cov = mondrian.get("ais", {})
+        if ais_cov:
+            ais_strs = [f"{g}={d['coverage']:.0%}(n={d['n']})" for g, d in sorted(ais_cov.items())]
+            prefix = "AIS別" if lang == "ja" else "Per-AIS"
+            parts.append(f"{prefix}: {', '.join(ais_strs)}")
+        para_cov = mondrian.get("paralysis", {})
+        if para_cov:
+            para_strs = [f"{g}={d['coverage']:.0%}(n={d['n']})" for g, d in sorted(para_cov.items())]
+            prefix = "麻痺別" if lang == "ja" else "Per-paralysis"
+            parts.append(f"{prefix}: {', '.join(para_strs)}")
+        if parts:
+            label = "Mondrian 80%カバレッジ" if lang == "ja" else "Mondrian 80% coverage"
+            children.append(
+                html.P(
+                    f"{label}:  {'   '.join(parts)}",
+                    style={"fontSize": "12px", "color": INK["500"]},
+                )
+            )
+    return html.Div(className="methods-perf-card", children=children)
 
 
 def _perf_block_multiclass(spec: OutcomeSpec, info: dict, lang: str) -> html.Div:
@@ -1121,7 +1169,7 @@ def _simulate_regression(bundle: dict, X: pd.DataFrame, lang: str):
     spec: OutcomeSpec = bundle["spec"]
     fspec = bundle["feature_spec"]
     transform = fspec.get("transform")
-    q_t = float(fspec.get("conformal_q_transformed", 0.0))
+    q_t = _resolve_conformal_q(fspec, X)
     clip_min = fspec.get("clip_min")
     clip_max = fspec.get("clip_max")
 
@@ -1262,7 +1310,7 @@ def _compute_patient_tab(key_record, strata, lang):  # noqa: ANN001
     X = _episode_row_for_model(key_record)
     b = SCIM_TOTAL_BUNDLE
     bfspec = b["feature_spec"]
-    q = float(bfspec.get("conformal_q_transformed", 0.0))
+    q = _resolve_conformal_q(bfspec, X)
     pred = float(b["median"].predict(X)[0])
     pred_p10 = float(b["p10"].predict(X)[0])
     pred_p90 = float(b["p90"].predict(X)[0])

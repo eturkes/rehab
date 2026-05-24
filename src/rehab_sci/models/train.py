@@ -63,6 +63,11 @@ OUT.mkdir(parents=True, exist_ok=True)
 
 RANDOM_STATE = 20260518
 
+AIS_ORD_TO_LETTER = {1: "A", 2: "B", 3: "C", 4: "D", 5: "E"}
+AIS_ORD_COL = "AIS_ord"
+PARALYSIS_COL = "対麻痺_四肢麻痺"
+MONDRIAN_MIN_N = 8
+
 
 # ----------------------------- prep helpers ------------------------------
 
@@ -269,6 +274,101 @@ def _cv_score_multiclass(
     }
 
 
+# ----------------------------- Mondrian conformal --------------------------
+
+
+def _conformal_q(residuals: np.ndarray, alpha: float) -> float:
+    q_idx = int(np.ceil((len(residuals) + 1) * (1 - alpha))) - 1
+    q_idx = max(0, min(q_idx, len(residuals) - 1))
+    return float(np.sort(residuals)[q_idx])
+
+
+def _compute_mondrian_q(
+    residuals_t: np.ndarray,
+    X_cal: pd.DataFrame,
+    alpha: float,
+) -> dict:
+    """Per-AIS-grade and per-paralysis-class conformal quantiles.
+
+    Groups with fewer than ``MONDRIAN_MIN_N`` calibration samples are omitted;
+    inference falls back to the next coarser group or to the marginal.
+    """
+    result: dict = {}
+    if AIS_ORD_COL in X_cal.columns:
+        ais_vals = pd.to_numeric(X_cal[AIS_ORD_COL], errors="coerce").to_numpy()
+        ais_qs: dict[str, float] = {}
+        for code, letter in AIS_ORD_TO_LETTER.items():
+            mask = ais_vals == code
+            if int(mask.sum()) >= MONDRIAN_MIN_N:
+                ais_qs[letter] = _conformal_q(residuals_t[mask], alpha)
+        result["ais"] = ais_qs
+    if PARALYSIS_COL in X_cal.columns:
+        para_vals = X_cal[PARALYSIS_COL].astype(str).to_numpy()
+        para_qs: dict[str, float] = {}
+        for label in ("TETRA", "PARA", "NONE"):
+            mask = para_vals == label
+            if int(mask.sum()) >= MONDRIAN_MIN_N:
+                para_qs[label] = _conformal_q(residuals_t[mask], alpha)
+        result["paralysis"] = para_qs
+    return result
+
+
+def _resolve_mondrian_q_array(
+    marginal_q: float,
+    q_by_group: dict,
+    X: pd.DataFrame,
+) -> np.ndarray:
+    """Per-row conformal q: AIS group -> paralysis group -> marginal."""
+    n = len(X)
+    q_arr = np.full(n, marginal_q)
+    resolved = np.zeros(n, dtype=bool)
+    ais_qs = q_by_group.get("ais", {})
+    if ais_qs and AIS_ORD_COL in X.columns:
+        ais_vals = pd.to_numeric(X[AIS_ORD_COL], errors="coerce").to_numpy()
+        for code, letter in AIS_ORD_TO_LETTER.items():
+            if letter in ais_qs:
+                mask = ais_vals == code
+                q_arr[mask] = ais_qs[letter]
+                resolved |= mask
+    para_qs = q_by_group.get("paralysis", {})
+    if para_qs and PARALYSIS_COL in X.columns:
+        para_vals = X[PARALYSIS_COL].astype(str).to_numpy()
+        for label, q in para_qs.items():
+            mask = (~resolved) & (para_vals == label)
+            q_arr[mask] = q
+    return q_arr
+
+
+def _mondrian_test_coverage(
+    y_raw: np.ndarray,
+    lo: np.ndarray,
+    hi: np.ndarray,
+    X: pd.DataFrame,
+) -> dict:
+    """Per-group coverage on the test set using Mondrian PI bounds."""
+    covered = (y_raw >= lo) & (y_raw <= hi)
+    result: dict = {}
+    if AIS_ORD_COL in X.columns:
+        ais_vals = pd.to_numeric(X[AIS_ORD_COL], errors="coerce").to_numpy()
+        ais_cov: dict = {}
+        for code, letter in AIS_ORD_TO_LETTER.items():
+            mask = ais_vals == code
+            n = int(mask.sum())
+            if n > 0:
+                ais_cov[letter] = {"n": n, "coverage": round(float(covered[mask].mean()), 4)}
+        result["ais"] = ais_cov
+    if PARALYSIS_COL in X.columns:
+        para_vals = X[PARALYSIS_COL].astype(str).to_numpy()
+        para_cov: dict = {}
+        for label in ("TETRA", "PARA", "NONE"):
+            mask = para_vals == label
+            n = int(mask.sum())
+            if n > 0:
+                para_cov[label] = {"n": n, "coverage": round(float(covered[mask].mean()), 4)}
+        result["paralysis"] = para_cov
+    return result
+
+
 # ----------------------------- per-outcome trainers ----------------------
 
 def _train_regression(
@@ -313,15 +413,25 @@ def _train_regression(
     pred_cal_t = median_dev.predict(X_cal)
     residuals_t = np.abs(y_cal_t - pred_cal_t)
     alpha = 0.2
-    q_idx = int(np.ceil((len(residuals_t) + 1) * (1 - alpha))) - 1
-    q_idx = max(0, min(q_idx, len(residuals_t) - 1))
-    conformal_q_t = float(np.sort(residuals_t)[q_idx])
+    conformal_q_t = _conformal_q(residuals_t, alpha)
+
+    # Mondrian: per-group conformal q on the calibration fold
+    q_by_group = _compute_mondrian_q(residuals_t, X_cal, alpha)
+    q_by_group["marginal"] = conformal_q_t
+    q_by_group["min_n"] = MONDRIAN_MIN_N
 
     pred_t = median_dev.predict(X_te)
     pred = _clip(_inverse_transform(pred_t, transform), spec.clip_min, spec.clip_max)
     lo = _clip(_inverse_transform(pred_t - conformal_q_t, transform), spec.clip_min, spec.clip_max)
     hi = _clip(_inverse_transform(pred_t + conformal_q_t, transform), spec.clip_min, spec.clip_max)
     covered = float(((y_te_raw >= lo) & (y_te_raw <= hi)).mean())
+
+    # Mondrian test-set coverage (each test point uses its group-specific q)
+    q_te_mond = _resolve_mondrian_q_array(conformal_q_t, q_by_group, X_te)
+    lo_mond = _clip(_inverse_transform(pred_t - q_te_mond, transform), spec.clip_min, spec.clip_max)
+    hi_mond = _clip(_inverse_transform(pred_t + q_te_mond, transform), spec.clip_min, spec.clip_max)
+    covered_mond = float(((y_te_raw >= lo_mond) & (y_te_raw <= hi_mond)).mean())
+    mondrian_coverage = _mondrian_test_coverage(y_te_raw, lo_mond, hi_mond, X_te)
 
     pred10 = _clip(_inverse_transform(p10_dev.predict(X_te), transform), spec.clip_min, spec.clip_max)
     pred90 = _clip(_inverse_transform(p90_dev.predict(X_te), transform), spec.clip_min, spec.clip_max)
@@ -333,6 +443,11 @@ def _train_regression(
         "mae": float(mean_absolute_error(y_te_raw, pred)),
         "conformal_q_half_width_transformed": conformal_q_t,
         "conformal_coverage_80": covered,
+        "conformal_coverage_80_mondrian": covered_mond,
+        "mondrian_coverage": mondrian_coverage,
+        "mondrian_q_by_group": {
+            k: v for k, v in q_by_group.items() if k != "min_n"
+        },
         "raw_quantile_coverage_80": qcov,
         "n_train": int(len(X_tr)),
         "n_calib": int(len(X_cal)),
@@ -344,6 +459,11 @@ def _train_regression(
         f"   TEST  R²={test_metrics['r2']:.3f}  RMSE={test_metrics['rmse']:.3f}  "
         f"MAE={test_metrics['mae']:.3f}  conformal80={covered:.2%}  q={conformal_q_t:.3f}"
     )
+    ais_qs = q_by_group.get("ais", {})
+    para_qs = q_by_group.get("paralysis", {})
+    ais_str = "  ".join(f"{g}={q:.1f}" for g, q in sorted(ais_qs.items())) if ais_qs else "–"
+    para_str = "  ".join(f"{g}={q:.1f}" for g, q in sorted(para_qs.items())) if para_qs else "–"
+    print(f"   MONDRIAN  coverage={covered_mond:.2%}  AIS:[{ais_str}]  Para:[{para_str}]")
 
     # refit on ALL data
     full_params = _params_lgbm_reg()
@@ -401,6 +521,7 @@ def _train_regression(
         "clip_min": spec.clip_min,
         "clip_max": spec.clip_max,
         "conformal_q_transformed": conformal_q_t,
+        "conformal_q_by_group": q_by_group,
         "base_value": base_value,
     }
     joblib.dump(feature_spec, od / "feature_spec.joblib")
