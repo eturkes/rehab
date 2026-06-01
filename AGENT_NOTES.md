@@ -1,339 +1,273 @@
 # AGENT_NOTES.md — sticky knowledge for future sessions
 
-Optimized for LLM ingestion: short bullets, no prose padding.  Append at the
-bottom of each section as new lessons land; do **not** delete prior entries.
+Optimized for LLM ingestion: short bullets, no prose padding.
+
+**Inclusion rule (CLAUDE.md policy):** every entry must provide value *beyond*
+what `CLAUDE.md`, the codebase, `models/training_metrics.json`, and Git history
+already capture.  Durable invariants, design contracts, anti-mistake lessons,
+and non-obvious gotchas belong here.  Metric tables, package versions, exact
+line counts, and verbatim file-change lists do **not** — they live in the
+artifacts above and only invite drift.  Prune freely when an entry is
+superseded, duplicated elsewhere, or has gone stale.
 
 ---
 
 ## 0. Read-first
 
-* `CLAUDE.md` is the user's policy file.  Treat as authoritative.  You may
-  modify it freely when content becomes obsolete or can be improved.
-* `SESSION_PROMPT.md` contains the reusable prompt the user pastes to start
-  new sessions.  Update it if the bootstrapping workflow changes.
-* `README.md` is the human-facing entry point.  Keep in sync with code.
-* This file is the agent-facing scratchpad.  Always read it before planning.
-  Keep it accurate: update sections after every session; prune obsolete
-  entries when they conflict with current state.
-* **Default-work pool for fresh sessions: §8 Feature backlog.**
-  F1–F10 shipped as of session 16; F13 shipped session 18; F16 shipped
-  session 19; F18 shipped session 20; F20 (proactive refactor) shipped
-  session 21; F22 shipped session 22.  Next: propose new feature
-  candidates or maintenance work unless the user redirects.  Historical
-  "Open items rolled forward" lists inside prior §7 session entries are
-  **superseded** by user decision in session 4 — treat them as history.
+* `CLAUDE.md` — user policy file.  Authoritative.  Edit freely when content
+  becomes obsolete or improvable.
+* `SESSION_PROMPT.md` — reusable bootstrap prompt the user pastes to start a
+  session.  Update if the workflow changes.
+* `README.md` — human-facing entry point.  Keep in sync with code.
+* This file — agent-facing scratchpad.  Read before planning; update after each
+  session; prune duplication per the inclusion rule above.
+* **Default-work pool: §8 backlog.**  F1–F22 are all shipped (see §7 index).
+  No open items remain — fresh sessions propose new feature candidates or
+  maintenance work unless the user redirects.
 
-## 0b. Lessons & mistakes (append here; prune when superseded)
+## 0b. Lessons & mistakes (append; prune when superseded)
 
-* **Session 1: Holm step-down implemented backwards** — used running
-  `min` instead of running `max` over sorted p×(n−k+1).  Produced
-  nonsensical adjusted-p values (~10⁻⁵⁵).  Fix: verified the Holm
-  formula against a stats reference before committing.  *Takeaway:*
-  always validate statistical procedures against a reference
-  implementation or textbook definition, especially for correction
-  methods where the direction of an operator is easy to confuse.
-* **Session 2: Plotly silent failure on sunburst** — `branchvalues=
-  "total"` with zero-valued parents renders blank with no error.
-  Spent time debugging before realizing Plotly silently swallows the
-  misconfiguration.  *Takeaway:* Plotly has several silent-failure
-  modes; when a chart renders blank, check the `branchvalues` /
-  parent-child value contract before assuming a data issue.
-* **Session 1–3: `_apply_missing_sentinels` phantom function** — early
-  notes referenced a helper that was never written; sentinels are
-  handled by two different mechanisms in the loader.  Corrected in
-  session 6.  *Takeaway:* verify that referenced functions actually
-  exist in the codebase before documenting them; grep for the name.
-* **Session 5: Dropdown option labels too long for narrow viewports** —
-  concatenating full Japanese demographic strings produced multi-line
-  wrapping in the Dash Dropdown that blended adjacent options together.
-  *Takeaway:* always test UI components at minimum viewport width;
-  Dash Dropdown `optionHeight` must match the actual rendered height.
-* **General: ghost-episode discovery delayed** — 301 placeholder
-  episodes inflated cohort counts for 5 sessions before investigation.
-  The loader was correct but the anomaly was visible in session 1.
-  *Takeaway:* when encountering unexpected NaN patterns or row counts,
-  investigate immediately rather than deferring.
-* **Session 17: uv resolver picks minimum-compatible transitive deps**
-  — shap 0.51.0 declares `numba` (unconstrained) for non-macOS
-  platforms; `uv lock` (even with `--resolution highest`) resolved to
-  numba 0.53.1 / llvmlite 0.36.0 (2021-era, no Py3.13 support).
-  Fix: added explicit lower bounds `numba>=0.61` and `llvmlite>=0.44`
-  to `pyproject.toml`.  *Takeaway:* when upgrading packages with
-  unconstrained transitive deps, always verify the resolved versions
-  in `uv.lock` and add explicit lower bounds for any that resolve
-  below the Python-version-compatible threshold.
-* **Session 18: `shap_interaction_values` rejects category-dtype columns**
-  — `TreeExplainer.shap_values()` internally handles LightGBM's
-  categorical features, but `shap_interaction_values()` requires a pure
-  numeric DataFrame.  Fix: encode category columns to integer codes
-  via `cat.codes.astype(float)` before calling.  *Takeaway:*
-  `shap_interaction_values` has a stricter input contract than
-  `shap_values` — always encode categoricals to numeric first.
+* **Stats procedures: validate against a reference before committing.**  Holm
+  step-down was first implemented with a running `min` instead of running
+  `max` over sorted p×(n−k+1), yielding nonsensical ~10⁻⁵⁵ adjusted-p.  The
+  direction of such operators is easy to flip.
+* **Plotly fails silently — check the data contract first.**  `Sunburst(
+  branchvalues="total")` with zero-valued parents renders blank with no error
+  or log.  When a chart renders empty, suspect the parent/child value contract
+  (or `branchvalues`) before assuming a data bug.  See §5.
+* **Verify a referenced symbol exists before documenting it (grep first).**
+  Early notes cited an `_apply_missing_sentinels` helper that was never
+  written; sentinels are actually handled by two other mechanisms (see §1).
+* **Test UI components at minimum viewport width.**  Concatenated full Japanese
+  demographic strings wrapped to multiple lines in the Dash Dropdown and
+  blended adjacent options.  Dropdown `optionHeight` must match the actual
+  rendered row height.
+* **Investigate unexpected NaN / row-count anomalies immediately.**  301
+  placeholder "ghost" episodes inflated cohort counts for ~5 sessions before
+  investigation, though visible from session 1.  (Filter now in loader, §1.)
+* **uv resolves unconstrained transitive deps to their minimum-compatible
+  version.**  shap declares `numba` unconstrained for non-macOS; `uv lock`
+  (even `--resolution highest`) pulled 2021-era numba/llvmlite with no Py3.13
+  support.  Fix: add explicit lower bounds in `pyproject.toml` and verify the
+  resolved versions in `uv.lock` after any such upgrade.
+* **`shap_interaction_values()` has a stricter input contract than
+  `shap_values()`** — it rejects category-dtype columns.  Encode categoricals
+  to integer codes (`cat.codes.astype(float)`) before calling.  TreeSHAP's
+  `shap_values()` handles LightGBM categoricals internally; the interaction
+  variant does not.
 
 ## 1. Data invariants (do not rediscover)
 
 * **Raw file** — `ALL_SCIDATA.csv` at repo root.  Never commit; gitignored.
-* **Encoding** — `cp932` (Shift-JIS superset).  UTF-8 will silently mangle
-  half the column names.
-* **Missing sentinels** in raw file: `""`, `"_"`, `"NA"` are parsed to NaN
-  directly via `pd.read_csv(na_values=...)` in `loader.py::load_raw`.
-  `"NT"` and `"ND"` are *not* listed there but are NaN'd as a side effect
-  of `pd.to_numeric(errors="coerce")` for numeric/ordinal columns and of
-  `schema.normalize_level()` returning `pd.NA` for unknown categorical
-  levels.  (Earlier sessions referred to a `_apply_missing_sentinels`
-  helper — no such function exists; the effect is the same but the path
-  is the two mechanisms just described.)
+* **Encoding** — `cp932` (Shift-JIS superset).  UTF-8 silently mangles half the
+  column names.
+* **Missing sentinels** in raw file: `""`, `"_"`, `"NA"` → NaN via
+  `pd.read_csv(na_values=...)` in `loader.py::load_raw`.  `"NT"` / `"ND"` are
+  *not* listed there but become NaN as a side effect of
+  `pd.to_numeric(errors="coerce")` (numeric/ordinal cols) and
+  `schema.normalize_level()` returning `pd.NA` for unknown categorical levels.
+  (No `_apply_missing_sentinels` helper exists — that was a phantom; the two
+  mechanisms just described produce the effect.)
 * **Excel booleans** — many bool-like columns arrive as the literal strings
-  `"FALSE"` / `"TRUE"` (note: uppercase).  Coerced to `0`/`1` then to `Y`/`N`
-  via the schema's level mapping.
+  `"FALSE"` / `"TRUE"` (uppercase).  Coerced to `0`/`1` then to `Y`/`N` via the
+  schema level mapping.
 * **mFrankel/Frankel** — single combined raw column; split on slash into
   `mFrankel_ord` (5-grade A–E with substages) and `Frankel_ord` (5-grade).
-* **Raw shape** — long format: 31 200 rows × 219 cols, 1 200
-  `KeyRecordNumber`s × 26 timepoint slots (`0day`, `72h`, `2w`, `4w`,
-  `6w`, `2m..11m`, `1y..10y`, `discharge`).  **The grid is perfectly
-  rectangular** — every episode has a row at every timepoint slot.
-* **Ghost-episode filter (session 6, 2026-05-18)** — 301 of the 1 200
-  raw episodes are pure placeholder rows: `IDNumber` is null AND every
-  admission feature is null AND every outcome is null.  Across their
-  7 826 long-frame rows, only `BusinessYear`, `AnualCaseNumber`, and
-  `mFrankel_Frankel` (= `_/_`) are populated; everything else is null.
-  `build_analysis_dataset()` filters them out via
-  `_identify_ghost_episodes(ep, ADMISSION_FEATURES)`, dropping the
-  matching `KeyRecordNumber`s from both the episode frame and the long
-  frame.  **Post-filter universe: 899 episodes / 866 unique patients.**
-  The long frame is 23 374 rows (= 899 × 26).
-* **Partial-id orphans (27 episodes)** — have admission features but
-  null `IDNumber`.  They survive the ghost filter (they have data) but
-  are excluded from training by `dropna(subset=["IDNumber", outcome])`
-  in `_prep()` and from the patient-explorer picker by
-  `list_patient_options(ep)`'s `dropna(subset=["IDNumber"])`.  They
-  contribute to cohort-level aggregates.  Among these 27: 9 have a
-  discharge SCIM, 10 have a discharge AIS, 14 have a `LOS_days`.
-* **IDNumber 1-off (raw 867 → clean 866)** — `KeyRecord 446` has the
-  literal string `'6641/10/15'` (a malformed date in the ID field) as
-  its IDNumber in the raw CSV; the schema declares `IDNumber: numeric`,
-  so `pd.to_numeric(errors="coerce")` correctly NaN's it.
-* **Outcome cardinality (post-filter, 899-episode universe)** —
-  `y_discharge_scim`: 507; `y_discharge_ais`: 638; `y_discharge_wisci`:
-  **50 only — too sparse for F2 regression**; `LOS_days`: 682.
-* **Subscale outcomes share SCIM-total's universe** — the three
-  subscale outcomes `y_discharge_scim_{self_care,resp_sphincter,mobility}`
-  are pulled from the same `discharge` rows as `y_discharge_scim`, so
-  they have identical n=507.  Training n=498 after dropping
-  IDNumber-null partial-orphans.  Effective ranges: self-care 0–20,
-  resp/sphincter 0–40, mobility 0–40, total 0–100.
-* **AIS class imbalance (n=638)** — D=377 (59 %), C=105, A=63, E=62,
-  B=31.  After training-time `dropna(IDNumber, target)` this becomes
-  D=371, C=103, A=63, E=61, B=30 (n=628).  We use LightGBM
-  `multiclass` with `class_weight="balanced"` because B and E are
-  ~5 % each — without weighting they would never be predicted.
-* **LOS distribution** — n=682, min=1, median=139.5, max=788; heavy
-  right tail.  Modelled on `log1p` scale; conformal q computed in
-  log-space and back-transformed.
+* **Raw shape** — long format: 31 200 rows × 219 cols, 1 200 `KeyRecordNumber`s
+  × 26 timepoint slots (`0day`, `72h`, `2w`, `4w`, `6w`, `2m..11m`, `1y..10y`,
+  `discharge`).  The grid is perfectly rectangular — every episode has a row at
+  every slot.
+* **Ghost-episode filter** — 301 of the 1 200 raw episodes are pure placeholder
+  rows: `IDNumber` null AND every admission feature null AND every outcome
+  null.  `build_analysis_dataset()` drops them via
+  `_identify_ghost_episodes(ep, ADMISSION_FEATURES)`.  **Post-filter universe:
+  899 episodes / 866 unique patients; long frame = 23 374 rows (899 × 26).**
+* **Partial-id orphans (27 episodes)** — have admission features but null
+  `IDNumber`.  Survive the ghost filter (they have data) but are excluded from
+  training by `dropna(subset=["IDNumber", outcome])` in `_prep()` and from the
+  patient picker by `list_patient_options(ep)`.  They still feed cohort
+  aggregates.  (Of the 27: 9 have discharge SCIM, 10 discharge AIS, 14
+  `LOS_days`.)
+* **IDNumber 1-off (raw 867 → clean 866)** — `KeyRecord 446` has literal
+  `'6641/10/15'` (a malformed date) in the ID field; schema declares
+  `IDNumber: numeric`, so `to_numeric(errors="coerce")` correctly NaN's it.
+* **Outcome cardinality (899-episode universe)** — `y_discharge_scim`: 507;
+  `y_discharge_ais`: 638; `y_discharge_wisci`: **50 — too sparse to model,
+  stays dropped**; `LOS_days`: 682.
+* **Subscale outcomes share SCIM-total's universe** — `y_discharge_scim_{
+  self_care,resp_sphincter,mobility}` come from the same `discharge` rows as
+  `y_discharge_scim` (n=507; training n=498 after dropping IDNumber-null
+  orphans).  Effective ranges: self-care 0–20, resp/sphincter 0–40,
+  mobility 0–40, total 0–100.
+* **AIS class imbalance** — D dominates (~59 %); B and E are ~5 % each.  Use
+  LightGBM `multiclass` with `class_weight="balanced"`, else B/E are never
+  predicted.
+* **LOS distribution** — heavy right tail (median ≈140 d, max ≈790 d).
+  Modelled on `log1p` scale; conformal q computed in log-space and
+  back-transformed.
 
-## 2. Schema (`schema/*.yaml`) — the source of truth
+## 2. Schema (`schema/*.yaml`) — source of truth
 
-* Every column the dashboard renders must have a `columns.yaml` entry.  If
-  it doesn't, you'll see the raw Japanese in the UI.
+* Every column the dashboard renders must have a `columns.yaml` entry, else the
+  raw Japanese leaks into the UI.
 * Every categorical raw value should resolve through `categorical_levels.yaml`
-  via either the canonical `display` or a `raw_aliases` entry.
-* UI strings live in `ui_strings.yaml` only.  No inline literals in
-  dashboard code — use `t(schema, "key", lang)`.
-* `columns.yaml` uses `families:` to template the ISNCSCI dermatomes
-  (56 light-touch + 56 pin-prick + 20 key-muscle + 20 non-key-muscle
-  columns are *expanded by `schema.py` at load time*, not literally in the
-  YAML).  When adding a new dermatome family, extend the family block; do
-  not paste 56 entries.
+  via the canonical `display` or a `raw_aliases` entry.
+* UI strings live in `ui_strings.yaml` only.  No inline literals in dashboard
+  code — use `t(schema, "key", lang)`.
+* `columns.yaml` uses `families:` to template the ISNCSCI dermatomes (light
+  touch, pin prick, key / non-key muscles), expanded by `schema.py` at load
+  time — not pasted literally.  Extend the family block to add a dermatome
+  family.
 
-## 3. Model conventions
+## 3. Model conventions (design contracts; metrics live in `training_metrics.json`)
 
-* **Random state:** `20260518`.  Embedded in `models/training_metrics.json`.
-* **Group split** by `IDNumber` (patient ID) — never by row — to prevent
-  same-patient leakage.
-* **Outcome registry** — `src/rehab_sci/models/outcomes.py` defines the
-  6 outcomes the pipeline trains.  `OUTCOMES` is an ordered tuple of
-  `OutcomeSpec` records; `train.py` iterates it; the dashboard imports
-  the same list so the simulator selector and the Methods tab stay in
-  lockstep with the training side.  To add an outcome: extend
-  `OUTCOMES`, ensure the target column is on the episode frame, add a
-  `ui_strings.yaml` entry under `outcome_{key}`.
+* **Random state:** `20260518` (also embedded in `training_metrics.json`).
+* **Group split** by `IDNumber` (patient), never by row — prevents same-patient
+  leakage.
+* **Outcome registry** — `models/outcomes.py::OUTCOMES` is the ordered tuple of
+  `OutcomeSpec` records (6 outcomes).  `train.py` iterates it; the dashboard
+  imports the same list so simulator/Methods stay in lockstep.  To add an
+  outcome: extend `OUTCOMES`, ensure its target column is on the episode frame,
+  add a `ui_strings.yaml` `outcome_{key}` entry.
 * **Per-outcome artifact layout** — `models/{spec.key}/` holds
-  `lgbm_median.joblib` + `lgbm_p10.joblib` + `lgbm_p90.joblib` for
-  regression heads (or `lgbm_multiclass.joblib` for AIS), plus a
-  `feature_spec.joblib` (with `conformal_q_transformed`, `transform`,
-  `clip_min`, `clip_max`) and `shap_test.joblib`.  The top-level
-  `models/feature_spec.joblib` is the *shared* feature universe
-  (feature_cols, ranges, categories) — no model-specific fields.
-  `models/training_metrics.json` is `{"outcomes": {key: …}, "outcome_keys": […]}`.
-* **80% conformal interval** = (1−α)-quantile of `|y − ŷ|` on a held-out
-  calibration fold.  Computed on the *transformed* scale (identity for
-  SCIM/AIS, log1p for LOS) so bounds remain symmetric on the modelling
-  scale; back-transformed and then clipped to `[clip_min, clip_max]`.
-  Coverage on n≈100 test is 81–83 % for all four regression heads.
-  LightGBM quantile heads alone give ~0.41 coverage on SCIM total —
-  *do not remove the conformal layer*.  At inference, the PI is the
-  *union* of the conformal interval and the raw quantile interval
-  (`lo = min(lo_conf, lo_q10)`, `hi = max(hi_conf, hi_q90)`) so the
-  user always sees the more conservative bound.
-* **Mondrian conformal (F3, session 9)** — per-AIS-grade and
-  per-paralysis-class conformal quantiles replace the single marginal q.
-  Stored in `feature_spec.joblib["conformal_q_by_group"]` as
-  `{"ais": {letter: q}, "paralysis": {label: q}, "marginal": q,
-  "min_n": 8}`.  Groups with fewer than `MONDRIAN_MIN_N=8` calibration
-  samples are omitted; inference falls back AIS → paralysis → marginal.
-  AIS-C consistently gets the widest PI (highest outcome variance);
-  AIS-D gets the tightest for SCIM outcomes.  Per-group test coverage
-  for the dominant group (AIS-D, n≈48) hits ~83 %; smaller groups
-  (A, B, E) show higher variance due to small test-set n.
-* **AIS (multiclass) head** — LightGBM multiclass with
-  `class_weight="balanced"`.  Classes are encoded by severity
-  (A=index 0 … E=index 4), so the `predict_proba` columns and the
-  cached SHAP last axis are ordinally sorted.  Reported metrics:
-  accuracy, quadratic-weighted Cohen κ, MAE-on-ordinal-code (1–5).
-  **APS conformal classification sets (F5, session 11):** a calibration
-  fold is carved from dev (20%); APS nonconformity scores (cumulative
-  probability mass to include the true class) are computed and
-  thresholded at ⌈(n+1)·0.8⌉ quantile to produce `q_hat`.  Mondrian
-  per-AIS/per-paralysis variants stored in `feature_spec.joblib` under
-  `aps_q_hat` + `aps_q_by_group`.  At inference, class probabilities
-  are sorted descending and accumulated until cumsum ≥ resolved q_hat;
-  the resulting set is displayed with solid/muted bar coloring in the
-  dashboard.  Coverage is 99% (conservative for K=5); avg set size 2.77.
-* **LOS (log1p) head** — same LightGBM regression machinery as SCIM,
-  but `transform="log1p"` is applied to `y` before fitting and the
-  conformal q is computed in log-space.  Predictions, PI bounds, and
-  raw quantile heads are all back-transformed via `expm1` and clipped
-  to `[0, ∞)` before display.  CV/test metrics are reported in days
-  (raw scale) so they are human-interpretable.
-* **TreeSHAP** is run on the held-out test set only, never the training
-  set (would be optimistic).  Cached in `shap_test.joblib`.  For
-  multiclass AIS the SHAP cache is a 3-D `(n, p, K=5)` tensor with the
-  AIS axis last; at inference the simulator shows SHAP for the
-  predicted class.  The insight engine's SHAP dependence panel (F6)
-  slices this tensor by a user-selected class via `class_idx` kwarg to
-  `fig_dependence`.
-* **SHAP interaction values (F13, session 18)** — `shap_test.joblib`
-  now also persists `shap_interaction`.  Regression shape:
-  `(n_test, p, p)`; multiclass shape: `(n_test, p, p, K=5)`.
-  Diagonal `[i,i]` = main effect; off-diagonal `[i,j]` = pairwise
-  interaction between features i and j (symmetric).  Computed via
-  `TreeExplainer.shap_interaction_values()` on test set with
-  category-dtype columns pre-encoded to integer codes
-  (`_encode_cats_for_shap`).  `training_metrics.json` stores
-  `global_interaction_top25` (top 25 feature pairs by mean |φ|) per
-  outcome.  Dashboard renders an interaction heatmap and a two-feature
-  interaction dependence plot in the insight engine.
-* **Test-set predictions (F8, session 14)** — `shap_test.joblib` now
-  also persists `y_test` (actual values) and `y_pred` (point
-  predictions) for all outcomes.  Multiclass additionally stores
-  `y_pred_proba` (n_test × K probability matrix).  These are used by
-  the Methods tab's calibration visualizations (pred-vs-observed,
-  residual histogram, confusion matrix, calibration reliability curve).
-* **Holm correction**: running **max** over sorted p × (n−k+1), not
-  running min.  (Fixed 2026-05-18; previous values were ~10⁻⁵⁵ for every
-  test.)
-* **Trajectory models (F7, session 13)** — 9 independent LightGBM
-  regression models predicting SCIM-total at intermediate timepoints
-  (72h, 2w, 4w, 6w, 2m, 3m, 4m, 5m, 6m) from the same 32 admission
-  features.  Bundled in `models/trajectory/bundle.joblib` (dict with
-  keys `timepoints`, `models`, `conformal`, `clip_min`, `clip_max`).
-  Each timepoint entry has `median`, `p10`, `p90` LightGBM models and
-  Mondrian conformal q.  No SHAP (redundant with per-outcome SHAP).
-  Dashboard renders the predicted trajectory + PI ribbon on the patient
-  explorer timeline chart and as a standalone graph in the simulator.
-  R² ranges from 0.724 (4w, most predictable) to 0.364 (5m, least
-  predictable).  Conformal q widens from 6.3 (72h) to 32.2 (6m).
+  `lgbm_median/p10/p90.joblib` (regression) or `lgbm_multiclass.joblib` (AIS),
+  plus `feature_spec.joblib` (with `conformal_q_*`, `transform`, `clip_min/max`)
+  and `shap_test.joblib`.  Top-level `models/feature_spec.joblib` is the
+  *shared* feature universe (feature_cols, ranges, categories) only.
+  `training_metrics.json` = `{"outcomes": {...}, "outcome_keys": [...]}`.
+  (Any top-level `lgbm_*`/`shap_*.joblib` are stale single-outcome-era debris —
+  not loaded by any code.)
+* **Conformal PI (regression)** — (1−α)-quantile of `|y−ŷ|` on a held-out
+  calibration fold, computed on the *transformed* scale (identity for SCIM/AIS,
+  log1p for LOS), back-transformed, then clipped to `[clip_min, clip_max]`.
+  **Required — LightGBM quantile heads alone give ~0.41 coverage on SCIM total;
+  do not remove the conformal layer.**  At inference the PI is the *union* of
+  the conformal interval and the raw quantile interval
+  (`lo=min(lo_conf,lo_q10)`, `hi=max(hi_conf,hi_q90)`) — user sees the more
+  conservative bound.
+* **Mondrian conformal** — per-AIS-grade and per-paralysis-class q replace the
+  single marginal, stored in `feature_spec.joblib["conformal_q_by_group"]` =
+  `{"ais": {...}, "paralysis": {...}, "marginal": q, "min_n": 8}`.  Groups with
+  < `MONDRIAN_MIN_N=8` calibration samples are omitted; inference falls back
+  AIS → paralysis → marginal.  Qualitatively AIS-C (motor-incomplete) gets the
+  widest PI, AIS-D the tightest for SCIM — clinically correct, previously
+  hidden by the marginal.
+* **AIS multiclass head** — classes encoded by severity (A=0 … E=4), so
+  `predict_proba` columns and the SHAP last axis are ordinally sorted.  Metrics:
+  accuracy, quadratic-weighted κ, MAE-on-ordinal-code.
+* **APS conformal classification sets (AIS)** — calibration fold carved from
+  dev; APS nonconformity = cumulative prob mass to include the true class;
+  threshold at ⌈(n+1)·0.8⌉ quantile → `q_hat`.  Mondrian per-AIS/per-paralysis
+  variants in `feature_spec.joblib` under `aps_q_hat` + `aps_q_by_group`.  At
+  inference, sort class probs descending, accumulate until cumsum ≥ resolved
+  q_hat.  Coverage runs **conservative (~99 % vs 80 % target) because K=5 makes
+  APS scores discrete — expected, not a bug** (avg set size ≈2.8).
+* **LOS (log1p) head** — same regression machinery; `y` log1p'd before fit,
+  conformal q in log-space; predictions/PI/quantiles back-transformed via
+  `expm1` and clipped to `[0, ∞)`.  Metrics reported in raw days.
+* **TreeSHAP** runs on the held-out **test set only** (training-set SHAP would
+  be optimistic).  Cached in `shap_test.joblib`.  Multiclass cache is a 3-D
+  `(n, p, K=5)` tensor, AIS axis last; the insight engine slices it by
+  user-selected class via `class_idx`.
+* **SHAP interaction values** — `shap_test.joblib` also persists
+  `shap_interaction`: regression `(n, p, p)`, multiclass `(n, p, p, K)`.
+  Diagonal `[i,i]` = main effect, off-diagonal `[i,j]` = symmetric pairwise
+  interaction.  Computed with category cols pre-encoded to int codes
+  (`_encode_cats_for_shap`; see §0b).  `training_metrics.json` stores
+  `global_interaction_top25` per outcome.  Dominant interaction across
+  functional outcomes is age × motor score.
+* **Test-set predictions** — `shap_test.joblib` also persists `y_test`,
+  `y_pred` (and `y_pred_proba` for multiclass), powering the Methods tab's
+  calibration visuals.
+* **Holm correction** — running **max** over sorted p×(n−k+1), not running min
+  (see §0b).
+* **Trajectory models** — 9 independent LightGBM regressions predicting
+  SCIM-total at intermediate timepoints (72h…6m) from the same 32 admission
+  features.  `models/trajectory/bundle.joblib` = dict (`timepoints`, `models`,
+  `conformal`, `clip_min`, `clip_max`); each timepoint has median/p10/p90 +
+  Mondrian q.  No SHAP (redundant with per-outcome SHAP).  Admission features
+  are most predictive of ~1-month outcomes, least of ~5-month; conformal q
+  widens monotonically with horizon.  Clinical value is the trajectory *shape*
+  (when recovery plateaus), not per-timepoint point accuracy.
+* **Recovery archetypes** — k-means (k=3, chosen by silhouette) on predicted
+  10-point trajectories (9 trajectory timepoints + discharge), z-scored per
+  timepoint.  Ordered by discharge SCIM: 0 limited / 1 gradual / 2 rapid.
+  `data/archetypes.py::assign_single()` assigns new/hypothetical patients at
+  runtime.  Persisted in `models/archetypes/archetypes.joblib`.  Primary
+  separators are AIS grade and age — consistent with the age × motor SHAP
+  interaction.
 
 ## 4. Dashboard conventions
 
-* **Module layout (F20 refactor, session 21):**
-  - `dashboard/app.py` — entry point: `create_app()`, `app`, `server`,
-    3 chrome callbacks (lang toggle, topbar/tab labels, tab dispatch).
-  - `dashboard/state.py` — all startup globals: SCHEMA, EP, LONG,
-    METRICS, SIM_DEFAULTS, FEATURE_SPEC, OUTCOME_BUNDLES,
-    TRAJECTORY_BUNDLE, ARCHETYPE_DATA, PATIENT_OPTIONS, etc.  Has no
-    deps on other dashboard modules (only theme for template init).
-  - `dashboard/compute.py` — pure computation helpers: conformal q
-    resolution, trajectory prediction, APS sets, SHAP inference,
-    episode row prep.  No Dash/Plotly deps.
-  - `dashboard/layout.py` — shared UI components: topbar, kpi_card,
-    chart_card, slider_for, dropdown_for, fig_shap_local,
-    fig_prediction_interval, fig_class_probabilities.
-  - `dashboard/tabs/overview.py` — overview tab layout + 1 filter
-    callback (`update_overview_content`).  Filter bar (AIS, paralysis,
-    age range, archetype) drives all KPI + chart rendering.
-  - `dashboard/tabs/simulator.py` — simulator layout + simulate
-    callback + 3 what-if callbacks.
-  - `dashboard/tabs/patient.py` — patient explorer layout + 3 patient
-    callbacks + PDF download callback.
-  - `dashboard/tabs/insights.py` — insight engine layout + 9 callbacks.
-  - `dashboard/tabs/methods.py` — methods tab layout (no callbacks).
-  - `dashboard/figures.py` — Plotly figure factories (unchanged).
-  - `dashboard/report.py` — PDF report generator (unchanged).
-  - `dashboard/theme.py` — Plotly template + palettes (unchanged).
-  - `dashboard/i18n.py` — bilingual helpers (unchanged).
-* **Dependency graph (acyclic):** `state` → data/model layers;
-  `compute` → `state`; `layout` → `state`, `compute`;
-  `tabs/*` → `state`, `compute`, `layout`, `figures`;
-  `app` → `tabs/*` (imports trigger `@callback` registration).
-* `dcc.Store("lang-store")` holds `"ja"` / `"en"`.  Most callbacks that
-  render text take it as `Input` so swaps are instant.  Exception:
-  `update_overview_content` takes it as `State` to avoid a race
-  condition with `update_tab` (both respond to lang changes; using
-  `State` ensures the overview callback fires *after* `update_tab`
-  recreates the filter components with new lang labels).
-* Pattern-matched simulator inputs use IDs `{"type": "num"/"cat", "col": <raw>}`
-  with `dash.ALL` in the consumer.  Order of the input list is fixed by
-  `feature_spec.joblib['feature_cols']`.
-* Plotly template name: `"medical"`.  Registered in `dashboard/theme.py`.
-* Palettes: `PALETTE_CATEGORICAL`, `PALETTE_AIS` (A→E cool→warm),
-  `PALETTE_PARA` (TETRA / PARA / NONE).  Use them — do not hand-pick
-  colors per chart.
-* Japanese rendering needs the font stack `"Hiragino Sans", "Noto Sans
-  JP", "Yu Gothic UI"` in both Plotly and CSS.
+* **Module layout** (`src/rehab_sci/dashboard/`):
+  - `app.py` — entry point: `create_app()`, `app`, `server`, chrome callbacks
+    (lang toggle, topbar/tab labels, tab dispatch), `__main__`.
+  - `state.py` — all startup globals (SCHEMA, EP, LONG, METRICS, FEATURE_SPEC,
+    OUTCOME_BUNDLES, TRAJECTORY_BUNDLE, ARCHETYPE_DATA, PATIENT_OPTIONS, …).
+    Depends only on theme + data/model layers; no other dashboard modules.
+  - `compute.py` — pure computation (conformal-q resolution, trajectory
+    prediction, APS sets, SHAP inference, episode-row prep).  No Dash/Plotly.
+  - `layout.py` — shared UI (topbar, kpi_card, chart_card, slider_for,
+    dropdown_for, fig_shap_local, fig_prediction_interval,
+    fig_class_probabilities).
+  - `tabs/overview.py` — overview layout + filter bar + `update_overview_content`.
+  - `tabs/simulator.py` — simulator layout + simulate + 3 what-if callbacks.
+  - `tabs/patient.py` — patient explorer layout + patient callbacks + PDF download.
+  - `tabs/insights.py` — insight engine layout + callbacks.
+  - `tabs/methods.py` — methods tab layout (no callbacks).
+  - `figures.py` — Plotly figure factories.  `report.py` — PDF generator.
+    `theme.py` — Plotly template + palettes.  `i18n.py` — bilingual helpers.
+* **Dependency graph (acyclic):** `state` → data/model; `compute` → `state`;
+  `layout` → `state`, `compute`; `tabs/*` → `state`, `compute`, `layout`,
+  `figures`; `app` → `tabs/*` (imports trigger `@callback` registration —
+  Dash function-level `@callback` registers globally, no `@app.callback`).
+* `dcc.Store("lang-store")` holds `"ja"`/`"en"`.  Most text callbacks take it
+  as `Input` for instant swaps.  **Exception:** `update_overview_content` takes
+  it as `State` to avoid a race with `update_tab` (both fire on lang change;
+  `State` ensures overview fires *after* `update_tab` rebuilds the filter
+  components with new lang labels).
+* Pattern-matched simulator inputs use IDs `{"type":"num"/"cat","col":<raw>}`
+  with `dash.ALL`.  Input order is fixed by `feature_spec['feature_cols']`.
+* Plotly template name: `"medical"` (registered in `theme.py`).  Palettes:
+  `PALETTE_CATEGORICAL`, `PALETTE_AIS` (A→E cool→warm), `PALETTE_PARA`,
+  `PALETTE_ARCHETYPE`.  Use them — do not hand-pick per-chart colors.
+* Japanese rendering needs the font stack `"Hiragino Sans","Noto Sans
+  JP","Yu Gothic UI"` in both Plotly and CSS.
 * `dcc.Store("patient-ref")` (session-scoped) carries the What-if
-  counterfactual reference: `{id_number, key_record, features,
-  outcomes, trajectory}`.  `update_tab()` reads it as State to
-  pre-fill simulator defaults; `simulate()` reads it as State for
-  reference overlay rendering.
+  counterfactual reference `{id_number, key_record, features, outcomes,
+  trajectory}`.  `update_tab()` reads it as State to pre-fill simulator
+  defaults; `simulate()` reads it as State for the reference overlay.
 
 ## 5. Known gotchas
 
 * **`IntCastingNaNError` on `IDNumber`** — patients with no admission row
-  at all produce NaN IDs in the episode frame.  Cast via
-  `dropna(subset=[outcome, "IDNumber"])` then `float64 → int64`.
-* **Stale dashboard process** — `kill <PID>` only stops the `uv run`
-  wrapper; the Python child keeps serving old code.  Use
-  `pkill -f 'rehab_sci.dashboard.app'`.  The shell may report exit
-  code 144 (signal 16) for unrelated reasons — verify with `pgrep -af`.
-* **pandas fragmentation warning** when adding many columns serially —
-  batch via `pd.concat([df, new_cols_df], axis=1)`.  Loader does this.
-* **`@dataclass(frozen=True)` + dict fields** breaks under `@lru_cache`
-  on instance methods (unhashable type).  `Schema` uses plain class with
-  `__slots__` for this reason; do not "modernize" it.
-* **`kaleido<1`** has no Linux x86_64 wheel under current resolver.  Keep
-  `kaleido>=1.0,<2`.
-* **`python -m rehab_sci.*` needs `PYTHONPATH=src`** — **RESOLVED
-  2026-05-18 (session 3)**: project is now a real packaged uv project
-  (hatchling build-system + `[tool.hatch.build.targets.wheel] packages =
-  ["src/rehab_sci"]`).  `uv sync` installs `rehab-sci` editable into the
-  venv, so `uv run python -m rehab_sci.*` works without any
-  `PYTHONPATH` prefix.  Historical context preserved: previously
-  `pyproject.toml` declared `[tool.uv] package = false`, which made the
-  `src/rehab_sci/` layout invisible to the venv and forced every launch
-  command to be prefixed with `PYTHONPATH=src`.
-* **Background dashboard from inside a bash one-liner** — `nohup … &`
-  inside the harness's wrapper sometimes does not survive the wrapper's
-  exit (parent shell exit code 144 = SIGTERM bookkeeping).  Use the Bash
-  tool's `run_in_background: true` flag, or run the command as the
-  *last* statement of the bash command so it inherits the wrapper's
-  lifetime.
-* **Plotly `Sunburst(branchvalues="total")` requires parent value = sum
-  of children**.  Setting parent values to `0` silently renders a blank
-  chart (no JS error, no log line).  Either accumulate leaf counts into
-  every ancestor (see `fig_injury_sunburst`) or switch to
-  `branchvalues="remainder"`.  The accumulate-into-ancestor pattern is
-  preferred — Plotly hover then shows the true subtotal at each ring.
+  produce NaN IDs.  `dropna(subset=[outcome,"IDNumber"])` then cast
+  `float64 → int64`.
+* **Stale dashboard process** — `kill <PID>` stops only the `uv run` wrapper;
+  the Python child keeps serving old code.  Use
+  `pkill -f 'rehab_sci.dashboard.app'`.  Shell may report exit 144 (signal 16)
+  spuriously — verify with `pgrep -af`.
+* **pandas fragmentation warning** when adding many columns serially — batch via
+  `pd.concat([df, new_cols_df], axis=1)`.  Loader already does this.
+* **`@dataclass(frozen=True)` + dict fields** breaks under `@lru_cache` on
+  instance methods (unhashable).  `Schema` is a plain `__slots__` class for this
+  reason — do not "modernize" it.
+* **`kaleido<1`** has no Linux x86_64 wheel under the current resolver.  Keep
+  `kaleido>=1.0,<2`.  Plotly→PNG export needs Chrome (`kaleido.get_chrome_sync()`
+  at first use).
+* **Packaging** — project is a real hatchling uv package
+  (`[tool.hatch.build.targets.wheel] packages=["src/rehab_sci"]`); `uv sync`
+  installs it editable, so `uv run python -m rehab_sci.*` works with no
+  `PYTHONPATH` prefix.  (Historical: an earlier `[tool.uv] package=false` forced
+  `PYTHONPATH=src` on every launch.)
+* **Background dashboard from a bash one-liner** — `nohup … &` inside the
+  harness wrapper may not survive wrapper exit (exit 144 = SIGTERM
+  bookkeeping).  Use the Bash tool's `run_in_background: true`, or make the
+  launch the *last* statement so it inherits the wrapper lifetime.
+* **Plotly `Sunburst(branchvalues="total")` requires parent value = sum of
+  children.**  Parent value `0` renders blank silently.  Prefer accumulating
+  leaf counts into every ancestor (so hover shows true subtotals) over
+  `branchvalues="remainder"`.  (The injury chart later moved to a treemap.)
 
 ## 6. Commands cheat sheet
 
@@ -345,1505 +279,67 @@ uv run python -m rehab_sci.models.subgroups      # subgroup discovery
 uv run python -m rehab_sci.models.archetypes     # recovery archetype clustering
 uv run python -m rehab_sci.dashboard.app         # serve at :8050
 pkill -f 'rehab_sci.dashboard.app'               # stop stale dashboard
+uv cache prune                                   # reclaim uv cache space
+uv run pip-audit                                 # dependency vuln scan (dev dep)
 ```
 
-## 7. Session log (most recent first)
-
-### 2026-05-24 (session 22, F22 overview cohort filtering shipped)
-
-* Shipped **F22 Overview cohort filtering**.
-* **Problem:** The overview tab showed fixed cohort-wide KPIs and charts
-  for all 899 episodes.  Clinicians had no way to answer subpopulation
-  questions like "how do AIS-D tetraplegics over 60 compare to the full
-  cohort?" without switching to the insight engine.
-* **Design:** A filter bar at the top of the overview tab with 4 controls:
-  - AIS grade (multi-select dropdown: A/B/C/D/E)
-  - Paralysis type (multi-select dropdown: TETRA/PARA/NONE)
-  - Age range (range slider: 10–95, step 5)
-  - Recovery archetype (multi-select dropdown: Limited/Gradual/Rapid,
-    hidden if no archetype data)
-* **Filter semantics:** Empty selection = no filter (show all).
-  All active filters are AND-combined.  Episodes with NaN in a filtered
-  column are excluded when that filter is active.
-* **Architecture change:** `render_overview(lang)` now returns a layout
-  shell (filter bar + empty content div).  A new callback
-  `update_overview_content` fires on filter changes and populates the
-  content.  Uses `State("lang-store", "data")` instead of `Input` to
-  avoid a race condition with `update_tab` on lang changes.
-* **Archetype handling under filtering:** Centroid curves stay fixed
-  (they are model properties), but per-archetype n counts and AIS
-  demographics are recomputed from the filtered episode subset via
-  `_filtered_archetype_summaries()`.  Unfiltered view uses the
-  precomputed summaries from `archetypes.joblib`.
-* **"Showing X of Y" indicator:** When any filter is active, a teal
-  left-bordered annotation strip appears above KPIs showing the
-  filtered vs total episode count (bilingual).
-* **Empty result handling:** If filters produce zero matching episodes,
-  shows a "no data" message instead of attempting chart rendering.
-* **Defensive fix:** `fig_discharge_scim` gained a `len(s) > 0` guard
-  around the median vline to prevent NaN x-coordinate when the filtered
-  subset has no discharge SCIM values.
-* **Files changed:**
-  - `dashboard/tabs/overview.py` — rewritten: filter bar layout +
-    `_apply_filters()` + `_filtered_archetype_summaries()` +
-    `update_overview_content` callback.
-  - `dashboard/figures.py` — 1-line guard in `fig_discharge_scim`.
-  - `schema/ui_strings.yaml` — 4 new keys (overview_filter_ais,
-    overview_filter_paralysis, overview_filter_age,
-    overview_filter_archetype).
-  - `dashboard/assets/style.css` — 6 new style blocks
-    (ov-filter-bar, ov-filter-field, ov-filter-field--slider,
-    ov-filter-note, overview-empty).
-* **Verification:** Flask test client HTTP 200 on `/`, `/_dash-layout`,
-  `/_dash-dependencies`.  21 callbacks registered (1 new).  Filter logic
-  tested for 7 cases: no filters (899 ep), AIS D (331), TETRA (699),
-  age 60–80 (488), archetype 0 (334), combined (93), empty (0).
-  Callback rendering tested for all 7 × 2 languages = 14 scenarios:
-  9 graphs for populated filters, 0 for empty.  Filtered archetype
-  summaries verified for AIS D: arch 0 n=9, arch 1 n=124, arch 2 n=193.
-
-### 2026-05-24 (session 21, F20 proactive refactor of app.py)
-
-* Shipped **F20 Proactive refactor of dashboard/app.py**.
-* **Problem:** `app.py` had grown to 2,464 lines across 20 sessions of
-  feature development (F1–F18).  68 functions, 20 callbacks, 5 tab
-  renderers, startup data loading, and shared helpers all lived in a
-  single file.  This made per-session context cost high and new feature
-  additions brittle.
-* **Approach:** Decomposed into 9 files following the tab structure,
-  with shared layers for state, computation, and layout.  No behavioral
-  changes — pure structural refactor.
-* **New module structure:**
-  - `state.py` (77 lines) — all startup globals: SCHEMA, EP, LONG,
-    METRICS, OUTCOME_BUNDLES, TRAJECTORY_BUNDLE, ARCHETYPE_DATA, etc.
-    Only depends on theme (for template registration) and data/model
-    layers.  No circular deps.
-  - `compute.py` (266 lines) — pure computation: conformal q
-    resolution (Mondrian AIS → paralysis → marginal), trajectory
-    prediction, APS prediction sets, SHAP inference (both regression
-    and multiclass), episode row prep, observed value lookup.  No Dash
-    or Plotly dependencies.
-  - `layout.py` (216 lines) — shared layout components: topbar,
-    kpi_card, chart_card, slider_for, dropdown_for, plus 3 prediction
-    figures (fig_shap_local, fig_prediction_interval,
-    fig_class_probabilities) used by both simulator and patient tabs.
-  - `tabs/overview.py` (115 lines) — cohort overview layout.
-  - `tabs/simulator.py` (373 lines) — simulator layout + simulate
-    callback + 3 what-if callbacks.
-  - `tabs/patient.py` (657 lines) — patient explorer layout + 3
-    patient callbacks + PDF download callback.
-  - `tabs/insights.py` (288 lines) — insight engine layout + 9
-    insight callbacks.
-  - `tabs/methods.py` (204 lines) — methods tab layout.
-  - `app.py` (136 lines) — entry point: create_app, chrome callbacks
-    (lang, topbar, tab dispatch), __main__.
-* **Dead code removed during refactor:**
-  - `_split_features()` — defined but never called.
-  - `SIM_NUMERIC_ORDER` / `SIM_CATEGORICAL_ORDER` — defined but
-    never referenced (simulator uses inline feature lists).
-  - Dead `if False` branch in `_fig_shap_local` name formatting.
-* **Line count:** Before: 2,464 in 1 file.  After: 2,332 across 9
-  files (max 657 in `tabs/patient.py`).  Net reduction of 132 lines
-  from dead code removal.
-* **Callback registration:** Dash 4.1.0 `@callback` (function-level)
-  registers callbacks globally.  Tab modules are imported by `app.py`,
-  which triggers decorator execution before `app.run()`.  No
-  `@app.callback` needed.
-* **Verification:** Flask test client confirms HTTP 200 on `/`,
-  `/_dash-layout`, `/_dash-dependencies`.  20 callbacks registered
-  (unchanged).  State module: 899 episodes, 6 outcome bundles, 866
-  patients, archetypes + trajectory loaded.  All assertions pass.
-* **Files changed:** `dashboard/app.py` (rewritten), new
-  `dashboard/state.py`, new `dashboard/compute.py`, new
-  `dashboard/layout.py`, new `dashboard/tabs/__init__.py`, new
-  `dashboard/tabs/overview.py`, new `dashboard/tabs/simulator.py`,
-  new `dashboard/tabs/patient.py`, new `dashboard/tabs/insights.py`,
-  new `dashboard/tabs/methods.py`.
-
-### 2026-05-24 (session 20, F18 recovery archetype clustering shipped)
-
-* Shipped **F18 Recovery archetype clustering**.
-* **Problem:** The dashboard showed individual patient predictions and
-  cohort-level recovery curves stratified by paralysis type, but there
-  was no data-driven patient phenotyping.  Clinicians had no way to see
-  "what recovery pattern does this patient belong to?" or compare
-  outcomes across empirically discovered patient subgroups.
-* **Algorithm:** K-means clustering on predicted 10-point SCIM-III
-  recovery trajectories (9 intermediate timepoints from the F7 trajectory
-  models + discharge from the SCIM-total model).  Predicted trajectories
-  used rather than raw observations to avoid sparsity (~15-20% intermediate
-  timepoint coverage) and ensure complete coverage for all 872 eligible
-  episodes.  Trajectories standardized (z-score per timepoint) before
-  clustering.  K selected by silhouette score: k=3 (sil=0.451) beat k=4
-  (0.404) and k=5 (0.390).  Archetypes ordered by discharge SCIM
-  (low→high).
-* **Three archetypes discovered:**
-  - **0 (Limited recovery):** n=334, mean age 70.7, 88% tetra, AIS A/C
-    dominant, median discharge SCIM=14, mean LOS=213d.  Near-flat
-    trajectory: 9.7→29.0.
-  - **1 (Gradual recovery):** n=301, mean age 62.5, 73% tetra, AIS C/D
-    mix, median discharge SCIM=80, mean LOS=180d.  Steady climb:
-    12.1→70.9.
-  - **2 (Rapid recovery):** n=237, mean age 58.8, 73% tetra, AIS D
-    dominant (84%), median discharge SCIM=100, mean LOS=67d.  Steep
-    early curve reaching plateau quickly: 28.2→94.9.
-* **New module:** `data/archetypes.py` (175 lines).
-  - `build_trajectory_matrix(ep, traj_bundle, discharge_model, ...)` —
-    builds n×10 predicted trajectory matrix for all eligible episodes.
-  - `find_best_k(traj_matrix, k_range)` — evaluates silhouette scores.
-  - `cluster_trajectories(traj_matrix, k)` — k-means + scaler.
-  - `order_archetypes_by_discharge(labels, centroids)` — ensures
-    archetype 0 = lowest discharge SCIM.
-  - `archetype_summary(ep_eligible, labels)` — per-archetype demographics.
-  - `assign_single(X_row, traj_bundle, ...)` — assigns a new patient to
-    the nearest archetype at inference time.
-* **New script:** `models/archetypes.py` — standalone `main()` that
-  computes archetypes and persists `models/archetypes/archetypes.joblib`
-  (assignments, centroids, scaler, summaries).  Also updates
-  `training_metrics.json` with archetype metadata.
-* **Dashboard figures** (`dashboard/figures.py`), 2 new functions:
-  - `fig_archetype_curves(centroids, tp_labels, summaries, ...)` —
-    per-archetype centroid line with diamond markers, light ribbon,
-    hover showing n/age/tetra%.  Colors: crimson (limited), bronze
-    (gradual), green (rapid).
-  - `fig_archetype_demographics(summaries, ...)` — stacked bar chart
-    of AIS grade distribution per archetype using PALETTE_AIS colors.
-* **Dashboard app** (`dashboard/app.py`):
-  - Loads `ARCHETYPE_DATA` from `models/archetypes/archetypes.joblib`
-    at startup.
-  - `render_overview()` extended with a 4th row containing archetype
-    curves + AIS demographics charts.
-  - `_meta_strip()` extended: when archetype data is available, appends
-    a colored chip showing the patient's recovery type (e.g., "Recovery
-    type: Gradual recovery" / "回復タイプ: 段階的回復").  Chip border
-    and text color match the archetype's palette color.
-  - No new callbacks — archetype charts are rendered statically at
-    tab-switch time, and the meta chip is computed inside the existing
-    `_compute_patient_tab` → `_meta_strip` path.
-  - Total: 20 callbacks (unchanged).
-* **New constants in `figures.py`:**
-  - `PALETTE_ARCHETYPE`: 5-color palette (crimson, bronze, green, ocean,
-    mauve) — avoids overlap with PALETTE_PARA.
-  - `ARCHETYPE_NAMES_JA` / `ARCHETYPE_NAMES_EN`: bilingual archetype
-    labels ordered by discharge severity.
-* **New UI strings (3):** `chart_archetype_curves`, `chart_archetype_demographics`,
-  `patient_archetype_label`.
-* **New CSS:** `.archetype-chip` (colored border + bold text matching
-  archetype palette).
-* **Files changed:** new `data/archetypes.py`, new `models/archetypes.py`,
-  `dashboard/figures.py` (2 new functions + 3 constants),
-  `dashboard/app.py` (1 new import line, 1 new startup load, 1 extended
-  function `render_overview`, 1 extended function `_meta_strip`),
-  `schema/ui_strings.yaml` (3 new keys),
-  `dashboard/assets/style.css` (1 new style block).
-* Verification: app module imports cleanly, Flask test client confirms
-  HTTP 200 on `/`, `/_dash-layout`, `/_dash-dependencies`.  20 callbacks
-  registered (unchanged).  Archetype curves render 6 traces (3 lines +
-  3 ribbons) for both EN and JA.  Demographics render 5 traces (AIS
-  A–E bars).  Patient meta strip includes archetype chip for both
-  languages.  `assign_single()` matches precomputed assignments.
-
-### 2026-05-24 (session 19, F16 patient similarity explorer shipped)
-
-* Shipped **F16 Patient similarity explorer**.
-* **Problem:** The dashboard predicted outcomes for individual patients and
-  let clinicians explore hypothetical scenarios, but there was no empirical
-  anchor — no way to answer "what actually happened to patients similar to
-  mine?"  Model predictions without historical precedent require a leap of
-  faith.
-* **Algorithm:** Gower distance on the 32 admission features.  Gower is
-  the standard mixed-type distance metric for clinical data: numeric
-  features use Manhattan distance normalized by observed range; categorical
-  features use simple matching (0 if identical, 1 if different); features
-  where either patient has a missing value are excluded from both numerator
-  and denominator.  A `MIN_FEATURE_OVERLAP=5` threshold prevents vacuous
-  distance=0 for data-sparse partial-orphan episodes.
-* **New module:** `data/similarity.py` (130 lines).
-  - `gower_distance_one_vs_all(query, candidates, ...)` — returns
-    `(distances, weights)` arrays.  Weights track the per-candidate number
-    of mutually non-null features (the Gower denominator).
-  - `find_nearest(ep, key_record, ..., k=10)` — returns the K nearest
-    episodes with demographics, actual outcomes, and similarity scores.
-    Filters candidates below `MIN_FEATURE_OVERLAP`.
-* **Dashboard figures** (`dashboard/figures.py`), 2 new functions:
-  - `fig_neighbor_outcomes(neighbors, pred, lo, hi, observed, ...)` —
-    horizontal strip chart showing K neighbors' actual outcomes as sized
-    dots (larger = more similar) overlaid on the query patient's prediction
-    + PI band + observed value.  Neighbor dots use a secondary y-axis with
-    vertical jitter for visual clarity.  Handles regression outcomes for
-    all 5 regression heads.
-  - `fig_neighbor_ais_distribution(neighbors, pred_proba, observed_ais,
-    ...)` — grouped bar chart comparing neighbor AIS grade distribution
-    (empirical %) to the model's predicted class probabilities (line+dot
-    overlay).  Annotation shows observed grade.
-* **Dashboard app** (`dashboard/app.py`):
-  - New `_build_similarity_section(key_record, bundle, X, lang)` — finds
-    K=10 nearest neighbors, looks up each neighbor's actual value for the
-    selected outcome, builds the appropriate figure (regression strip or
-    AIS distribution), and renders a summary + table.
-  - `_compute_patient_tab` extended from 7-tuple to 9-tuple (new outputs:
-    `patient-sim-graph.figure` + `patient-sim-table.children`).
-  - `render_patient(lang)` gains a similarity card below the
-    isncsci/prediction row.
-  - `update_patient_tab` callback extended with 2 new `Output`s.
-  - No new callbacks — the similarity section piggybacks on the existing
-    patient tab callback to avoid redundant computation.  Total: 20
-    callbacks (unchanged).
-* **Neighbor table:** each row shows ID, age, admission AIS, actual
-  outcome value (bilingual formatting: regression values as numbers, AIS
-  as letter grade), and similarity percentage.  Summary line above: "10
-  similar patients identified (X with observed outcome)".
-* **Outcome-aware rendering:** similarity figure adapts to the selected
-  outcome.  For regression (SCIM total/subscales, LOS): strip chart with
-  neighbor dots + PI + prediction diamond.  For multiclass (AIS): grouped
-  bar chart comparing neighbor grade distribution to model probabilities.
-* **Performance:** 259ms avg per patient tab render (including K-NN
-  search + figure construction).  Gower distance over 899 episodes × 32
-  features is < 5ms — negligible overhead.
-* **Edge cases tested:** (1) all 6 outcome types render correctly,
-  (2) both languages (JA/EN), (3) None key_record returns 9-element empty
-  tuple, (4) partial-orphan episodes filtered by MIN_FEATURE_OVERLAP=5,
-  (5) LOS with clip_max=None auto-ranges correctly, (6) patients with
-  sparse SCIM data show "–" in table.
-* New UI string: `patient_similarity_heading` (ja: "類似患者
-  (Gower距離)", en: "Similar patients (Gower distance)").
-* New CSS: `.patient-sim-summary`, `.patient-sim-table` (5 styles
-  matching the existing ISNCSCI table pattern).
-* **Files changed:** new `data/similarity.py`, `dashboard/figures.py`
-  (2 new functions + `AIS_ORD_TO_LETTER` constant), `dashboard/app.py`
-  (1 new import, 1 new function, 1 extended function, 1 modified callback,
-  layout extended), `schema/ui_strings.yaml` (1 new key),
-  `dashboard/assets/style.css` (5 new style blocks).
-* Verification: app module imports cleanly, Flask test client confirms
-  HTTP 200 on `/`, `/_dash-layout`, `/_dash-dependencies`.  20 callbacks
-  registered (unchanged).  `_compute_patient_tab` returns correct 9-tuple
-  for all 6 outcomes × 2 languages.
-
-### 2026-05-24 (session 18, F13 SHAP interaction explorer shipped)
-
-* Shipped **F13 SHAP interaction explorer**.
-* **Problem:** The insight engine showed per-feature SHAP importance and
-  single-feature dependence, but interactions between feature *pairs*
-  were invisible.  Clinically, interactions are where real insight lives
-  — e.g., "age only hurts SCIM prognosis when combined with low motor
-  score" is a non-additive interaction effect that cannot be captured by
-  marginal SHAP values.
-* **Training side** (`models/train.py`):
-  - New helpers: `_encode_cats_for_shap(X)` — encodes category-dtype
-    columns to integer codes (required because
-    `shap_interaction_values()` rejects string categoricals, unlike
-    `shap_values()`).  `_top_interactions(shap_int, feature_names)` and
-    `_top_interactions_multiclass(shap_int, feature_names)` — rank all
-    (p choose 2) feature pairs by mean |SHAP interaction value| and
-    return top 25.
-  - `_train_regression()` extended: computes `shap_interaction_values`
-    on encoded test set, stores `shap_interaction` in
-    `shap_test.joblib` (shape: n_test × p × p), stores
-    `global_interaction_top25` in training metrics.
-  - `_train_multiclass()` extended: same, with 4-D interaction tensor
-    (n_test × p × p × K) and multiclass averaging.
-  - All training metrics reproduced identically (deterministic pipeline,
-    random state 20260518).
-* **Top interaction pairs discovered:**
-  - SCIM total: Age × LEMS (|φ|=1.12)
-  - SCIM self-care: Age × TotalMotor (|φ|=0.33)
-  - SCIM resp/sphincter: Age × LEMS (|φ|=0.57)
-  - SCIM mobility: Age × LEMS (|φ|=0.50)
-  - AIS discharge: LEMS × PinPrickTotal (|φ|=0.04)
-  - LOS: Age × TotalMotor (|φ|=0.03)
-  - Pattern: age × motor score is the dominant interaction across
-    functional outcomes; for AIS classification, motor × sensory is
-    primary.
-* **Dashboard figures** (`dashboard/figures.py`), 2 new functions:
-  - `fig_interaction_heatmap(metrics, schema, lang, *, top_n=10)` —
-    upper-triangle heatmap of top feature-pair interactions with
-    colorscale from paper→teal.  Features ordered by first appearance
-    in the ranked list.  NaN-masked lower triangle for visual clarity.
-  - `fig_interaction_dependence(shap_pack, X_test, feat_x, feat_y,
-    schema, lang, *, class_idx=None)` — scatter of feature X values vs
-    SHAP interaction φ(X,Y), colored by feature Y values.  Numeric Y →
-    Viridis continuous colorscale; categorical Y → distinct traces with
-    palette colors.  Handles NaN categories, categorical X labels, and
-    multiclass class selection.
-* **Dashboard app** (`dashboard/app.py`):
-  - New interaction card in `render_insights()`: heatmap graph + two
-    feature dropdowns (X and Y) + interaction dependence graph.
-  - 3 new callbacks: `update_interaction_heatmap` (outcome + lang →
-    heatmap), `update_int_feat_options` (outcome + lang → X/Y dropdown
-    options, defaulting to top pair), `update_interaction_dependence`
-    (feat_x + feat_y + outcome + class + lang → dependence plot).
-  - Interaction dependence reuses the existing class selector
-    (`ins-dep-class`) from F6 — when AIS discharge is selected, the
-    class dropdown controls both the standard dependence plot and the
-    interaction dependence plot.
-  - Total: 20 callbacks (3 new).
-* New UI strings: `insight_interaction_heading` (ja: "特徴量間相互作用
-  (SHAP)", en: "Feature interactions (SHAP)"), `insight_int_feat_x`
-  (ja: "特徴量 X", en: "Feature X"), `insight_int_feat_y` (ja:
-  "特徴量 Y", en: "Feature Y").
-* Verification: full pipeline `uv run python -m rehab_sci.models.train`
-  + `subgroups`; dashboard HTTP 200 on `/`, `/_dash-layout`,
-  `/_dash-dependencies`.  20 callbacks registered (3 new).  Functional
-  tests confirm: (1) regression interaction shape (100, 30, 30),
-  (2) multiclass interaction shape (126, 30, 30, 5), (3) heatmap
-  renders 21 non-NaN cells for top-10 pairs, (4) numeric×numeric
-  dependence shows Viridis-colored scatter, (5) numeric×categorical
-  dependence shows distinct traces per category (Paraplegia=13,
-  Tetraplegia=84), (6) multiclass class_idx slicing correct,
-  (7) bilingual labels verified (JA: 年齢, EN: Age).
-
-### 2026-05-24 (session 17, dependency audit + update)
-
-* **F14 Dependency audit + security update** — full audit and upgrade of
-  all dependencies to latest versions within compatibility.
-* **Security fix:** pyarrow 21.0.0 → 24.0.0 (PYSEC-2026-113: use-after-free
-  in Arrow C++ IPC reader with pre-buffering; not exploitable via Python
-  bindings but cleared for audit hygiene).
-* **Major version upgrades (both verified with full pipeline re-run):**
-  - pandas 2.3.3 → 3.0.3 (CoW default, string dtype, groupby changes).
-    No code changes needed — our codebase already used correct patterns
-    (explicit `.copy()`, `observed=True` on groupby, `.iloc` for integer
-    indexing, no chained assignment).  All training metrics reproduced
-    identically.
-  - Dash 3.4.0 → 4.1.0 (DCC component DOM/CSS rebuilt from scratch).
-    CSS updated: `.Select-*` selectors → `.dash-dropdown-*`;
-    `.rc-slider-*` → `.dash-slider-*`.  Dash 4 design tokens
-    (`--Dash-Fill-*`, `--Dash-Stroke-*`, `--Dash-Text-*`) mapped to our
-    ink/accent/paper palette via `:root` overrides.  17 callbacks
-    unchanged.
-* **Minor/patch upgrades:** numpy 2.4.5→2.4.6, polars 1.40.1→1.41.0,
-  shap 0.49.1→0.51.0 (multi-output ndarray return; our code already
-  handled both formats), pingouin 0.5.5→0.6.1 (renamed
-  `pairwise_ttests`→`pairwise_tests`; we use scipy.stats directly),
-  rich 14.3.4→15.0.0, ruff 0.15.13→0.15.14.
-* **Transitive dep pins:** Added `numba>=0.61` and `llvmlite>=0.44` to
-  `pyproject.toml` to work around a uv resolver issue where shap 0.51's
-  unconstrained numba/llvmlite deps resolved to ancient pre-Py3.13
-  versions (numba 0.53.1 / llvmlite 0.36.0).
-* **Dev dep:** pip-audit added to dev dependency group for future audits.
-* **Verification (3 tiers):**
-  1. Tier 1+2 (safe patches): training pipeline identical metrics,
-     dashboard HTTP 200, subgroups reproduced.
-  2. pandas 3.0: training metrics identical, dashboard HTTP 200,
-     subgroups reproduced.
-  3. Dash 4.0: dashboard HTTP 200, 17 callbacks, CSS updated.
-* **Final state:** pip-audit clean (0 vulnerabilities).  All 22 direct
-  deps at latest version.  5 deps unchanged (already at latest:
-  scipy 1.17.1, statsmodels 0.14.6, scikit-learn 1.8.0, lightgbm 4.6.0,
-  plotly 6.7.0 + 5 others).
-
-### 2026-05-24 (session 16, F10 PDF patient report shipped)
-
-* Shipped **F10 PDF patient report**.
-* **Problem:** The dashboard is view-only — clinicians had no way to
-  generate a shareable artifact for rounds, referrals, or patient/family
-  discussions.  All prediction results, SHAP explanations, and trajectory
-  charts existed only in the live browser session.
-* **Design:** A "PDF report" button on the patient explorer's prediction
-  card (alongside the existing What-if button).  Clicking it generates a
-  bilingual 2-page PDF and triggers a browser download.
-* **Page 1:** Title with patient ID / episode number, two-column
-  demographics block (age, sex, paralysis, AIS, NLI, LOS), a 6-row
-  predictions table covering all outcomes (prediction value, 80% PI,
-  observed, APS conformal set for AIS), and the SCIM-III recovery
-  trajectory chart with cohort percentile bands + predicted trajectory
-  overlay.
-* **Page 2:** Top-12 SHAP feature contribution bar chart (for SCIM-III
-  total), a methodology summary paragraph, and a research-use disclaimer
-  in the footer.
-* **Implementation:**
-  - New `dashboard/report.py` (230 lines): `_ReportPDF` class extending
-    `fpdf2.FPDF` with header/footer/section_heading/kv_pair helpers.
-    `generate_patient_report()` accepts pre-computed meta, predictions,
-    Plotly figures, and outcome labels; assembles 2-page PDF using
-    `fig.to_image(format="png")` via kaleido for chart embedding.
-    `_shap_fig_for_pdf()` deep-copies the SHAP figure with widened left
-    margin (340px) to prevent label clipping at PDF render width.  All
-    text is bilingual via an internal `_S` dict (not ui_strings.yaml —
-    report-specific strings that are only used in the PDF).
-  - Font: IPAexGothic (system TTF at `/usr/local/share/fonts/truetype/
-    ipaexg.ttf`) — single-weight CJK sans-serif covering all Japanese
-    characters + Latin.  Visual hierarchy via size only (no bold).
-  - `dashboard/app.py`: `dcc.Download(id="report-download")` added to
-    layout.  New `download_report` callback: button click → gathers
-    patient meta, computes all 6 outcome predictions via
-    `_compute_ref_predictions`, computes trajectory, generates SHAP
-    figure for SCIM-total, calls `generate_patient_report()`, returns
-    via `dcc.send_bytes()`.  Guard: returns `no_update` if no admission
-    data.  17 callbacks total (1 new).
-  - `dashboard/assets/style.css`: `.report-btn` style (ink-700 background,
-    matching `.whatif-btn` sizing), `.patient-action-row` flex container
-    for button pair.
-  - `schema/ui_strings.yaml`: 1 new key (`report_download_button`).
-  - `pyproject.toml`: `fpdf2>=2.8,<3` added to dependencies.
-  - Chrome for kaleido installed via `kaleido.get_chrome_sync()` at first
-    use (required by kaleido v1 for Plotly→PNG export).
-* **File sizes:** EN ~152 KB, JA ~167 KB (difference is CJK font subset
-  embedding).  Both are 2-page A4 portrait with embedded high-res
-  (scale=2) PNG charts.
-* **Edge cases tested:** partial-obs patient (null SCIM, non-null AIS) →
-  observed column shows "–" for missing, AIS letter for present.  Second
-  patient → consistent output.  No-admission guard → callback returns
-  `no_update`.
-* Verification: full dashboard HTTP 200 on `/`, `/_dash-layout`,
-  `/_dash-dependencies`.  17 callbacks registered (1 new).
-  `dcc.Download(report-download)` in layout.  Programmatic end-to-end
-  test confirms PDF generation for both EN and JA with correct content.
-
-### 2026-05-24 (session 15, F9 What-if counterfactual explorer shipped)
-
-* Shipped **F9 What-if counterfactual explorer**.
-* **Problem:** The simulator lets clinicians explore hypothetical
-  patients, and the patient explorer shows predictions for real patients,
-  but there was no way to answer "what if this real patient's admission
-  features had been different?"  Bridging the two tabs for counterfactual
-  analysis required manually re-entering all 32 features.
-* **Design:** A "What-if" button on the patient explorer's prediction
-  card.  Clicking it: (1) captures the patient's 32 admission features +
-  predictions for all 6 outcomes + the SCIM-III recovery trajectory,
-  (2) stores them in a `dcc.Store(id="patient-ref")`, (3) switches to
-  the simulator tab with all sliders/dropdowns pre-filled with the
-  patient's actual values.  The clinician edits any feature and
-  immediately sees the prediction change relative to the reference.
-* **Reference overlay — regression PI bar:** a crimson circle marker at
-  the reference prediction, plus a readout line showing
-  "Reference: 65 · Change: +12".
-* **Reference overlay — trajectory:** a dashed crimson line with a muted
-  PI ribbon behind the current prediction's solid blue-purple trajectory.
-* **Reference overlay — multiclass:** text readout showing the reference
-  class ("Reference: AIS D").
-* **Banner:** a warm-background bar at the top of the simulator result
-  panel showing "Comparing against Patient #X · Episode #Y" with a
-  "Clear comparison" button that resets the store.
-* **Implementation:**
-  - `dashboard/app.py`: `dcc.Store("patient-ref")` added to layout.
-    `render_simulator()` now accepts `ref_data` and uses patient features
-    as slider/dropdown defaults.  `_slider_for()` and `_dropdown_for()`
-    accept a `defaults` dict parameter.  New `_compute_ref_predictions()`
-    computes predictions for all 6 outcomes on a single-row X.
-    `simulate()` gains `State("patient-ref")` and renders reference
-    overlays when present.  3 new callbacks: `launch_whatif` (button →
-    store + tab switch), `update_whatif_banner` (store → banner),
-    `clear_whatif` (clear button → store=None).  `update_tab()` gains
-    `State("patient-ref")` to pass ref_data to `render_simulator()`.
-  - `dashboard/figures.py`: `fig_sim_trajectory()` gains optional
-    `ref_trajectory` keyword — renders a dashed reference line + muted
-    PI ribbon behind the current trajectory.
-  - `schema/ui_strings.yaml`: 5 new keys (`whatif_button`,
-    `whatif_banner`, `whatif_clear`, `whatif_ref_label`, `whatif_delta`),
-    all bilingual JA/EN.
-  - `dashboard/assets/style.css`: `.whatif-banner`, `.whatif-clear-btn`,
-    `.whatif-btn`, `.whatif-delta` styles.
-* **Data flow:**
-  1. User views Patient #1234 in explorer → clicks "What-if"
-  2. `launch_whatif` callback: extracts features, computes all
-     predictions via `_compute_ref_predictions()`, computes trajectory
-     via `_predict_trajectory()`, stores in `patient-ref`, sets
-     `tabs.value = "simulator"`
-  3. `update_tab` fires: renders `render_simulator(lang, ref_data)` with
-     patient features as defaults → sliders/dropdowns pre-filled
-  4. `update_whatif_banner` fires: shows banner with patient info
-  5. `simulate` fires: computes current prediction, adds reference
-     overlays to PI bar and trajectory figure
-  6. User edits a slider → `simulate` re-fires → delta updates
-  7. User clicks "Clear" → `clear_whatif` clears store → banner
-     disappears, reference markers removed on next simulate
-* Verification: full dashboard HTTP 200 on `/`, `/_dash-layout`,
-  `/_dash-dependencies`.  16 callbacks registered (5 What-if related).
-  Programmatic tests confirm: (1) `patient-ref` store in layout,
-  (2) What-if button in patient tab, (3) whatif-banner in simulator,
-  (4) render_simulator accepts ref_data, (5) `_compute_ref_predictions`
-  returns 6 outcomes with correct types, (6) trajectory computed with
-  9 timepoints, (7) trajectory figure renders 4 traces with reference
-  vs 2 without, (8) bilingual labels verified.
-
-### 2026-05-24 (session 14, F8 Calibration & performance visualizations shipped)
-
-* Shipped **F8 Predicted-vs-observed calibration & performance
-  visualizations**.
-* **Problem:** The Methods tab reported summary metrics (R², RMSE,
-  coverage %) as text but did not *show* model performance visually.
-  Clinicians reviewing the tool could not see patterns like systematic
-  under-prediction for high-SCIM patients or class-specific
-  miscalibration.
-* **Training side** (`models/train.py`):
-  - `_train_regression()` now persists `y_test` (actual values, raw
-    scale) and `y_pred` (predicted values, raw scale) in
-    `shap_test.joblib`.
-  - `_train_multiclass()` now persists `y_test` (actual class indices),
-    `y_pred` (predicted class indices), and `y_pred_proba` (n×K
-    probability matrix) in `shap_test.joblib`.
-  - All metrics reproduced identically after retrain (deterministic
-    pipeline, random state 20260518).
-* **Dashboard figures** (`dashboard/figures.py`), 4 new functions:
-  - `fig_pred_vs_observed(shap_pack, schema, lang, *, clip_min,
-    clip_max, axis_label)` — scatter of predicted vs observed with
-    identity line, points colored by residual magnitude (diverging
-    teal→red colorscale with `cmid=0`), R² + n annotation.  Aspect
-    ratio locked (`scaleanchor="x"`).  Handles `clip_max=None` (LOS).
-  - `fig_residual_hist(shap_pack, schema, lang, *, axis_label)` —
-    histogram of (predicted − observed) residuals, vertical line at 0,
-    μ and σ annotation.
-  - `fig_confusion_matrix(shap_pack, schema, lang)` — row-normalized
-    heatmap (count + %) with reversed y-axis (A at top).  Colorscale
-    paper→teal.
-  - `fig_calibration_curve(shap_pack, schema, lang, *, n_bins=5)` —
-    per-class reliability diagram with 5 bins, diagonal reference line,
-    AIS color palette.  Bins with < 2 samples suppressed; classes with
-    < 2 valid bins suppressed.
-* **Dashboard app** (`dashboard/app.py`):
-  - `_perf_block_regression()` extended: accesses `OUTCOME_BUNDLES`
-    shap pack, renders a flex row with pred-vs-observed + residual
-    histogram below the text metrics.  Guard: renders text-only if
-    `y_test`/`y_pred` absent (backward compat).
-  - `_perf_block_multiclass()` extended: same pattern with confusion
-    matrix + calibration curve.
-  - No new callbacks — charts are rendered statically at tab-switch
-    time, consistent with the existing Methods tab pattern.
-  - Total: 12 new `dcc.Graph` components (5 regression × 2 + 1
-    multiclass × 2).
-* All inline bilingual labels (実測値/Observed, 予測値/Predicted,
-  残差/Residual, 頻度/Frequency, 実際/Actual, 予測/Predicted,
-  予測確率/Predicted probability, 実測頻度/Observed frequency,
-  誤差/Error).
-* Verification: full pipeline `uv run python -m rehab_sci.models.train`
-  reproduces all metrics; dashboard HTTP 200 on `/`, `/_dash-layout`,
-  `/_dash-dependencies`.  Programmatic test confirms: (1) 12 graphs
-  in Methods tab for both EN and JA, (2) pred-vs-observed shows R²
-  annotation, (3) confusion matrix renders row-normalized percentages,
-  (4) calibration curve shows all 5 AIS classes with valid bins,
-  (5) LOS edge case (clip_max=None) correctly auto-ranges,
-  (6) bilingual labels verified (JA: 実測値, 実際; EN: Observed,
-  Actual).
-
-### 2026-05-24 (session 13, F7 Recovery trajectory forecasting shipped)
-
-* Shipped **F7 Recovery trajectory forecasting**.
-* **Problem:** The dashboard predicted discharge outcomes only.
-  Clinicians want to know the *shape* of the recovery curve — when will
-  the patient plateau?  Is a dip at 4w expected?  Early detection of
-  stalled recovery enables intervention.
-* **Training side** (`models/train.py`):
-  - New constant `TRAJECTORY_TIMEPOINTS = ("72h", "2w", "4w", "6w",
-    "2m", "3m", "4m", "5m", "6m")`.
-  - New function `_train_trajectory(af, out_root)`:
-    * For each of the 9 timepoints, extracts SCIM-total at that
-      timepoint from the long frame and joins it to the episode frame
-      as a target column.
-    * Trains median + p10 + p90 LightGBM (same hyperparams as discharge
-      heads) with grouped holdout and calibration fold.
-    * Computes split-conformal PI with Mondrian per-AIS/per-paralysis
-      quantiles.
-    * No SHAP (redundant; the insight engine already provides per-feature
-      analysis via the discharge model).
-    * Refits on all data and persists final models.
-  - Artifacts bundled in `models/trajectory/bundle.joblib` (all 27
-    models + 9 conformal specs in a single dict).
-  - `training_metrics.json` extended with `trajectory` and
-    `trajectory_timepoints` keys.
-  - `main()` calls `_train_trajectory()` after the outcome loop.
-* **Per-timepoint test-set metrics:**
-  - 72h: R²=0.565, RMSE=10.5, conf80=86%, q=6.3 (narrowest PI)
-  - 2w: R²=0.595, RMSE=15.3, conf80=79%, q=18.7
-  - 4w: R²=0.724, RMSE=14.7, conf80=90%, q=17.6 (best R²)
-  - 6w: R²=0.576, RMSE=17.5, conf80=79%, q=21.1
-  - 2m: R²=0.508, RMSE=23.0, conf80=72%, q=16.8
-  - 3m: R²=0.655, RMSE=16.1, conf80=90%, q=31.3
-  - 4m: R²=0.438, RMSE=23.0, conf80=80%, q=29.0
-  - 5m: R²=0.364, RMSE=20.7, conf80=82%, q=30.1
-  - 6m: R²=0.604, RMSE=20.0, conf80=84%, q=32.2 (widest PI)
-  - R² peaks at 4w (admission features most predictive of 1-month
-    outcomes) and dips at 5m (intermediate events dominate).
-* **Dashboard figures** (`dashboard/figures.py`):
-  - `fig_patient_scim_timeline()` gains optional `trajectory` parameter.
-    When provided, renders a dashed blue-purple (`#5B6CC1`) predicted
-    line with diamond markers and a semi-transparent PI ribbon, layered
-    behind patient observed lines but above cohort bands.
-  - New `fig_sim_trajectory()` renders a standalone predicted SCIM-III
-    recovery chart for the simulator (no cohort bands, no observed data).
-* **Dashboard app** (`dashboard/app.py`):
-  - Loads `TRAJECTORY_BUNDLE` from `models/trajectory/bundle.joblib`
-    at startup.
-  - New `_predict_trajectory(X)` helper: runs all 9 timepoint models on
-    a single-row input, resolves Mondrian conformal q per timepoint,
-    computes union PI (conformal ∪ quantile), returns a dict with
-    `timepoints`, `pred`, `lo`, `hi`.
-  - `_compute_patient_tab()` builds the full trajectory arc:
-    * Prepends observed admission SCIM (0day, from `baseline_scim` on the
-      episode frame) as the anchor.
-    * 72h–6m: trajectory models.
-    * Appends discharge prediction from the existing SCIM-total model.
-    * Passes the trajectory to `fig_patient_scim_timeline()`.
-  - `simulate()` callback extended: gains a 4th output (`sim-traj-graph`).
-    Computes trajectory from the simulator's input features, prepends
-    the admission SCIM slider value as anchor, appends discharge
-    prediction, renders via `fig_sim_trajectory()`.
-  - New `_perf_block_trajectory(lang)` renders a per-timepoint metrics
-    table (n, R², RMSE, 80% PI coverage) in the Methods tab.
-  - Simulator layout gains a "Predicted recovery trajectory" heading +
-    graph below the SHAP explanation.
-* New UI strings: `sim_trajectory_heading` (ja: "予測回復軌道 (SCIM-III)",
-  en: "Predicted recovery trajectory (SCIM-III)"),
-  `methods_trajectory_heading` (ja: "回復軌道予測モデル (SCIM-III 各時点)",
-  en: "Recovery trajectory models (SCIM-III per timepoint)").
-* Verification: full pipeline `uv run python -m rehab_sci.models.train`
-  produces all trajectory artifacts; dashboard HTTP 200 on `/`,
-  `/_dash-layout`, `/_dash-dependencies`.  Functional tests confirm:
-  (1) patient explorer timeline shows trajectory PI + predicted line
-  (9 traces total), (2) simulator trajectory renders with 2 traces,
-  (3) bilingual labels correct (JA: 予測回復軌道, 予測 80% PI),
-  (4) Methods tab trajectory table has 10 rows (1 header + 9 timepoints),
-  (5) trajectory skipped for episodes without admission features.
-
-### 2026-05-24 (session 12, F6 SHAP class selector for AIS shipped)
-
-* Shipped **F6 SHAP class selector for AIS multiclass dependence**.
-* **Problem:** The insight engine's SHAP dependence panel showed a
-  "regression only" note for the AIS discharge outcome because the
-  multiclass SHAP tensor is 3-D `(n_samples=126, n_features=30,
-  n_classes=5)` and `fig_dependence` assumed a 2-D array.
-* **`dashboard/figures.py`** — `fig_dependence()` gains optional
-  keyword `class_idx: int | None`.  When provided and `shap_values` is
-  3-D, slices `sv[:, feature_idx, class_idx]` to produce a 1-D SHAP
-  vector.  Y-axis label becomes `"SHAP (AIS {letter})"`.  Hovertemplate
-  also updated.  Backward-compatible: regression callers pass no
-  `class_idx`.
-* **`dashboard/app.py`** layout — `render_insights()` adds a class
-  selector dropdown (`ins-dep-class`) alongside the existing feature
-  dropdown in a flex row.  Wrapped in `ins-dep-class-wrap` div whose
-  `display` is toggled by a new callback.
-* **`dashboard/app.py`** callbacks:
-  - New `update_dep_class_options`: `ins-outcome` → sets class dropdown
-    visibility (`display:none` for regression, `flex:1` for multiclass),
-    options (A/B/C/D/E), and default value (0=A).
-  - Modified `update_dependence`: now takes `ins-dep-class` as an Input.
-    Removed the `bundle["task"] != "regression"` short-circuit.  Passes
-    `class_idx` to `fig_dependence` for multiclass; `None` for
-    regression.  Defaults `class_idx=0` if the class dropdown hasn't
-    fired yet (guard against init timing).
-* New UI string: `insight_dep_class_label` (ja: "対象クラス",
-  en: "Target class").
-* **Per-class SHAP observations (test set, AIS, feature=年齢/age):**
-  mean |SHAP| varies meaningfully: C=0.154, D=0.107, B=0.064, E=0.062,
-  A=0.041.  Each class shows genuinely different dependence patterns —
-  the class selector is informative, not just cosmetic.
-* Verification: dashboard HTTP 200 on `/`, `/_dash-layout`,
-  `/_dash-dependencies`.  Callback graph verified: 3 insight-dep
-  callbacks with correct dependency ordering (outcome → class/feature
-  options → figure).  `fig_dependence` tested for all 5 class indices
-  on both numeric and categorical features.
-
-### 2026-05-24 (session 11, F5 APS conformal classification sets shipped)
-
-* Shipped **F5 APS conformal classification sets for AIS**.
-* **Training side** (`models/train.py`):
-  - `_train_multiclass()` now splits dev into train (80%) + calibration
-    (20%), matching the regression path.  Calibration fold is used for
-    APS nonconformity score computation; early-stopping val is split from
-    the training portion (10% of the 80%).
-  - New helpers: `_aps_scores(proba, y_true)` — cumulative probability
-    mass until the true class is included; `_aps_prediction_set(proba, q)`
-    — inference-time set computation; `_aps_test_metrics(proba, y, q, X)`
-    — per-row coverage and set size on test data using Mondrian q values.
-  - APS threshold `q_hat` + Mondrian per-AIS/per-paralysis variants
-    stored in `feature_spec.joblib` under `aps_q_hat` and
-    `aps_q_by_group` (same fallback structure as regression Mondrian:
-    AIS grade → paralysis → marginal, groups with <8 cal samples
-    omitted).
-  - Existing `_conformal_q` and `_compute_mondrian_q` helpers reused
-    directly — APS scores are just another nonconformity measure.
-  - Test-set APS metrics reported in `training_metrics.json`:
-    `aps_q_hat`, `aps_coverage_80`, `aps_avg_set_size`,
-    `aps_mondrian_coverage` (per-group breakdown).
-* **Dashboard side** (`dashboard/app.py`):
-  - `_resolve_conformal_q()` refactored: common Mondrian resolution
-    logic extracted into `_resolve_group_q(q_by_group, marginal, X)`,
-    called by both `_resolve_conformal_q` (regression) and new
-    `_resolve_aps_q` (classification).  `_aps_prediction_set()` also
-    added to app.py for inference.
-  - `_fig_class_probabilities()` gains optional `conformal_set`
-    parameter: bars in the set get solid accent color; bars outside get
-    muted `rgba(17,122,139,0.18)`.  Backward-compatible (default=None).
-  - `_simulate_multiclass()` and `_patient_multiclass()` both compute
-    the APS conformal set using Mondrian q resolution and display it in
-    the readout as "80% prediction set (APS) : {C, D}" and in the bar
-    chart via the muted/solid visual distinction.
-  - `_perf_block_multiclass()` extended: shows APS coverage, avg set
-    size, and per-group (AIS + paralysis) Mondrian breakdown in the
-    Methods tab.  Backward-compatible: checks for `aps_q_hat` presence
-    in metrics before rendering.
-* New UI string: `sim_conformal_set` (ja: "80%予測集合 (APS)",
-  en: "80% prediction set (APS)").
-* **APS metrics (SCIM test set, n=126):**
-  - Marginal q_hat=0.917, coverage=99% (exceeds 80% — conservative for
-    K=5 due to discrete APS score distribution), avg set size=2.77.
-  - Per-AIS Mondrian q: A=0.944, C=0.865, D=0.917.  AIS-C gets the
-    tightest sets (motor-incomplete outcomes most predictable); AIS-A
-    gets the widest (complete injuries most uncertain).
-  - Per-AIS test set sizes: A=3.9, B=3.5, C=2.8, D=2.3, E=2.0.
-    AIS-D patients typically get 2-class sets; AIS-A patients typically
-    get 4-class sets.
-  - Point accuracy slightly lower (0.683 vs 0.714 previously) due to
-    smaller dev training set (calibration carved out); CV unchanged
-    (0.669).  Shipped model is refitted on all data — test metrics
-    reflect the weaker dev model, not the shipped model.
-* Verification: full pipeline `uv run python -m rehab_sci.models.train`
-  + `subgroups`; dashboard HTTP 200 on `/`, `/_dash-layout`,
-  `/_dash-dependencies`.  Smoke tests confirm: (1) APS set displayed
-  in simulator + patient explorer readouts, (2) bar chart solid/muted
-  distinction correct, (3) Mondrian fallback B→TETRA works, (4)
-  Methods tab shows per-group APS metrics, (5) bilingual labels correct.
-
-### 2026-05-24 (session 10, F4 multi-outcome insight + patient explorer shipped)
-
-* Shipped **F4 Multi-outcome insight engine + patient explorer**.
-* **Insight engine** gains an outcome selector (`ins-outcome` dropdown)
-  controlling all three panels:
-  - **Global SHAP importance**: moved from inline static rendering to a
-    callback (`update_importance`); now shows the top-15 features for the
-    selected outcome.
-  - **Subgroup comparison**: `update_subgroup` now dispatches to the
-    selected outcome's subgroups data and target column; box-plot y-axis
-    shows the outcome's display label.
-  - **SHAP dependence**: `update_dependence` uses the selected outcome's
-    SHAP bundle; feature dropdown updates per outcome via
-    `update_dep_feature_options`.  For multiclass (AIS), the dependence
-    panel shows a "regression only" note instead of a broken plot.
-* **Patient explorer** gains an outcome selector (`patient-outcome`
-  dropdown) in the picker card.  `_compute_patient_tab` accepts
-  `outcome_key` and branches:
-  - **Regression outcomes**: prediction readout shows value ± PI,
-    observed value, residual; `fig_patient_prediction` uses the outcome's
-    `clip_min`/`clip_max`/label for the x-axis range.
-  - **Multiclass (AIS)**: shows class-probability bar chart and SHAP for
-    the predicted class; observed value mapped back to letter via
-    `AIS_ORD_TO_LETTER`.
-  - Timeline chart remains SCIM-based (the only longitudinal measure).
-* **`models/subgroups.py`** — `main()` now iterates over all six
-  `OUTCOMES` and writes a multi-keyed `subgroups.json`:
-  `{"scim_total": {...}, "ais_discharge": {...}, ...}`.
-  `run_all_subgroups` is unchanged; the loop happens in `main()`.
-  Backward-compatible loading in `app.py` handles both old flat and new
-  keyed formats.
-* **`dashboard/figures.py`** — `fig_subgroup_box` gains `outcome_col`
-  and `outcome_label` params (defaults preserve backward compat).
-  `fig_patient_prediction` gains `clip_min`, `clip_max`, `axis_label`
-  params (defaults preserve backward compat).
-* New UI strings: `insight_outcome_label`, `insight_dependence_regression_only`,
-  `patient_outcome_label`.
-* New helpers in `app.py`: `_insight_outcome_options(lang)`,
-  `_get_observed_for_outcome(key_record, spec)`,
-  `_patient_regression(bundle, X, key_record, lang)`,
-  `_patient_multiclass(bundle, X, key_record, lang)`.
-* New callbacks: `update_insight_outcome_options`, `update_importance`,
-  `update_dep_feature_options`.  Modified callbacks: `update_subgroup`,
-  `update_dependence`, `update_patient_tab`.
-* Verification: `uv run python -m rehab_sci.models.subgroups` produces
-  all six outcome blocks; dashboard HTTP 200 on `/`, `/_dash-layout`,
-  `/_dash-dependencies`.  Smoke test confirms all six outcomes produce
-  correct predictions in both patient explorer and insight engine.
-
-### 2026-05-24 (session 9, F3 Mondrian conformal shipped)
-
-* Shipped **F3 Mondrian per-AIS / per-paralysis conformal calibration**
-  for all five regression heads.
-* New helpers in `models/train.py`: `_conformal_q()` (refactored from
-  inline), `_compute_mondrian_q()`, `_resolve_mondrian_q_array()`,
-  `_mondrian_test_coverage()`.  Constants: `AIS_ORD_TO_LETTER`,
-  `MONDRIAN_MIN_N=8`.
-* `_train_regression()` now: (1) computes per-group conformal q on the
-  calibration fold (AIS grades + paralysis classes, each with ≥8
-  samples), (2) stores the dict in `feature_spec.joblib` under
-  `conformal_q_by_group`, (3) evaluates test-set coverage using the
-  Mondrian q's (each test point gets its group-specific q), (4) reports
-  per-group coverage in `training_metrics.json`.
-* `dashboard/app.py` gains `_resolve_conformal_q(fspec, X)` — priority:
-  AIS group → paralysis group → marginal.  Both the simulator and
-  patient-explorer inference paths now use the resolved q instead of
-  the marginal.
-* Methods tab `_perf_block_regression` extended with per-group Mondrian
-  coverage line (bilingual).
-* **Per-outcome Mondrian q values (SCIM total):** A=17.8, C=35.7,
-  D=18.0; Paralysis: TETRA=25.5, PARA=24.6; marginal=24.6.  AIS-C
-  (motor-incomplete) gets a 2× wider PI than AIS-D — clinically
-  correct.  AIS-B and E omitted (≤4 cal samples, fall back to
-  paralysis or marginal).
-* Marginal test coverage preserved identically (83 % for SCIM total).
-  Mondrian overall coverage = 80 % (slightly lower because per-group
-  q's redistribute width).  Per-group test coverage: D=83 %(n=48),
-  C=91 %(n=23), A=67 %(n=18), B=71 %(n=7).  Small-group (A, B)
-  undercoverage is a finite-sample artifact of ~8-cal-sample groups.
-* Verification: full `uv run python -m rehab_sci.models.train`
-  reproduces all metrics; dashboard HTTP 200 on `/`, `/_dash-layout`,
-  `/_dash-dependencies`.  Smoke test confirms AIS-D PI width=36 vs
-  AIS-C PI width=71 (was 49 for both with marginal q).
-
-### 2026-05-24 (session 8, CLAUDE.md update response)
-
-* User updated `CLAUDE.md` with several new/expanded directives.  Key
-  additions: (a) memory/scratchpad system mandate, (b) reusable session
-  prompt requirement, (c) directory-scoping constraint, (d) CLAUDE.md
-  modification freedom (previously required user approval), (e) testing
-  philosophy, (f) KISS/UNIX/overengineering guidance, (g) expanded
-  security audit + reasoning methodology directives.
-* Updated §0 to remove the outdated "requires user approval to modify"
-  note about CLAUDE.md, and added a reminder to keep AGENT_NOTES
-  accurate and pruned.
-* Added §0b "Lessons & mistakes" section, consolidating past mistakes
-  from session logs into a dedicated section for quick reference.
-* Emitted the reusable session prompt for future sessions.
-* No code changes this session — pure documentation/process.
-
-### 2026-05-18 (session 7, F2 multi-outcome prediction shipped)
-
-* Shipped **F2 multi-outcome prediction** — `train.py` now trains six
-  heads in a single run; the simulator gets an outcome selector; the
-  Methods tab reports per-outcome metrics.  WISCI stays dropped
-  (n=50 too sparse, decided session 6).
-* Six heads, in registry order:
-  - **SCIM-III total** (regression, 0–100) — R²=0.696, RMSE=18.92,
-    conformal80=83 % (identical to the pre-refactor single-outcome
-    run — confirms the refactor preserves invariants).
-  - **SCIM self-care** (0–20) — R²=0.666, RMSE=4.08, conformal80=77 %.
-  - **SCIM resp/sphincter** (0–40) — R²=0.618, RMSE=8.10, conformal80=81 %.
-  - **SCIM mobility** (0–40) — R²=0.695, RMSE=8.39, conformal80=82 %.
-  - **AIS at discharge** (multiclass A→E, n=628) — accuracy=0.714,
-    quadratic-weighted κ=0.772 ("substantial" by Landis-Koch),
-    ordinal-MAE=0.365 (most errors within ±0 or ±1 grade).
-  - **LOS in days** (regression, log1p transform, n=668) — R²=0.215,
-    RMSE=110 d, conformal80=81 %.  Genuinely hard outcome at admission;
-    the calibrated PI is the operational deliverable, not the point R².
-* New module `src/rehab_sci/models/outcomes.py` with `OutcomeSpec`
-  dataclass + `OUTCOMES` ordered tuple.  Single source of truth: both
-  `train.py` and `dashboard/app.py` import this.
-* `train.py` rewritten as `_train_regression(spec, …)` and
-  `_train_multiclass(spec, …)` over a shared `_prep` + helper
-  surface.  Regression path: CV → grouped holdout → calibration
-  fold → split conformal → final refit on all data → TreeSHAP on
-  test set.  Multiclass path: CV → grouped holdout (no separate
-  calibration — no conformal sets this session) → final refit →
-  multiclass TreeSHAP (3-D tensor `(n, p, K=5)`).
-* `data/dataset.py::build_episode_frame()` now pulls SCIM subscales
-  at the `discharge` timepoint (`y_discharge_scim_{self_care,
-  resp_sphincter, mobility}`) the same way it pulls `y_discharge_scim`.
-* Artifacts re-organized to per-outcome subdirectories
-  (`models/scim_total/…`, `models/ais_discharge/…`, etc.).  The
-  top-level `models/feature_spec.joblib` is now the *shared* feature
-  universe only (no model-specific fields).  `training_metrics.json`
-  is `{"outcomes": {key: {cv, test, …}}, "outcome_keys": […]}`.
-* Dashboard simulator gets a `dcc.Dropdown(id="sim-outcome")` above
-  the readout.  The callback dispatches on `bundle["task"]` — the
-  regression branch renders the existing horizontal PI bar
-  (re-parametrized with the outcome's display label / units / clip
-  range / transform); the multiclass branch renders a 5-bar
-  class-probability chart and a SHAP plot for the predicted class.
-* Methods tab now loops over outcomes and renders a per-outcome
-  performance card.  Six new `outcome_*` keys + `sim_outcome_label`
-  + `sim_class_probabilities` + `sim_predicted_class_label` +
-  `methods_per_outcome_heading` in `ui_strings.yaml`.  Both JA and
-  EN labels.
-* Patient explorer continues to predict SCIM-III total only.
-  Extending it to all outcomes is a clean follow-up (see new §8 F4
-  candidate) but out of F2 scope.
-* Insight engine (global SHAP, dependence) is anchored on
-  SCIM-total.  Per-outcome variant also deferred to F4 candidate.
-* CSS additions to `assets/style.css`: `.sim-outcome-selector`
-  (dropdown above readout with hairline divider) and
-  `.methods-perf-card` (per-outcome perf block).
-* `subgroups.py` was *not* touched this session — it still compares
-  every feature against `y_discharge_scim`.  Extending it to all
-  outcomes is also out of F2 scope; subgroup discovery against AIS
-  or LOS would be a useful F4-tier follow-up.
-* Verification: full pipeline `uv run python -m rehab_sci.models.train`
-  produced metrics in the table above; dashboard `uv run python -m
-  rehab_sci.dashboard.app` serves HTTP 200 on `/`, `/_dash-layout`,
-  and `/_dash-dependencies`.  Python-level dispatch smoke test
-  confirms all six heads return plausible predictions on the
-  default-feature row (e.g., LOS=208 d with PI 82–468, AIS=D 71 %).
-* Open items rolled forward:
-  - **F3 Mondrian per-AIS / per-paralysis conformal calibration** —
-    now top of the §8 default-work pool.
-  - **F4 candidate: extend insight engine + patient explorer to
-    multi-outcome.**  Insight global SHAP + subgroup box + SHAP
-    dependence should accept an outcome selector; patient explorer
-    should let the clinician pick which outcome to predict for the
-    chosen episode.  Estimated medium effort (UI surface).
-  - **F5 candidate: APS / RAPS conformal classification sets for
-    AIS.**  Multiclass head currently returns probabilities only.
-  - Pytest smoke suite (still un-done, still low priority).
-
-### 2026-05-18 (session 6, loader sanity check + ghost-episode filter)
-
-* User redirected from F2 to first investigate the two §1 anomalies
-  flagged at end-of-session-5: the 328 NaN-`IDNumber` episodes and the
-  301 all-NaN-admission episodes.  Goal: decide whether they are a
-  loader bug or a data-quality artefact, then act accordingly.
-* Probe ran in two passes (no on-disk artefacts; everything via
-  `uv run python -` heredoc).  Findings:
-  - **Loader is correct.**  The raw CSV ships 8 502 rows with
-    `IDNumber = '_'` (correctly parsed to NaN by the loader's
-    `na_values=["", "_", "NA"]`).  8 502 / 26 = 327 episodes; the +1
-    drift to 328 traces to `KeyRecord 446` whose raw `IDNumber` is the
-    literal `'6641/10/15'` — coerced to NaN by
-    `pd.to_numeric(errors="coerce")` because the schema declares
-    `IDNumber: numeric`.
-  - **The 301 all-NaN-admission episodes are pure placeholder rows.**
-    Strict subset of the 328 NaN-id set.  Across their 7 826
-    long-frame rows, only 25 of 234 non-structural columns ever hold a
-    value, and 22 of those 25 have a total of 26 non-null cells across
-    7 826 rows (rounding error).  The only consistently populated
-    columns are `BusinessYear`, `AnualCaseNumber`, `mFrankel_Frankel`
-    (= `_/_`).  Zero of these 301 have a discharge SCIM / AIS / WISCI
-    or a `LOS_days`.  Unusable for any task.
-  - **27 partial-id orphans** have admission features but no IDNumber.
-    Training already drops them via `dropna(IDNumber)`; the patient
-    explorer's picker already drops them via the same.
-  - **`LOS_days` is real and well-covered**: 682 / 1 200 episodes
-    (median 139 d, range 1–788), already pulled directly from
-    `入院期間`.  F2 LOS outcome viable.
-  - **WISCI is too sparse for F2**: only 50 episodes have a discharge
-    WISCI (`y_discharge_wisci`).  F2 should drop or de-prioritize it.
-* User chose "filter at loader, document".  Implemented as
-  `_identify_ghost_episodes(ep, ADMISSION_FEATURES)` inside
-  `data/dataset.py`; called by `build_analysis_dataset()` after
-  `build_episode_frame()` to drop matching `KeyRecordNumber`s from
-  both `ep` and `long_df` (`reset_index(drop=True)` on both).  Module
-  docstring updated to describe the rule.
-* Re-ran `models.subgroups` and `models.train` on the filtered
-  dataset.  **Training metrics identical** (training rows = 498,
-  R²=0.696, RMSE=18.92, MAE=13.70, conformal-80 = 83 %, top SHAP
-  features unchanged) — confirming the ghosts were already excluded
-  via `dropna(IDNumber, outcome)` and the filter only fixes the
-  cohort-level n.  `n_episodes_total` in `training_metrics.json` will
-  now read 899 instead of 1 200.
-* Dashboard served HTTP 200 on `:8050` post-filter; `_dash-layout` and
-  `_dash-dependencies` endpoints both 200; no tracebacks in the
-  server log.  Cohort `episodes_n` value sourced from `len(EP)` will
-  now display 899.
-* §1 invariants rewritten to reflect the post-filter universe and to
-  correct the prior session's bogus `_apply_missing_sentinels`
-  reference (no such function — sentinels are NaN'd via two real
-  mechanisms documented inline).
-* README §2 episode-frame paragraph rewritten to explain the
-  ghost-filter rule and the 899/866 post-filter counts.  README
-  trained-model n (498) unchanged.
-* Open items rolled forward:
-  - **F2 multi-outcome prediction** — still next default work.
-    **Caveat from this session:** WISCI's n=50 is below any reasonable
-    regression power; F2 should drop WISCI from the outcome set, or
-    treat it as a classification-of-walker-status proxy if we want it
-    at all.  AIS (n=638), per-subscale SCIM (≈507), and LOS (n=682)
-    remain viable.
-  - **F3 Mondrian per-AIS / per-paralysis conformal** — third in §8.
-  - Pytest smoke suite (still low priority per session-5 user
-    direction).
-
-### 2026-05-18 (session 5, F1 patient explorer shipped)
-
-* Shipped **F1 Patient explorer tab** end-to-end.  New tab between
-  the simulator and insight engine; bilingual; user-driven picker.
-* New module `src/rehab_sci/data/episodes.py` with:
-  - `PATIENT_TIMELINE` (the 11-point sequence `0day → discharge`,
-    matching `fig_recovery_curves`; later timepoints are too sparse).
-  - `list_patient_options(ep)` → ordered patient picker rows
-    (`PatientOption` with id_number, n_episodes, age, sex, paralysis,
-    ais_admit, key_records).
-  - `patient_timeline(long_df, key_record)` → per-timepoint frame
-    re-indexed to `PATIENT_TIMELINE` (so gaps render as gaps).
-  - `patient_meta(ep, key_record)` → demographics + admission + outcome
-    summary dict used by the meta-chip strip.
-  - `episode_admission_features(ep, key_record, feature_cols)` →
-    dict-of-features for building the model input row.
-  - `cohort_percentile_bands(long_df, ep, value_col, group_keys, min_n=5)`
-    → per-(timepoint × admission-strata) p10/p25/p50/p75/p90 + n.
-    **Key gotcha:** the long frame carries per-row copies of demographics
-    /injury fields, so the inner-join is renamed to `_band_<key>` before
-    merging to avoid `_x`/`_y` suffix collisions.
-* New figure factories in `dashboard/figures.py`:
-  - `fig_patient_scim_timeline(long_df, ep, key_record, strata, schema, lang)`
-    — SCIM-III total + subscale lines (subscales `visible="legendonly"`
-    by default so they don't clutter), overlaid on cohort `p10–p90` +
-    `p25–p75` ribbons and a dashed cohort median.  Falls back from
-    `para_ais` → `para` if the patient's admission AIS is null.
-  - `fig_patient_prediction(pred, lo, hi, observed, ...)` — PI bar +
-    predicted-median diamond + observed crimson X.
-  - `_hex_to_rgba(hex_color, alpha)` helper (was inlined elsewhere).
-* `dashboard/app.py`:
-  - New tab `dcc.Tab(value="patient", ...)` and `render_patient(lang)`.
-  - `_compute_patient_tab(key_record, strata, lang)` is a plain
-    function the `@callback` delegates to — keeps the business logic
-    directly callable for tests/probes.  Handy because Dash's
-    `@callback`-wrapped functions can't be invoked from Python without
-    a Dash request context.
-  - Callbacks: `update_patient_picker` (refreshes options on lang
-    change), `reset_episode_on_patient_change` (auto-picks the first
-    episode of the chosen patient), `update_patient_tab` (renders the
-    7 outputs: meta strip + timeline + ISNCSCI table + prediction
-    readout + prediction figure + SHAP figure + footer note).
-* New UI strings in `schema/ui_strings.yaml` (`tab_patient`,
-  `patient_*`).  AIS in the picker label is shown as the letter only
-  (e.g. `AIS D`) — using the level_label gives `AIS D (運動不全)`
-  which double-prefixes when concatenated.  Picker labels were also
-  shortened (TETRA→四麻/Tetra, age suffix dropped to 歳/y) so all 866
-  entries fit on one line at 320 px sidebar width.
-* CSS additions to `assets/style.css`: `.patient-grid` (sticky picker
-  card + content column), `.patient-meta-chip`, `.patient-isncsci-table`,
-  `.patient-pred-readout/.patient-pred-empty`, dropdown menu
-  hardening (`white-space:nowrap`, hairline row separator, focused-row
-  accent-soft background, `optionHeight=36` on the Dropdown component).
-* Browser verification: user drove the tab in a real browser; **single
-  defect surfaced** — clicking the patient ID dropdown produced
-  multi-line option wraps that blended into each other.  Root cause:
-  default Dash Dropdown row height (35 px) is shorter than a wrapped
-  long Japanese+ASCII label, so adjacent rows overlapped.  Fix: short
-  one-line labels + `optionHeight=36` + the CSS hardening above.
-* Behavioural observations recorded in §1 invariants (866 patients,
-  328 NaN-id episodes, 301 all-NaN-admission episodes).
-* Open items rolled forward:
-  - **F2 Multi-outcome prediction** (subscales + AIS + WISCI + LOS) —
-    next default-work item.
-  - **F3 Mondrian per-AIS / per-paralysis conformal calibration** —
-    third in the §8 backlog.
-  - Investigate the 328 NaN-id and 301 all-NaN-admission episodes —
-    are they truly feature-less or is the loader dropping signal?
-  - Pytest smoke suite (still un-done; the QA loop continues to catch
-    real bugs that tests would not have caught, so this remains low
-    priority for now per user direction).
-
-### 2026-05-18 (session 4, pivot to feature backlog)
-
-* User redirected the project's default-work pool away from maintenance
-  tasks (pytest suite, CI, second exhaustive browser-QA pass) and toward
-  features.  Per user decision, the historical "Open items rolled
-  forward" lists from sessions 1–3 are now **superseded**; future fresh
-  sessions must propose work from §8 unless the user redirects.
-* Added §8 "Feature backlog" with three Tier-A candidates, in priority
-  order:
-  - **F1** Patient explorer tab.
-  - **F2** Multi-outcome prediction (subscales + AIS + WISCI + LOS).
-  - **F3** Mondrian per-AIS / per-paralysis conformal calibration.
-* Added a §0 "Read-first" pointer naming §8 as the default-work pool and
-  explicitly marking the older rolled-forward open items as history.
-* No code changes this session — pure roadmap edit.
-
-### 2026-05-18 (session 3, packaging refactor)
-
-* Converted the project to a real packaged uv project, eliminating the
-  `PYTHONPATH=src` launch quirk that had been carried since session 1.
-* `pyproject.toml` changes:
-  - Added `[build-system] requires = ["hatchling"]` /
-    `build-backend = "hatchling.build"`.
-  - Replaced `[tool.uv] package = false` with
-    `[tool.hatch.build.targets.wheel] packages = ["src/rehab_sci"]`
-    (explicit src-layout target — hatchling auto-detection would also
-    work for `rehab-sci` → `rehab_sci`, but explicit is safer).
-* `uv.lock` flipped `rehab-sci`'s source from `virtual = "."` to
-  `editable = "."`.  No transitive dep churn.
-* Verified all modules import without `PYTHONPATH=src`
-  (`rehab_sci.schema`, `data.loader`, `data.dataset`, `models.train`,
-  `models.subgroups`, `dashboard.{app,figures,theme,i18n}`); dashboard
-  serves HTTP 200 on `:8050` via plain
-  `uv run python -m rehab_sci.dashboard.app`.
-* §5 gotcha marked **RESOLVED**, historical wording preserved per the
-  "append; never delete" policy.
-* Open items rolled forward (unchanged from session 2):
-  - Pytest smoke + invariants suite (schema round-trip, ISNCSCI sums,
-    episode-frame shape 1200×N + 867 patients, `build_analysis_dataset()`
-    end-to-end, loadability of `models/*.joblib`, shape of
-    `subgroups.json`).  Now the highest-priority deferred work.
-  - CI (after tests exist).
-  - Mondrian per-AIS conformal for per-subgroup coverage.
-  - Second browser-QA pass for other Plotly silent-failure traps and
-    JA/EN parity bugs.
-
-### 2026-05-18 (session 2, first browser QA pass)
-
-* User drove the dashboard in a real browser (JA + EN).  Single defect
-  surfaced: **Cohort overview → Injury hierarchy** sunburst rendered as
-  blank white space in both languages.
-* Root cause: `fig_injury_sunburst` used `branchvalues="total"` but
-  assigned `value=0` to every parent ring (para, AIS) and only the leaf
-  count to the NLI ring.  Plotly's "total" mode requires parent =
-  Σchildren, so it silently refused to draw.  Fix accumulates each
-  leaf count into all three ancestors via an `_upsert` helper; verified
-  by hand: 122 nodes, top-ring totals 699/139/4 = 842 (= `sub.shape[0]`
-  after `dropna`), zero parent/child mismatches.
-* Documented two new recurring gotchas in §5: the `PYTHONPATH=src`
-  launch requirement (because `pyproject.toml` has
-  `[tool.uv] package = false`) and the Plotly sunburst `branchvalues`
-  trap.
-* Open items rolled forward:
-  - Convert the project to a real packaged uv project so
-    `PYTHONPATH=src` is no longer needed.  Deferred — touches build
-    system, low urgency.
-  - Pytest smoke + invariants (schema round-trip, ISNCSCI sums,
-    episode-frame shape 1200×N + 867 patients, `build_analysis_dataset()`
-    end-to-end).  Still un-done; the QA session uncovered a defect a
-    test would not have caught (Plotly visual), so the test suite is
-    still worth doing as a separate session.
-  - CI (after tests exist).
-  - Mondrian per-AIS conformal for per-subgroup coverage.
-
-### 2026-05-18 (session 1, initial build)
-
-* Built phases 1–3 end-to-end.
-* Initial commit `6ffab8a`.
-* Fixed Holm step-down bug (`min` → `max`); regenerated `subgroups.json`.
-* Open items:
-  - Visual QA of the dashboard in a real browser (probes return HTTP 200
-    but no human has eyeballed it yet).
-  - No tests yet.  Consider a minimal `pytest` covering schema round-trip,
-    ISNCSCI sums, episode frame shape, and an end-to-end smoke of
-    `build_analysis_dataset()`.
-  - No CI yet.
-  - Conformal calibration on n=80 is small; a larger calibration set or
-    Mondrian per-AIS conformal could give per-subgroup coverage.
-
-## 8. Feature backlog
-
-Default-work pool for fresh sessions.  Propose from this list unless the
-user redirects.  Each entry: **what / why / effort / files / data
-dependency**.  Ordered by recommended start order (F1 first).
-
-### F1. Patient explorer tab — **STATUS: shipped (session 5, 2026-05-18)**
-
-* **What:** New dashboard tab.  Pick a `KeyRecordNumber` (or `IDNumber`
-  for multi-episode patients) and see that patient's observed timeline —
-  SCIM total + subscales, AIS, ISNCSCI summaries at every timepoint —
-  overlaid on cohort percentile bands stratified by paralysis / AIS.
-  For episodes with an admission row, also overlay the model's predicted
-  discharge SCIM ± 80 % PI and the local SHAP attribution for this
-  patient.
-* **Why:** The dashboard today is cohort + hypothetical-patient.
-  Clinicians' first question is *"what does this tool say about my real
-  patient X?"*  Largest UX gap.
-* **Effort:** medium (~1 session).
-* **Files:** `dashboard/app.py` (new tab + callbacks),
-  `dashboard/figures.py` (timeline + percentile bands), possibly new
-  `data/episodes.py::patient_view()` to aggregate one patient's rows.
-* **Data dependency:** existing long + episode frames; no new ingestion.
-
-### F2. Multi-outcome prediction — **STATUS: shipped (session 7, 2026-05-18)**
-
-* **What was built:** Six prediction heads driven by a single outcome
-  registry (`models/outcomes.py::OUTCOMES`).  SCIM-III total + the three
-  subscales (self-care 0–20, resp/sphincter 0–40, mobility 0–40) +
-  AIS at discharge (multiclass A→E with `class_weight="balanced"`) +
-  LOS in days (regression with `log1p` transform).  `train.py`
-  iterates the registry; each head writes its own subdirectory under
-  `models/{spec.key}/` (median + p10/p90 + feature_spec + shap_test,
-  or the multiclass equivalent).  Dashboard simulator gains an
-  outcome dropdown; multiclass renders a class-probability bar chart
-  instead of a PI bar.  Methods tab loops over outcomes.
-* **Metrics summary** (test split):
-  - scim_total: R²=0.696, RMSE=18.92, conformal80=83 %
-  - scim_self_care: R²=0.666, RMSE=4.08, conformal80=77 %
-  - scim_resp_sphincter: R²=0.618, RMSE=8.10, conformal80=81 %
-  - scim_mobility: R²=0.695, RMSE=8.39, conformal80=82 %
-  - ais_discharge: accuracy=0.714, κ_quad=0.772, ordMAE=0.365
-  - los_days: R²=0.215, RMSE=110 d, conformal80=81 %
-* **WISCI** stayed dropped (50 episodes — below regression power).
-* **Out of scope for F2 (rolled forward as F4 / F5):** patient
-  explorer multi-outcome support, insight engine multi-outcome
-  support, conformal classification sets for AIS, subgroup discovery
-  for non-SCIM outcomes.
-
-### F3. Mondrian per-AIS / per-paralysis conformal — **STATUS: shipped (session 9, 2026-05-24)**
-
-* **What was built:** Per-AIS-grade and per-paralysis-class conformal
-  quantiles for all five regression heads.  `feature_spec.joblib` now
-  carries `conformal_q_by_group` with AIS and paralysis sub-dicts plus
-  a marginal fallback.  Groups with <8 calibration samples are omitted;
-  inference resolves AIS → paralysis → marginal.  Dashboard simulator
-  and patient explorer both use the resolved q.  Methods tab reports
-  per-group test-set coverage.
-* **Key finding:** AIS-C (motor-incomplete) gets ~2× wider PI than
-  AIS-D across all SCIM outcomes — clinically correct and previously
-  hidden by the marginal.  LOS q values are similar across AIS groups
-  on the log scale.
-* **Metrics (SCIM total):** AIS-D q=18.0 (PI width=36), AIS-C q=35.7
-  (PI width=71), marginal q=24.6 (was PI width=49 for everyone).
-  Mondrian overall test coverage=80 %; per-group: D=83 %(n=48),
-  C=91 %(n=23), A=67 %(n=18).  Small-group undercoverage is a known
-  artifact of n_cal≈8; acceptable given the dominant-group improvement.
-
-### F4. Multi-outcome insight engine + patient explorer — **STATUS: shipped (session 10, 2026-05-24)**
-
-* **What was built:** Outcome selector added to both the insight engine
-  and the patient explorer tabs.  Insight engine's global SHAP
-  importance, subgroup box, and SHAP dependence all respond to the
-  selected outcome.  Patient explorer predicts whichever outcome the
-  clinician picks — regression outcomes show PI bar + residual;
-  multiclass (AIS) shows class-probability chart.  `subgroups.py` now
-  runs discovery for all six outcomes, producing a multi-keyed
-  `subgroups.json`.  SHAP dependence is disabled for multiclass (3-D
-  SHAP tensor needs a class selector — deferred).
-* **Files changed:** `dashboard/app.py` (selectors, callbacks,
-  helpers), `dashboard/figures.py` (`fig_subgroup_box`,
-  `fig_patient_prediction` parameterized), `models/subgroups.py`
-  (multi-outcome loop), `schema/ui_strings.yaml` (3 new keys).
-
-### F5. APS conformal classification sets for AIS — **STATUS: shipped (session 11, 2026-05-24)**
-
-* **What was built:** APS (Adaptive Prediction Sets) conformal
-  classification sets for the AIS multiclass head.  A calibration fold
-  is carved from the dev set (same as regression); APS nonconformity
-  scores are computed on it; the ⌈(n+1)(1-α)⌉-th quantile becomes
-  `q_hat`.  Mondrian per-AIS/per-paralysis `q_hat` variants give
-  tighter sets for well-predicted groups (C) and wider sets for
-  uncertain groups (A).  Dashboard renders the prediction set in both
-  the simulator and patient explorer, with solid/muted bar coloring.
-  Methods tab reports coverage + avg set size per group.
-* **Key finding:** APS coverage is 99% (vs 80% target) because K=5
-  produces discrete APS scores; the ⌈(n+1)·0.8⌉ quantile overshoots.
-  This is the expected conservative behavior for small K.  Average set
-  size is 2.77, with AIS-D patients getting ~2-class sets and AIS-A
-  patients getting ~4-class sets.
-* **Metrics:** q_hat=0.917; per-AIS q: A=0.944, C=0.865, D=0.917.
-  Test accuracy=0.683 (dev model on smaller training set), CV=0.669
-  (unchanged).
-* **Files changed:** `models/train.py` (APS helpers + calibration
-  fold), `dashboard/app.py` (q resolution refactor + set rendering),
-  `schema/ui_strings.yaml` (1 new key).
-
-### F6. SHAP class selector for AIS multiclass dependence — **STATUS: shipped (session 12, 2026-05-24)**
-
-* **What was built:** A class selector dropdown (A/B/C/D/E) added to
-  the insight engine's SHAP dependence panel.  When the user selects
-  the AIS discharge outcome, the class dropdown appears alongside the
-  feature dropdown; selecting a class slices the 3-D SHAP tensor
-  `(n, p, K=5)` at the chosen class axis and renders the standard
-  dependence scatter/box plot.  For regression outcomes the class
-  dropdown is hidden.  `fig_dependence` now supports an optional
-  `class_idx` keyword parameter.
-* **Key finding:** Per-class SHAP dependence patterns differ
-  meaningfully — e.g., age has 3.7× higher mean |SHAP| for AIS-C vs
-  AIS-A.  The selector is informative, not cosmetic.
-* **Files changed:** `dashboard/figures.py` (`fig_dependence`
-  signature), `dashboard/app.py` (layout + 1 new callback + 1 modified
-  callback), `schema/ui_strings.yaml` (1 new key).
-
-### F7. Recovery trajectory forecasting — **STATUS: shipped (session 13, 2026-05-24)**
-
-* **What was built:** 9 LightGBM regression models predicting SCIM-III
-  total at intermediate timepoints (72h through 6m) from the same 32
-  admission features used by discharge models.  Bundled in a single
-  `models/trajectory/bundle.joblib` with per-timepoint median/p10/p90
-  models and Mondrian conformal PIs.  The patient explorer's timeline
-  chart now overlays the predicted recovery trajectory (dashed line +
-  PI ribbon) alongside the observed SCIM and cohort percentile bands.
-  The simulator gains a standalone trajectory chart.  The Methods tab
-  shows a per-timepoint metrics table.
-* **Why:** Clinicians' key question is not just "what will the discharge
-  outcome be?" but "what does the recovery trajectory look like?" and
-  "is this patient on track?"  The trajectory enables early detection
-  of stalled recovery at intermediate timepoints.
-* **Key finding:** R² peaks at 4w (0.724) and is lowest at 5m (0.364);
-  admission features are most predictive of 1-month outcomes and least
-  predictive of 5-month outcomes (intermediate events dominate).
-  Conformal q widens from 6.3 (72h, PI width ≈13) to 32.2 (6m,
-  PI width ≈64).  The trajectory's clinical value is the *shape* (when
-  does recovery plateau?) rather than per-timepoint point accuracy.
-* **Metrics:** See session 13 log for full per-timepoint table.
-* **Files changed:** `models/train.py` (TRAJECTORY_TIMEPOINTS +
-  `_train_trajectory()`), `dashboard/figures.py`
-  (`fig_patient_scim_timeline` trajectory param + `fig_sim_trajectory`),
-  `dashboard/app.py` (TRAJECTORY_BUNDLE load + `_predict_trajectory()` +
-  simulator 4th output + `_perf_block_trajectory()` + layout),
-  `schema/ui_strings.yaml` (2 new keys).
-
-### F8. Calibration & performance visualizations — **STATUS: shipped (session 14, 2026-05-24)**
-
-* **What was built:** Four visualization functions for the Methods tab's
-  per-outcome performance blocks.  Regression outcomes (5) get a
-  predicted-vs-observed scatter and a residual histogram.  The
-  multiclass outcome (AIS) gets a row-normalized confusion matrix
-  heatmap and a per-class calibration reliability diagram.  The
-  training pipeline now persists test-set `y_test`, `y_pred` (and
-  `y_pred_proba` for multiclass) in `shap_test.joblib`.  12 new
-  `dcc.Graph` components rendered statically at tab-switch time.
-* **Why:** Summary metrics (R², accuracy) are opaque.  Clinicians
-  reviewing the tool need to see *how* the model fails — systematic
-  bias at the extremes, class-specific miscalibration, residual
-  asymmetry.  Visual calibration is the foundation for clinical
-  credibility.
-* **Key observations (test set):**
-  - SCIM-total residuals: μ≈0, σ≈19; no systematic bias.
-  - AIS confusion: D→D dominates (59% of test); most errors are
-    ±1 grade (C↔D, D↔E).  A and B rarely confused with each other.
-  - AIS calibration: 5-bin reliability curves track the diagonal
-    reasonably for D (majority class); smaller classes show more
-    binning noise due to n.
-  - LOS pred-vs-observed: wider scatter (R²=0.215) with no clear
-    systematic bias; the conformal PI is the operational deliverable.
-* **Files changed:** `models/train.py` (2 edits: persist y_test/y_pred
-  in both `_train_regression` and `_train_multiclass`),
-  `dashboard/figures.py` (4 new functions: `fig_pred_vs_observed`,
-  `fig_residual_hist`, `fig_confusion_matrix`, `fig_calibration_curve`),
-  `dashboard/app.py` (2 modified functions: `_perf_block_regression`,
-  `_perf_block_multiclass`).
-
-### F9. What-if counterfactual explorer — **STATUS: shipped (session 15, 2026-05-24)**
-
-* **What was built:** A "What-if analysis" button on the patient
-  explorer that sends the patient's 32 admission features to the
-  simulator tab, pre-filling all inputs.  The simulator then shows
-  reference markers (crimson circle on PI bar, dashed line on trajectory)
-  and a delta readout so the clinician can edit features and immediately
-  see how predictions shift relative to the actual patient.  A banner
-  at the top of the simulator shows which patient is the reference, with
-  a "Clear comparison" button.  Reference data (features + predictions
-  for all 6 outcomes + trajectory) is stored in a session-scoped
-  `dcc.Store`.
-* **Why:** The simulator and patient explorer were disconnected.
-  Clinicians want to ask "what if this patient's AIS grade had been
-  different?" without manually re-entering 32 features.  The
-  counterfactual bridges the two tabs and enables treatment-scenario
-  exploration anchored to a real patient.
-* **Files changed:** `dashboard/app.py` (1 new store, 3 new callbacks,
-  2 modified callbacks, 1 new helper, 2 modified layout functions),
-  `dashboard/figures.py` (`fig_sim_trajectory` signature),
-  `dashboard/assets/style.css` (4 new style blocks),
-  `schema/ui_strings.yaml` (5 new keys).
-
-### F10. PDF patient report — **STATUS: shipped (session 16, 2026-05-24)**
-
-* **What was built:** A "PDF report" button on the patient explorer that
-  generates a bilingual 2-page PDF report for the current patient episode.
-  Page 1: demographics, all 6 discharge predictions (table with
-  prediction, PI, observed, APS set), and the SCIM-III recovery
-  trajectory chart.  Page 2: top-12 SHAP contribution bar chart for
-  SCIM-total, methodology summary, disclaimer footer.  Download
-  triggered via `dcc.Download` + `dcc.send_bytes`.
-* **Why:** The dashboard was view-only.  Clinicians need shareable
-  artifacts for rounds, referrals, and patient/family discussions.  The
-  PDF makes all shipped features (F1–F9) actionable outside the browser
-  session.
-* **Tech:** `fpdf2` for PDF assembly, IPAexGothic (system TTF) for CJK
-  text, `kaleido` (already installed) for Plotly→PNG chart embedding
-  at scale=2.  SHAP figure deep-copied with widened left margin (340px)
-  for label visibility at PDF render width (1000px).
-* **File sizes:** EN ~152 KB, JA ~167 KB (2 pages each).
-* **Files changed:** new `dashboard/report.py`, `dashboard/app.py`
-  (1 new callback, 1 `dcc.Download`, layout modified), `pyproject.toml`
-  (`fpdf2` dep), `dashboard/assets/style.css` (2 new style blocks),
-  `schema/ui_strings.yaml` (1 new key).
-
-### F13. SHAP interaction explorer — **STATUS: shipped (session 18, 2026-05-24)**
-
-* **What was built:** SHAP interaction values computed at training time
-  for all 6 outcomes (regression: 3-D `(n, p, p)`; multiclass: 4-D
-  `(n, p, p, K)`), persisted in `shap_test.joblib`, and surfaced in the
-  insight engine as two linked visualizations: (1) an upper-triangle
-  heatmap showing top 10 feature-pair interaction strengths by mean |φ|,
-  and (2) a two-feature interaction dependence scatter plot colored by
-  the second feature's value (Viridis for numeric, distinct traces for
-  categorical).  For multiclass (AIS discharge), both plots respect the
-  existing F6 class selector to show per-class interaction patterns.
-  Feature X/Y dropdowns default to the strongest interaction pair for the
-  selected outcome.
-* **Why:** Single-feature SHAP shows marginal contributions but hides
-  non-additive effects.  Clinicians benefit from seeing *how* features
-  amplify or suppress each other — e.g., age's negative impact on SCIM
-  is strongest when motor score is low (non-additive interaction), a
-  pattern invisible in marginal SHAP.
-* **Key finding:** Age × motor score (LEMS or TotalMotor) is the
-  dominant interaction across all functional outcomes (|φ|=0.33–1.12).
-  For AIS discharge classification, motor × sensory (LEMS ×
-  PinPrickTotal, |φ|=0.04) is primary — sensory modulates the
-  predictive signal from motor.  LOS interactions are weak (|φ|=0.03),
-  consistent with LOS being inherently hard to predict from admission
-  features.
-* **Files changed:** `models/train.py` (3 new helpers +
-  `_train_regression` and `_train_multiclass` extended),
-  `dashboard/figures.py` (2 new functions: `fig_interaction_heatmap`,
-  `fig_interaction_dependence`), `dashboard/app.py` (interaction card
-  in `render_insights` + 3 new callbacks), `schema/ui_strings.yaml`
-  (3 new keys).
-
-### F16. Patient similarity explorer — **STATUS: shipped (session 19, 2026-05-24)**
-
-* **What was built:** Gower distance-based K-nearest-neighbor explorer in
-  the patient tab.  For any selected patient, shows the 10 most similar
-  historical episodes by admission-feature similarity.  Regression
-  outcomes display a strip chart of neighbor outcomes overlaid on the
-  model's prediction + PI.  Multiclass (AIS) displays a bar chart
-  comparing neighbor grade distribution to the model's predicted
-  probabilities.  A compact table lists each neighbor's ID, age, AIS,
-  outcome, and similarity score.
-* **Why:** Model predictions need empirical grounding.  Clinicians trust
-  "patients like yours typically achieved X" more than a bare model
-  output.  The similarity explorer provides this anchor.
-* **Algorithm:** Gower distance on 32 admission features (numeric:
-  Manhattan/range, categorical: 0/1 match, missing: excluded).
-  `MIN_FEATURE_OVERLAP=5` prevents vacuous distance=0 for data-sparse
-  episodes.  Performance: <5ms for 899-episode KNN search.
-* **Files changed:** new `data/similarity.py`, `dashboard/figures.py`
-  (2 new functions), `dashboard/app.py` (1 new import, 1 new function,
-  1 extended function, 1 modified callback, layout), `schema/ui_strings.yaml`
-  (1 new key), `dashboard/assets/style.css` (5 new styles).
-
-### F18. Recovery archetype clustering — **STATUS: shipped (session 20, 2026-05-24)**
-
-* **What was built:** K-means clustering on predicted 10-point SCIM-III
-  recovery trajectories to discover recovery phenotypes.  Three archetypes
-  found (silhouette=0.451): limited recovery (n=334, severe/older, SCIM→14),
-  gradual recovery (n=301, moderate, SCIM→80), rapid recovery (n=237,
-  mild/younger, SCIM→100).  Cohort overview gains archetype trajectory
-  curves + AIS distribution stacked bar.  Patient explorer meta strip
-  gains a colored archetype chip.
-* **Why:** Clinicians benefit from data-driven phenotyping beyond simple
-  paralysis/AIS stratification.  The archetypes answer "what recovery
-  pattern does this patient belong to?" and provide empirical groupings
-  for outcome expectations and treatment planning.
-* **Algorithm:** Predicted trajectories from F7 trajectory models (9
-  timepoints) + F2 discharge model → 10-point vector per patient.
-  StandardScaler + k-means (k=3, selected by silhouette over k=3..5).
-  Archetypes ordered by discharge SCIM.  `assign_single()` enables
-  runtime assignment for new/hypothetical patients.
-* **Key finding:** Archetype 0 (limited) is strongly associated with AIS
-  A/C and high age (mean 70.7); archetype 2 (rapid) is 84% AIS D with
-  youngest cohort (mean 58.8).  AIS grade and age are the primary
-  separators of recovery phenotype — consistent with F13 SHAP interaction
-  findings (Age × LEMS is the dominant interaction).
-* **Files changed:** new `data/archetypes.py`, new `models/archetypes.py`,
-  `dashboard/figures.py` (2 new functions + 3 constants),
-  `dashboard/app.py` (1 new import, 1 startup load, 2 extended functions),
-  `schema/ui_strings.yaml` (3 new keys), `dashboard/assets/style.css`
-  (1 new style block).
-
-### F20. Proactive refactor of dashboard/app.py — **STATUS: shipped (session 21, 2026-05-24)**
-
-* **What was built:** Decomposed the 2,464-line `dashboard/app.py`
-  monolith into 9 files: `app.py` (entry point, 136), `state.py`
-  (globals, 77), `compute.py` (pure math, 266), `layout.py` (shared
-  components, 216), `tabs/overview.py` (115), `tabs/simulator.py` (373),
-  `tabs/patient.py` (657), `tabs/insights.py` (288), `tabs/methods.py`
-  (204).  Total: 2,332 lines, max file 657.  Acyclic dependency graph.
-  3 dead code items removed.  Zero behavioral changes.
-* **Why:** `app.py` had grown past the point where a single LLM session
-  could hold its full context while also reading AGENT_NOTES.md.
-  Decomposition reduces per-session context cost and makes future feature
-  additions cheaper (only read the relevant tab module).
-* **Files changed:** `dashboard/app.py` (rewritten), 7 new modules
-  (`state.py`, `compute.py`, `layout.py`, `tabs/__init__.py`,
-  `tabs/overview.py`, `tabs/simulator.py`, `tabs/patient.py`,
-  `tabs/insights.py`, `tabs/methods.py`).
-
-### F22. Overview cohort filtering — **STATUS: shipped (session 22, 2026-05-24)**
-
-* **What was built:** Interactive filter bar on the overview tab with
-  4 controls (AIS grade, paralysis type, age range, recovery archetype).
-  All 9 charts and 4 KPIs dynamically re-render on the filtered episode
-  subset.  AND logic across filters.  Empty multi-select = no filter.
-  Filtered archetype summaries recomputed from the subset; centroid
-  curves stay fixed.  "Showing X of Y" annotation when filtered.
-* **Why:** The overview showed the full 899-episode cohort with no way
-  to slice by subpopulation.  Clinicians need to compare e.g. "AIS-D
-  tetraplegics over 60" to the overall cohort for treatment planning.
-* **Architecture:** `render_overview` returns a layout shell (filter bar
-  + empty div).  `update_overview_content` callback responds to filter
-  inputs with `State(lang-store)` to avoid a race with `update_tab`.
-* **Files changed:** `dashboard/tabs/overview.py` (rewritten),
-  `dashboard/figures.py` (1-line guard), `schema/ui_strings.yaml`
-  (4 new keys), `dashboard/assets/style.css` (6 new style blocks).
+## 7. Session index (most recent first)
+
+One line per session; full detail is in Git history (`git log`, diffs).
+
+* **s22** — F22 overview cohort filtering (AIS/paralysis/age/archetype filter
+  bar drives all overview KPIs + charts; `update_overview_content` callback).
+* **s21** — F20 refactor: `dashboard/app.py` monolith → 9 files
+  (state/compute/layout + 5 tab modules); acyclic deps; zero behavior change.
+* **s20** — F18 recovery archetype clustering (k-means on predicted
+  trajectories; 3 archetypes; overview curves + patient chip).
+* **s19** — F16 patient similarity explorer (Gower-distance KNN over 32
+  admission features; neighbor outcome strip / AIS-distribution charts).
+* **s18** — F13 SHAP interaction explorer (interaction values at train time;
+  heatmap + 2-feature dependence in insight engine).
+* **s17** — F14 dependency audit + security update (pyarrow CVE; pandas 3 /
+  Dash 4 majors; transitive numba/llvmlite lower-bound pins; pip-audit added).
+* **s16** — F10 PDF patient report (fpdf2 + IPAexGothic + kaleido; bilingual
+  2-page report).
+* **s15** — F9 What-if counterfactual explorer (patient → simulator pre-fill +
+  reference overlays via `patient-ref` store).
+* **s14** — F8 calibration & performance visuals (Methods tab: pred-vs-obs,
+  residual hist, confusion matrix, reliability curve; persists y_test/y_pred).
+* **s13** — F7 recovery trajectory forecasting (9 intermediate-timepoint models
+  + Mondrian PIs; trajectory overlay on patient timeline + simulator).
+* **s12** — F6 SHAP class selector for AIS multiclass dependence (`class_idx`).
+* **s11** — F5 APS conformal classification sets for AIS (Mondrian q_hat).
+* **s10** — F4 multi-outcome insight engine + patient explorer (outcome
+  selector everywhere; subgroups for all 6 outcomes).
+* **s9** — F3 Mondrian per-AIS / per-paralysis conformal.
+* **s8** — CLAUDE.md update response (no feature).
+* **s7** — F2 multi-outcome prediction (6 heads via `OUTCOMES` registry;
+  per-outcome artifact dirs; simulator outcome dropdown).
+* **s6** — loader sanity check + ghost-episode filter (1 200 → 899 episodes).
+* **s5** — F1 patient explorer tab.
+* **s4** — pivot to feature backlog as default-work pool (supersedes earlier
+  "open items rolled forward" lists — treat those as history).
+* **s3** — packaging refactor: real hatchling uv package (drops `PYTHONPATH=src`).
+* **s2** — first browser QA pass; Plotly sunburst silent-failure fix.
+* **s1** — initial build: loader (cp932, sentinels, mFrankel split), schema
+  YAMLs, SCIM-total LightGBM + conformal + SHAP, Dash dashboard scaffold.
+
+## 8. Feature backlog (default-work pool)
+
+Propose from here unless the user redirects.  **All original items (F1–F22)
+are shipped** — see §7 for the session each landed in, and Git history for
+implementation detail.  Shipped ledger (terse, by feature number):
+
+* F1 patient explorer · F2 multi-outcome prediction · F3 Mondrian conformal ·
+  F4 multi-outcome insight engine + explorer · F5 APS classification sets ·
+  F6 SHAP class selector (AIS) · F7 recovery trajectory forecasting ·
+  F8 calibration & performance visuals · F9 What-if counterfactual explorer ·
+  F10 PDF patient report · F13 SHAP interaction explorer · F14 dependency
+  audit · F16 patient similarity explorer · F18 recovery archetype clustering ·
+  F20 app.py refactor · F22 overview cohort filtering.
+* (F11/F12/F15/F17/F19/F21 were never opened — numbering gaps only.)
+
+**Open items: none.**  Fresh sessions: propose new feature candidates or
+maintenance (security audit, dependency refresh, proactive refactor) and add
+them here with **what / why / effort / files / data dependency** before
+starting.
