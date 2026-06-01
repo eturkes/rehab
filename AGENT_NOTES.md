@@ -19,12 +19,12 @@ superseded, duplicated elsewhere, or has gone stale.
 * `SESSION_PROMPT.md` — reusable bootstrap prompt the user pastes to start a
   session.  Update if the workflow changes.
 * `README.md` — human-facing entry point.  Keep in sync with code.
-* `~/.claude/compaction.sh` — context-usage gauge (`pct used/window`), installed
+* `$HOME/.claude/compaction.sh` — context-usage gauge (`pct used/window`), installed
   globally (symlinked from the agents repo) and wired as the user's statusline in
-  `~/.claude/settings.json`; not in this repo.  Dual-mode keyed on
+  `$HOME/.claude/settings.json`; not in this repo.  Dual-mode keyed on
   `CLAUDE_CODE_SESSION_ID`: unset ⇒ statusline reads stdin JSON; set ⇒ run via Bash
   to read my own usage from the session transcript.  Per CLAUDE.md, wrap to a clean
-  boundary at ≥90 % for a manual `/compact`.  Any edit must keep both modes.
+  boundary at ≥80 % for a manual `/compact`.  Any edit must keep both modes.
 * This file — agent-facing scratchpad.  Read before planning; update after each
   session; prune duplication per the inclusion rule above.
 * **Default-work pool: §8 backlog.**  F1–F22 are all shipped (see §7 index).
@@ -287,7 +287,7 @@ uv run python -m rehab_sci.dashboard.app         # serve at :8050
 pkill -f 'rehab_sci.dashboard.app'               # stop stale dashboard
 uv cache prune                                   # reclaim uv cache space
 uv run pip-audit                                 # dependency vuln scan (dev dep)
-~/.claude/compaction.sh                          # context-usage gauge (global; also the statusline)
+$HOME/.claude/compaction.sh                      # context-usage gauge (global; also the statusline)
 ```
 
 ## 7. Session index (most recent first)

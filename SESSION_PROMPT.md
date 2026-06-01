@@ -15,7 +15,7 @@ backlog)** starting with the first item whose status is not "shipped",
 unless I steer you otherwise below.
 
 Watch the context gauge as you work (the status line, or run
-`~/.claude/compaction.sh`); at ≥90 % bring the current step to a clean
+`$HOME/.claude/compaction.sh`); at ≥80 % bring the current step to a clean
 boundary so I can `/compact`.
 
 ---
