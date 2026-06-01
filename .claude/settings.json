@@ -1,6 +1,2 @@
 {
-  "statusLine": {
-    "type": "command",
-    "command": "./compaction.sh"
-  }
 }
