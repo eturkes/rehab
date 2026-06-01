@@ -14,5 +14,8 @@ After reading, propose work from `AGENT_NOTES.md` **section 8 (Feature
 backlog)** starting with the first item whose status is not "shipped",
 unless I steer you otherwise below.
 
+Watch the context gauge as you work (the status line, or run `./compaction.sh`);
+at ≥90 % bring the current step to a clean boundary so I can `/compact`.
+
 ---
 
