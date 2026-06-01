@@ -20,13 +20,15 @@ superseded, duplicated elsewhere, or has gone stale.
   session.  Update if the workflow changes.
 * `README.md` — human-facing entry point.  Keep in sync with code.
 * `./compaction.sh` — context-usage gauge (`pct used/window`), supplied in-repo at
-  the project root and wired as the project statusline in `.claude/settings.json`.
-  It is a copy of the global agents-repo gauge (also symlinked at `$HOME/.claude/`);
-  keep the two in sync if either is edited.  Dual-mode keyed on
-  `CLAUDE_CODE_SESSION_ID`: unset ⇒ statusline reads stdin JSON; set ⇒ run via Bash
-  (`./compaction.sh`) to read my own usage from the session transcript.  Per
-  CLAUDE.md, wrap to a clean boundary at ≥80 % for a manual `/compact`.  Any edit
-  must keep both modes.
+  the project root; run it via Bash (`./compaction.sh`, manual mode) to read my own
+  usage from the session transcript.  The always-on live statusline is the user's
+  *global* gauge (`$HOME/.claude/compaction.sh`, wired in `~/.claude/settings.json`),
+  which already covers this repo — so this project adds **no** statusline of its own
+  (`.claude/settings.json` stays empty; resist re-adding a `statusLine` block).  The
+  in-repo copy is byte-identical to that global gauge; keep the two in sync if either
+  is edited.  Dual-mode keyed on `CLAUDE_CODE_SESSION_ID` (set ⇒ manual / read
+  transcript; unset ⇒ statusline / read stdin JSON); any edit must keep both modes.
+  Per CLAUDE.md, wrap to a clean boundary at ≥80 % for a manual `/compact`.
 * This file — agent-facing scratchpad.  Read before planning; update after each
   session; prune duplication per the inclusion rule above.
 * **Default-work pool: §8 backlog.**  F1–F22 are all shipped (see §7 index).
@@ -289,7 +291,7 @@ uv run python -m rehab_sci.dashboard.app         # serve at :8050
 pkill -f 'rehab_sci.dashboard.app'               # stop stale dashboard
 uv cache prune                                   # reclaim uv cache space
 uv run pip-audit                                 # dependency vuln scan (dev dep)
-./compaction.sh                                  # context-usage gauge (also the statusline)
+./compaction.sh                                  # context-usage gauge (manual; statusline is global)
 ```
 
 ## 7. Session index (most recent first)
