@@ -37,10 +37,11 @@ src/rehab_sci/
   models/train.py                 # LightGBM + split conformal PI + TreeSHAP
   models/subgroups.py             # Mann-Whitney / KW + Cliff's δ / d / η²
   dashboard/                      # Plotly Dash app (JA default, EN toggle)
-    theme.py figures.py i18n.py app.py assets/style.css
+    app.py state.py compute.py layout.py figures/ tabs/ theme.py i18n.py
 
 models/                           # trained artifacts (gitignored)
 reports/                          # exported figures (gitignored)
+MAP.md                            # generated code index — uv run python scripts/gen_map.py
 ```
 
 ## Single-command setup

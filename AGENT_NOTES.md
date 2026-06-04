@@ -19,16 +19,19 @@ superseded, duplicated elsewhere, or has gone stale.
 * `SESSION_PROMPT.md` — reusable bootstrap prompt the user pastes to start a
   session.  Update if the workflow changes.
 * `README.md` — human-facing entry point.  Keep in sync with code.
-* `./compaction.sh` — context-usage gauge (`pct used/window`), supplied in-repo at
-  the project root; run it via Bash (`./compaction.sh`, manual mode) to read my own
-  usage from the session transcript.  The always-on live statusline is the user's
-  *global* gauge (`$HOME/.claude/compaction.sh`, wired in `~/.claude/settings.json`),
-  which already covers this repo — so this project adds **no** statusline of its own
-  (`.claude/settings.json` stays empty; resist re-adding a `statusLine` block).  The
-  in-repo copy is byte-identical to that global gauge; keep the two in sync if either
-  is edited.  Dual-mode keyed on `CLAUDE_CODE_SESSION_ID` (set ⇒ manual / read
-  transcript; unset ⇒ statusline / read stdin JSON); any edit must keep both modes.
-  Per CLAUDE.md, wrap to a clean boundary at ≥80 % for a manual `/compact`.
+* `MAP.md` — **generated** symbol index (per file: purpose, line count, every
+  top-level symbol with its 1-indexed line number; Dash callbacks tagged).  Read
+  it to locate code, then `Read(path, offset, limit)` only the slice — this
+  replaces whole-file reads.  Regenerate after structural edits:
+  `uv run python scripts/gen_map.py` (idempotent + timestamp-free, so an
+  unchanged tree yields no diff).
+* `./compaction.sh` — manual context gauge (`pct used/window`); run via Bash to
+  read own usage from the transcript.  The user's global statusline
+  (`$HOME/.claude/compaction.sh`, byte-identical) already covers this repo, so
+  `.claude/settings.json` stays empty (resist re-adding `statusLine`); keep the
+  two copies in sync.  Dual-mode keyed on `CLAUDE_CODE_SESSION_ID` (set ⇒
+  manual/transcript; unset ⇒ statusline/stdin) — any edit must keep both.  Per
+  CLAUDE.md, wrap to a clean boundary at ≥80 % for a manual `/compact`.
 * This file — agent-facing scratchpad.  Read before planning; update after each
   session; prune duplication per the inclusion rule above.
 * **Default-work pool: §8 backlog.**  F1–F22 are all shipped (see §7 index).
@@ -77,6 +80,16 @@ superseded, duplicated elsewhere, or has gone stale.
   confirm).  BRE alternation `\|` is matched *literally*, so `grep "a\|b"`
   silently finds nothing — use ERE `grep -E "a|b"`.  Re-check surprising empty
   sweeps before trusting them.
+* **Split a megafile by carving line-ranges + an AST-equivalence assertion, not
+  by retyping bodies.**  A one-shot script slices each top-level symbol by its
+  def-to-def line range and asserts every original `FunctionDef`/const survives
+  byte-identical (`ast.dump`) before deleting the monolith — token-cheap and
+  transcription-safe.  Give each new submodule the full import header, then
+  `ruff check --fix` prunes the unused ones (F401); `ruff check --select F`
+  (F401 + F821 undefined-name) is the gate that proves no symbol was misplaced.
+* **Confirm dead code before deleting via a repo-wide grep of every call form.**
+  `figures.kpi_card` was a stale dict-returning dup of `layout.kpi_card` (the
+  `html.Div` version every caller imports); nothing referenced the figures one.
 
 ## 1. Data invariants (do not rediscover)
 
@@ -221,24 +234,22 @@ superseded, duplicated elsewhere, or has gone stale.
 
 ## 4. Dashboard conventions
 
-* **Module layout** (`src/rehab_sci/dashboard/`):
-  - `app.py` — entry point: `create_app()`, `app`, `server`, chrome callbacks
-    (lang toggle, topbar/tab labels, tab dispatch), `__main__`.
-  - `state.py` — all startup globals (SCHEMA, EP, LONG, METRICS, FEATURE_SPEC,
-    OUTCOME_BUNDLES, TRAJECTORY_BUNDLE, ARCHETYPE_DATA, PATIENT_OPTIONS, …).
-    Depends only on theme + data/model layers; no other dashboard modules.
-  - `compute.py` — pure computation (conformal-q resolution, trajectory
-    prediction, APS sets, SHAP inference, episode-row prep).  No Dash/Plotly.
-  - `layout.py` — shared UI (topbar, kpi_card, chart_card, slider_for,
-    dropdown_for, fig_shap_local, fig_prediction_interval,
-    fig_class_probabilities).
-  - `tabs/overview.py` — overview layout + filter bar + `update_overview_content`.
-  - `tabs/simulator.py` — simulator layout + simulate + 3 what-if callbacks.
-  - `tabs/patient.py` — patient explorer layout + patient callbacks + PDF download.
-  - `tabs/insights.py` — insight engine layout + callbacks.
-  - `tabs/methods.py` — methods tab layout (no callbacks).
-  - `figures.py` — Plotly figure factories.  `report.py` — PDF generator.
-    `theme.py` — Plotly template + palettes.  `i18n.py` — bilingual helpers.
+* **Module layout** (`src/rehab_sci/dashboard/`) — `MAP.md` is the authoritative
+  per-file symbol inventory; only the non-obvious contracts live here:
+  - `state.py` holds all startup globals, loaded once; depends only on theme +
+    data/model layers (no other dashboard module imports it transitively).
+  - `compute.py` is pure (model inference, conformal-q, APS, SHAP, row-prep) —
+    **no Dash/Plotly**.
+  - `layout.py` owns the shared *prediction* figures (`fig_shap_local`,
+    `fig_prediction_interval`, `fig_class_probabilities`) — these are **not** in
+    the figures package.
+  - `figures/` is a **package** split by tab (`overview`, `insights`, `patient`,
+    `methods`, `simulator`) plus `_common` (`_hex_to_rgba`).  Every public name +
+    `ARCHETYPE_NAMES_*` / `PALETTE_ARCHETYPE` is re-exported via
+    `figures/__init__.py`'s `__all__`, so `from rehab_sci.dashboard import
+    figures as fg` and every `fg.fig_*` call are unchanged.  To add a figure:
+    put it in its tab's submodule and append the name to `__all__`.
+  - `tabs/*` = per-tab layout + `@callback`s; `app.py` = entry + chrome callbacks.
 * **Dependency graph (acyclic):** `state` → data/model; `compute` → `state`;
   `layout` → `state`, `compute`; `tabs/*` → `state`, `compute`, `layout`,
   `figures`; `app` → `tabs/*` (imports trigger `@callback` registration —
@@ -303,13 +314,31 @@ uv run python -m rehab_sci.dashboard.app         # serve at :8050
 pkill -f 'rehab_sci.dashboard.app'               # stop stale dashboard
 uv cache prune                                   # reclaim uv cache space
 uv run pip-audit                                 # dependency vuln scan (dev dep)
+uv run python scripts/gen_map.py                 # refresh MAP.md code index (idempotent)
+uv run ruff check src/ scripts/                  # lint (file:line); --select F = regression gate; --fix = safe autofix
 ./compaction.sh                                  # context-usage gauge (manual; statusline is global)
+```
+
+Persistent REPL — load data/models once, query across separate Bash tool calls:
+
+```bash
+export BGCMDDIR=/tmp/bgpy BGCMDPROMPT='>>> '
+bgcmd START .venv/bin/python -i -q               # filesystem-backed; survives across Bash calls
+bgcmd 'from rehab_sci.dashboard import state as S, compute as C; import rehab_sci.dashboard.figures as fg'
+bgcmd 'S.EP.shape'                               # single-line sends; reuses the loaded objects
+bgcmd 'exit()'; rm -rf "$BGCMDDIR"               # stop + clean
 ```
 
 ## 7. Session index (most recent first)
 
 One line per session; full detail is in Git history (`git log`, diffs).
 
+* **s24** — token-efficiency pass: `figures.py` (1573 ln) → `figures/` package
+  (6 tab modules; public surface preserved; carved via one-shot script + an
+  AST-equivalence assertion, then ruff-pruned imports).  Added
+  `scripts/gen_map.py` → `MAP.md` code index (read-first navigation).  Verified
+  + documented the ruff and `bgcmd` persistent-REPL feedback loops.  Trimmed
+  §0/§4.  Dropped dead `figures.kpi_card` (stale dup of `layout.kpi_card`).
 * **s23** — post-relocation repair: root moved `Documents/pro/rehab` →
   `Projects/rehab`; only `.venv` broke (stale abs paths in 60 console shebangs,
   `activate`, editable `rehab_sci`).  Fixed by `rm -rf .venv && uv sync` from
@@ -366,7 +395,23 @@ implementation detail.  Shipped ledger (terse, by feature number):
   F20 app.py refactor · F22 overview cohort filtering.
 * (F11/F12/F15/F17/F19/F21 were never opened — numbering gaps only.)
 
-**Open items: none.**  Fresh sessions: propose new feature candidates or
-maintenance (security audit, dependency refresh, proactive refactor) and add
-them here with **what / why / effort / files / data dependency** before
-starting.
+**Open items (optional cleanups surfaced in s24; none blocking):**
+
+* **Clear pre-existing lint debt.**  *What:* `uv run ruff check src/ scripts/`
+  reports ~139 issues (RUF100 unused-noqa, RUF046 redundant `int()`, F841 dead
+  locals, F401).  *Why:* dead cruft costs read-tokens.  *Effort:* `--fix` clears
+  ~45 safely in seconds; the rest are manual.  *Files:* repo-wide.  *Caveat:*
+  fixes under `models/` (pipeline) need a retrain (`-m rehab_sci.models.train`)
+  to re-verify before trusting.
+* **Dedup `AIS_ORD_TO_LETTER`.**  *What:* the `{1:"A"…5:"E"}` map is defined 4×
+  (`state`, `report`, `train`, `figures/patient`).  *Why:* drift risk + repeated
+  reads.  *Effort:* small.  *Files:* those 4 + importers; pick one home (e.g.
+  `schema` or a tiny constants module).  *Data dep:* none.
+* **Split `train.py` (1108 ln) like figures** *(low ROI)*.  *Why:* it is the #2
+  file but rarely edited, and `MAP.md` now indexes its internals so full reads
+  are seldom needed.  *Effort:* medium (dense shared `_params`/`_fit`/conformal
+  helpers).  *Data dep:* none; verify with a retrain.
+
+Otherwise: propose new feature candidates or maintenance (security audit,
+dependency refresh) and add them here with **what / why / effort / files / data
+dependency** before starting.
