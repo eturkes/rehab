@@ -152,6 +152,10 @@ def build_episode_frame(longitudinal: pd.DataFrame) -> pd.DataFrame:
     pid = grouped["IDNumber"].first().reindex(episode_idx)
     feat["IDNumber"] = pid
 
+    # business year of the episode — meta only (temporal-validation split key);
+    # never a model feature (absent from ADMISSION_FEATURES → never in feature_cols).
+    feat["BusinessYear"] = grouped["BusinessYear"].first().reindex(episode_idx)
+
     # raw letter / level columns kept for visualization (NOT used as model features)
     for col in ("AIS", "NLI"):
         for p in parts:

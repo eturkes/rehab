@@ -34,9 +34,10 @@ superseded, duplicated elsewhere, or has gone stale.
   CLAUDE.md, wrap to a clean boundary at ≥80 % for a manual `/compact`.
 * This file — agent-facing scratchpad.  Read before planning; update after each
   session; prune duplication per the inclusion rule above.
-* **Default-work pool: §8 backlog.**  F1–F22 are all shipped (see §7 index).
-  No open items remain — fresh sessions propose new feature candidates or
-  maintenance work unless the user redirects.
+* **Default-work pool: §8 backlog.**  F1–F24 are shipped (see §7 index).  Open
+  candidates: F25 partial-input prediction · F26 invariant test harness · F27
+  dependency refresh — pick the first unless redirected; propose new candidates
+  as the list drains.
 
 ## 0b. Lessons & mistakes (append; prune when superseded)
 
@@ -167,6 +168,16 @@ superseded, duplicated elsewhere, or has gone stale.
 * **LOS distribution** — heavy right tail (median ≈140 d, max ≈790 d).
   Modelled on `log1p` scale; conformal q computed in log-space and
   back-transformed.
+* **`LOS_days` is right-censored by recency** — `入院期間` is recorded only at
+  discharge, so recent business years are incomplete: complete through 2022,
+  ~28/78 in 2023, and **zero for `BusinessYear` ≥ 2024** (whereas SCIM/AIS
+  discharge outcomes extend to 2025).  Any time-stratified LOS analysis must
+  expect missing recent years; F24's temporal backtest therefore covers only
+  2020–2023 origins for LOS.
+* **`BusinessYear` is an episode-frame passport, never a feature** — added to
+  `build_episode_frame` as first-non-null per episode (100 % populated,
+  2014–2025).  Absent from `ADMISSION_FEATURES`, so it never enters
+  `feature_cols`; it exists only as the temporal-split key for F24.
 * **`mFrankel_Frankel` is a packed pair column** — missing marker `_/_`, and
   valid values include mismatched pairs (`C1/C2` = mFrankel C1 / Frankel C2).
   Validate it through the split `mFrankel_ord` / `Frankel_ord`, never the pair
@@ -272,6 +283,21 @@ superseded, duplicated elsewhere, or has gone stale.
   runtime.  Persisted in `models/archetypes/archetypes.joblib`.  Primary
   separators are AIS grade and age — consistent with the age × motor SHAP
   interaction.
+* **Temporal validation (`models/temporal.py`, F24)** — out-of-time
+  rolling-origin backtest, **diagnostic only**: it writes its own
+  `models/temporal_metrics.json` and never touches `train.py`'s artifacts, so
+  byte-repro is preserved.  Expanding window — test years 2020–2025, train =
+  `BusinessYear < T`, group-safe by patient (test episodes whose patient is in
+  the past are dropped + counted as `n_dropped_overlap`).  Reuses `train.py`'s
+  prep/fit/transform helpers + `conformal.py`'s `_conformal_q`/`_aps_*` so the
+  methodology matches production, with two deltas: the dev/test cut is temporal,
+  and conformal/APS q is **marginal** (per-origin per-group folds are too small
+  for Mondrian).  The reported coverage is conformal-only (comparable to
+  `test.conformal_coverage_80`), not the union PI used at inference.  Baselines
+  are echoed from `training_metrics.json` (CV point + holdout coverage).
+  Finding: SCIM heads lose only ΔR²≈−0.04…−0.08 out-of-time with coverage
+  ≈nominal; AIS robust (APS stays conservative ~0.99); LOS is hard both in- and
+  out-of-time (R²≈0.2) and censored (§1).
 
 ## 4. Dashboard conventions
 
@@ -352,6 +378,7 @@ uv run python -m rehab_sci.models.train          # train + conformal + SHAP
 uv run python -m rehab_sci.models.subgroups      # subgroup discovery
 uv run python -m rehab_sci.models.archetypes     # recovery archetype clustering
 uv run python -m rehab_sci.data.quality          # data-quality / clinical-consistency report
+uv run python -m rehab_sci.models.temporal       # out-of-time temporal validation (F24)
 uv run python -m rehab_sci.dashboard.app         # serve at :8050
 pkill -f 'rehab_sci.dashboard.app'               # stop stale dashboard
 uv cache prune                                   # reclaim uv cache space
@@ -375,6 +402,17 @@ bgcmd 'exit()'; rm -rf "$BGCMDDIR"               # stop + clean
 
 One line per session; full detail is in Git history (`git log`, diffs).
 
+* **s27** — F24 temporal (out-of-time) validation.  New `models/temporal.py`:
+  expanding-window rolling-origin backtest (test years 2020–2025; train =
+  earlier years; group-safe by patient) for all 6 outcomes; marginal
+  conformal/APS coverage measured out-of-time; writes tracked
+  `models/temporal_metrics.json`.  `BusinessYear` added as an episode-frame
+  passport (never a feature).  Bilingual Methods-tab drift curves
+  (`fig_temporal_drift`, dual-axis: point accuracy + coverage vs test year,
+  baseline + nominal-80 % reference lines).  Findings: SCIM generalizes
+  temporally (small ΔR²; coverage ≈nominal), AIS robust, LOS hard +
+  right-censored (no labels ≥2024 → 4 origins).  Lint clean; dashboard boots
+  200; `training_metrics.json` + model joblibs untouched.
 * **s26** — F23 data-quality / clinical-consistency report.  New
   `data/quality.py`: declarative rule engine (15 rules — domain / cross-field /
   longitudinal) over the raw + cleaned frame; writes a tracked aggregate
@@ -442,9 +480,9 @@ One line per session; full detail is in Git history (`git log`, diffs).
 
 ## 8. Feature backlog (default-work pool)
 
-Propose from here unless the user redirects.  **All original items (F1–F22)
-are shipped** — see §7 for the session each landed in, and Git history for
-implementation detail.  Shipped ledger (terse, by feature number):
+Propose from here unless the user redirects.  **Items F1–F24 are shipped** —
+see §7 for the session each landed in, and Git history for implementation
+detail.  Shipped ledger (terse, by feature number):
 
 * F1 patient explorer · F2 multi-outcome prediction · F3 Mondrian conformal ·
   F4 multi-outcome insight engine + explorer · F5 APS classification sets ·

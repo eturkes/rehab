@@ -6,7 +6,7 @@ from dash import dcc, html
 
 from rehab_sci.dashboard import figures as fg
 from rehab_sci.dashboard.i18n import t
-from rehab_sci.dashboard.state import DATAQUALITY, METRICS, OUTCOME_BUNDLES, SCHEMA
+from rehab_sci.dashboard.state import DATAQUALITY, METRICS, OUTCOME_BUNDLES, SCHEMA, TEMPORAL
 from rehab_sci.dashboard.theme import INK
 from rehab_sci.models.outcomes import OUTCOMES, OutcomeSpec
 
@@ -169,6 +169,56 @@ def _perf_block_trajectory(lang: str) -> html.Div | None:
     )
 
 
+def _temporal_block(lang: str) -> html.Div | None:
+    """F24 — out-of-time rolling-origin drift, one card per outcome."""
+    tm = TEMPORAL
+    if not tm or not tm.get("outcomes"):
+        return None
+    test_years = tm.get("config", {}).get("test_years", [])
+    cov_word = "カバレッジ" if lang == "ja" else "coverage"
+    children: list = [
+        html.H3(t(SCHEMA, "methods_temporal_heading", lang)),
+        html.P(t(SCHEMA, "methods_temporal_def", lang)),
+    ]
+    for spec in OUTCOMES:
+        info = tm["outcomes"].get(spec.key)
+        if not info or not info.get("origins"):
+            continue
+        s = info.get("summary", {})
+        if info["task"] == "regression":
+            d = s.get("r2_delta_vs_baseline")
+            line = (
+                f"OOT R²={s.get('r2_oot_mean'):.3f}"
+                + (f" (Δ={d:+.3f})" if d is not None else "")
+                + f"   {cov_word}={s.get('coverage_oot_mean'):.0%}"
+            )
+        else:
+            acc_word = "正解率" if lang == "ja" else "acc"
+            d = s.get("accuracy_delta_vs_baseline")
+            line = (
+                f"OOT {acc_word}={s.get('accuracy_oot_mean'):.3f}"
+                + (f" (Δ={d:+.3f})" if d is not None else "")
+                + f"   APS {cov_word}={s.get('aps_coverage_oot_mean'):.0%}"
+            )
+        card: list = [
+            html.H4(t(SCHEMA, spec.display_key, lang)),
+            html.P(line, style={"fontSize": "13px", "color": INK["700"]}),
+        ]
+        fig = fg.fig_temporal_drift(info, lang)
+        if fig is not None:
+            card.append(dcc.Graph(figure=fig, config={"displayModeBar": False}))
+        n_or = len(info["origins"])
+        if test_years and n_or < len(test_years):
+            note = (
+                f"テスト年 {n_or}/{len(test_years)} (残りはその年のラベル欠損によりスキップ)"
+                if lang == "ja"
+                else f"Test years {n_or}/{len(test_years)} (rest skipped — outcome unlabelled that year)"
+            )
+            card.append(html.P(note, style={"fontSize": "12px", "color": INK["500"]}))
+        children.append(html.Div(className="methods-perf-card", children=card))
+    return html.Div(className="methods-block", children=children)
+
+
 def _dataquality_block(lang: str) -> html.Div | None:
     dq = DATAQUALITY
     if not dq:
@@ -249,6 +299,9 @@ def render_methods(lang: str) -> html.Div:
             children=[html.H3(t(SCHEMA, title_key, lang)), html.P(t(SCHEMA, body_key, lang))],
         ))
     md.append(perf_block)
+    temporal_block = _temporal_block(lang)
+    if temporal_block is not None:
+        md.append(temporal_block)
     dq_block = _dataquality_block(lang)
     if dq_block is not None:
         md.append(dq_block)

@@ -3,7 +3,7 @@
 Regenerate after structural changes: `uv run python scripts/gen_map.py`.
 Line numbers are 1-indexed — slice with `Read(path, offset, limit)` instead of
 reading whole files.  Sources: src/rehab_sci, scripts.
-Index: 40 files, 8433 source lines.
+Index: 41 files, 8935 source lines.
 
 ## scripts
 
@@ -110,7 +110,7 @@ PDF patient report generator.
 - L137 `_safe(v, na, fmt)`
 - L146 `generate_patient_report(meta, predictions, trajectory_fig, shap_fig, outcome_labels, lang)` — Build a 2-page PDF report for one patient episode.
 
-### state.py (85 lines)
+### state.py (94 lines)
 Startup data loading and global state for the dashboard.
 - L21 `ROOT` (const)
 - L22 `MODELS_DIR` (const)
@@ -125,8 +125,8 @@ Startup data loading and global state for the dashboard.
 - L60 `SCIM_TOTAL_BUNDLE` (const)
 - L70 `TRAJECTORY_BUNDLE` (const)
 - L73 `ARCHETYPE_DATA` (const)
-- L84 `PATIENT_OPTIONS` (const)
-- L85 `PATIENT_OPTIONS_BY_ID` (const)
+- L93 `PATIENT_OPTIONS` (const)
+- L94 `PATIENT_OPTIONS_BY_ID` (const)
 
 ### theme.py (104 lines)
 Plotly theme + palettes used everywhere on the dashboard.
@@ -139,7 +139,7 @@ Plotly theme + palettes used everywhere on the dashboard.
 
 ## src/rehab_sci/dashboard/figures
 
-### __init__.py (73 lines)
+### __init__.py (75 lines)
 Plotly figure factories, split by dashboard tab.
 - (no top-level symbols)
 
@@ -155,13 +155,14 @@ Plotly figures for the Insight engine tab — SHAP importance, subgroups, depend
 - L155 `fig_interaction_heatmap(metrics, schema, lang, *, top_n)` — Upper-triangle heatmap of top feature-pair interactions by mean |SHAP|.
 - L222 `fig_interaction_dependence(shap_pack, X_test, feat_x, feat_y, schema, lang, *, class_idx)` — Scatter of feature-X value vs SHAP interaction(X,Y), colored by feature-Y value.
 
-### methods.py (266 lines)
+### methods.py (342 lines)
 Plotly figures for the Methods tab — calibration and performance visualizations.
 - L12 `fig_pred_vs_observed(shap_pack, schema, lang, *, clip_min, clip_max, axis_label)`
 - L79 `fig_residual_hist(shap_pack, schema, lang, *, axis_label)`
 - L120 `fig_confusion_matrix(shap_pack, schema, lang)`
 - L164 `fig_calibration_curve(shap_pack, schema, lang, *, n_bins)`
 - L225 `fig_dataquality_overview(summary, lang)` — Stacked bar of finding counts per category, split by severity.
+- L269 `fig_temporal_drift(t_outcome, lang)` — Out-of-time drift across rolling-origin test years (F24).
 
 ### overview.py (412 lines)
 Plotly figures for the Overview tab — cohort demographics, injury, recovery curv…
@@ -209,13 +210,14 @@ Insight engine tab — SHAP importance, subgroups, dependence, interactions.
 - L256 `update_int_feat_options(outcome_key, lang)` [callback]
 - L279 `update_interaction_dependence(feat_x, feat_y, outcome_key, class_val, lang)` [callback]
 
-### methods.py (255 lines)
+### methods.py (308 lines)
 Methods tab — model documentation + per-outcome performance visualizations.
 - L14 `_perf_block_regression(spec, info, lang)`
 - L76 `_perf_block_multiclass(spec, info, lang)`
 - L145 `_perf_block_trajectory(lang)`
-- L172 `_dataquality_block(lang)`
-- L220 `render_methods(lang)`
+- L172 `_temporal_block(lang)` — F24 — out-of-time rolling-origin drift, one card per outcome.
+- L222 `_dataquality_block(lang)`
+- L270 `render_methods(lang)`
 
 ### overview.py (257 lines)
 Overview tab — cohort KPIs, demographic charts, archetype curves with interactiv…
@@ -265,7 +267,7 @@ Recovery archetype discovery via k-means clustering on predicted trajectories.
 - L138 `archetype_summary(ep_eligible, labels)` — Compute per-archetype demographics and outcome summary.
 - L182 `assign_single(X_row, trajectory_bundle, discharge_model, scaler, centroids_std)` — Assign a single patient (one-row DataFrame) to the nearest archetype.
 
-### dataset.py (234 lines)
+### dataset.py (238 lines)
 Construct the analysis-ready frame: one row per patient-episode.
 - L29 `ADMISSION_FALLBACK` (const)
 - L32 `ADMISSION_FEATURES` (const)
@@ -274,9 +276,9 @@ Construct the analysis-ready frame: one row per patient-episode.
 - L107 `class AnalysisFrame`
 - L117 `_first_non_null(group, col, order)`
 - L126 `build_episode_frame(longitudinal)` — Collapse the long longitudinal frame to one row per episode (KeyRecordNumber).
-- L192 `_identify_ghost_episodes(ep, admission_features)` — Return KeyRecordNumbers of pure placeholder episodes.
-- L209 `build_analysis_dataset()`
-- L231 `_replace_nan_to_none(o)`
+- L196 `_identify_ghost_episodes(ep, admission_features)` — Return KeyRecordNumbers of pure placeholder episodes.
+- L213 `build_analysis_dataset()`
+- L235 `_replace_nan_to_none(o)`
 
 ### episodes.py (201 lines)
 Per-episode views used by the dashboard's Patient explorer tab.
@@ -405,6 +407,24 @@ Subgroup discovery + effect sizes for all prediction outcomes.
 - L168 `run_all_subgroups(df, outcome, categorical_features, numeric_features)`
 - L191 `_console_summary(key, out)`
 - L217 `main()`
+
+### temporal.py (358 lines)
+Temporal (out-of-time) validation via rolling-origin expanding-window backtest.
+- L66 `ROOT` (const)
+- L67 `OUT` (const)
+- L69 `YEAR_COL` (const)
+- L70 `ALPHA` (const)
+- L73 `TEST_YEARS` (const)
+- L74 `MIN_DEV` (const)
+- L75 `MIN_TEST` (const)
+- L80 `_prep_with_year(af, spec)` — ``train._prep`` plus the per-row BusinessYear (aligned to X's index).
+- L91 `_origin_masks(groups, year, test_year)` — Boolean dev/test masks for one origin, group-safe by patient.
+- L110 `_eval_regression_origin(X, y_raw, groups, cat_cols, year, spec, test_year)`
+- L160 `_eval_multiclass_origin(X, y_raw, groups, cat_cols, year, spec, test_year)`
+- L227 `_load_baselines()`
+- L235 `_baseline_for(spec, metrics)`
+- L256 `_summarize(origins, task, baseline)`
+- L297 `main()`
 
 ### train.py (886 lines)
 Train one model per outcome spec + split-conformal PI + SHAP cache.

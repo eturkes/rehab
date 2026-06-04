@@ -323,6 +323,12 @@ methods_dataquality_heading:
 methods_dataquality_def:
   ja: "ローダーが欠損値に変換して隠してしまう入力エラーや臨床的矛盾を抽出する診断レポート。検出区分は、領域 (範囲外の数値・未定義カテゴリ)、項目間 (AIS↔仙髄温存・NLI 整合性など)、経時 (同一症例の時点間での悪化・大幅低下)。モデル学習には使用せず、データ確認用。"
   en: "Diagnostic report surfacing data-entry errors and clinical inconsistencies that the defensive loader would otherwise mask as missing values. Categories: domain (out-of-range numbers, undefined categories), cross-field (clinical consistency such as AIS ↔ sacral sparing and NLI), and longitudinal (deterioration / large drops across an episode's timepoints). For data review only — not used in model training."
+methods_temporal_heading:
+  ja: "時間的検証 (期間外)"
+  en: "Temporal validation (out-of-time)"
+methods_temporal_def:
+  ja: "業務年度 (2014–2025) に基づく期間外評価。各テスト年 T について、それ以前の全年で学習し T 年のみで評価する拡張窓ローリングオリジン方式 (患者単位で分割を保持)。ランダムな患者分割では見えない経年ドリフトを測定する。左軸=点予測精度 (回帰: R²、AIS: 正解率) と基準 (ランダム分割) 線、右軸=80% 区間/APS カバレッジ と名目 80% 線。診断用であり、本番モデルは変更しない。"
+  en: "Out-of-time evaluation keyed on business year (2014–2025). For each test year T the model trains on all prior years and is tested on year T alone (expanding-window rolling origin, group-safe by patient). This measures the calendar drift the random patient split cannot see. Left axis = point accuracy (R² for regression, accuracy for AIS) with the random-split baseline line; right axis = 80% PI / APS coverage with the nominal-80% line. Diagnostic only — the production model is unchanged."
 insight_outcome_label:
   ja: "分析対象アウトカム"
   en: "Outcome to analyze"

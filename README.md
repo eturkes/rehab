@@ -35,6 +35,7 @@ src/rehab_sci/
   data/loader.py                  # raw → normalized → ISNCSCI/SCIM summaries
   data/dataset.py                 # long → episode frame (1 row per KeyRecordNumber)
   models/train.py                 # LightGBM + split conformal PI + TreeSHAP
+  models/temporal.py              # out-of-time rolling-origin validation (drift)
   models/subgroups.py             # Mann-Whitney / KW + Cliff's δ / d / η²
   data/quality.py                 # data-quality / clinical-consistency report
   dashboard/                      # Plotly Dash app (JA default, EN toggle)
@@ -67,7 +68,10 @@ uv run python -m rehab_sci.models.subgroups
 #    writes models/dataquality_summary.json (tracked) + dataquality_report.json (git-ignored)
 uv run python -m rehab_sci.data.quality
 
-# 7. launch the dashboard at http://127.0.0.1:8050/
+# 7. (optional) run out-of-time temporal validation (writes models/temporal_metrics.json)
+uv run python -m rehab_sci.models.temporal
+
+# 8. launch the dashboard at http://127.0.0.1:8050/
 uv run python -m rehab_sci.dashboard.app
 ```
 
@@ -199,7 +203,23 @@ identifiers — **tracked**) and a detailed `models/dataquality_report.json`
 never committed).  Findings are for data review only and never feed model
 training; the Methods tab surfaces the aggregate scorecard.
 
-### 6. Dashboard (`dashboard/app.py`)
+### 6. Temporal validation (`models/temporal.py`)
+
+The production heads are scored with a random GroupKFold split, which is blind
+to calendar time.  This optional out-of-time backtest measures the drift that
+split hides: for each test year `T` in 2020–2025 it trains on every episode with
+`BusinessYear < T` and tests on year `T` (expanding-window rolling origin,
+group-safe by patient).  It mirrors the production methodology, except the
+dev/test cut is temporal and the conformal / APS calibration is marginal.  Per
+outcome and origin it records point accuracy (R²/RMSE/MAE, or accuracy /
+quadratic-κ / ordinal-MAE for AIS) and out-of-time 80 % PI / APS coverage,
+alongside the in-time baseline echoed from `training_metrics.json`.  Results land
+in the tracked `models/temporal_metrics.json`; the Methods tab plots each
+outcome's drift curve.  It is a diagnostic — no artifact the dashboard loads for
+prediction is modified.  (`LOS_days` is right-censored for recent years —
+unlabelled from 2024 — so its backtest covers fewer origins.)
+
+### 7. Dashboard (`dashboard/app.py`)
 
 Tabs:
 
@@ -223,8 +243,10 @@ Tabs:
 4. **Insight engine** — global SHAP importance; per-feature subgroup
    box plot with effect-size annotation; SHAP dependence plot.
 5. **Methods** — model card with population, target, training protocol,
-   metrics, limitations; plus a data-quality scorecard (counts of flagged
-   anomalies by category and severity).
+   metrics, limitations; per-outcome temporal-drift curves (out-of-time
+   accuracy + interval coverage vs the random-split baseline); plus a
+   data-quality scorecard (counts of flagged anomalies by category and
+   severity).
 
 The top-right `日本語 / English` toggle drives a single `dcc.Store`;
 every label, axis, hover, tab title, and option list rerenders from the

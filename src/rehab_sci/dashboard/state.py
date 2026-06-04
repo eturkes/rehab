@@ -81,5 +81,14 @@ if _dq_path.exists():
 else:
     DATAQUALITY = None
 
+# F24 temporal (out-of-time) validation scorecard. Absent until the backtest is
+# generated (`python -m rehab_sci.models.temporal`); the Methods panel degrades gracefully.
+_temporal_path = MODELS_DIR / "temporal_metrics.json"
+if _temporal_path.exists():
+    with _temporal_path.open(encoding="utf-8") as _f:
+        TEMPORAL: dict | None = json.load(_f)
+else:
+    TEMPORAL = None
+
 PATIENT_OPTIONS = list_patient_options(EP)
 PATIENT_OPTIONS_BY_ID = {p.id_number: p for p in PATIENT_OPTIONS}

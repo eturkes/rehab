@@ -264,3 +264,79 @@ def fig_dataquality_overview(summary: dict, lang: str) -> go.Figure | None:
                     font=dict(size=11)),
     )
     return fig
+
+
+def fig_temporal_drift(t_outcome: dict, lang: str) -> go.Figure | None:
+    """Out-of-time drift across rolling-origin test years (F24).
+
+    Left axis = point accuracy (R² for regression, accuracy for AIS) with the
+    in-time random-split baseline as a dashed reference; right axis = 80% PI / APS
+    coverage with the nominal-0.8 reference line.  ``t_outcome`` is one entry of
+    ``temporal_metrics.json['outcomes']``.
+    """
+    origins = (t_outcome or {}).get("origins") or []
+    if not origins:
+        return None
+    task = t_outcome.get("task")
+    baseline = t_outcome.get("baseline", {})
+    years = [o["test_year"] for o in origins]
+    n_test = [o["n_test"] for o in origins]
+    if task == "regression":
+        point = [o["r2"] for o in origins]
+        cov = [o["conformal_coverage_80"] for o in origins]
+        base_point = baseline.get("r2")
+        point_lbl = "R²"
+        cov_lbl = ("80%予測区間カバレッジ" if lang == "ja" else "80% PI coverage")
+    else:
+        point = [o["accuracy"] for o in origins]
+        cov = [o["aps_coverage_80"] for o in origins]
+        base_point = baseline.get("accuracy")
+        point_lbl = ("正解率" if lang == "ja" else "Accuracy")
+        cov_lbl = ("APSカバレッジ" if lang == "ja" else "APS coverage")
+
+    oot_lbl = "期間外" if lang == "ja" else "Out-of-time"
+    base_lbl = "基準(ランダム分割)" if lang == "ja" else "Baseline (random split)"
+    nominal_lbl = "名目80%" if lang == "ja" else "Nominal 80%"
+    year_lbl = "テスト年" if lang == "ja" else "Test year"
+    n_lbl = "症例数" if lang == "ja" else "n"
+    c_point = PALETTE_CATEGORICAL[0]
+    c_cov = PALETTE_CATEGORICAL[1]
+    xr = [min(years) - 0.3, max(years) + 0.3]
+
+    fig = go.Figure()
+    fig.add_trace(go.Scatter(
+        x=years, y=point, mode="lines+markers", name=f"{point_lbl} ({oot_lbl})",
+        marker=dict(size=8, color=c_point), line=dict(color=c_point, width=2),
+        customdata=n_test,
+        hovertemplate=f"%{{x}}<br>{point_lbl}=%{{y:.3f}}<br>{n_lbl}=%{{customdata}}<extra></extra>",
+        yaxis="y",
+    ))
+    if base_point is not None:
+        fig.add_trace(go.Scatter(
+            x=xr, y=[base_point, base_point], mode="lines",
+            name=f"{point_lbl} · {base_lbl}",
+            line=dict(color=c_point, width=1.5, dash="dash"),
+            hoverinfo="skip", yaxis="y",
+        ))
+    fig.add_trace(go.Scatter(
+        x=years, y=cov, mode="lines+markers", name=f"{cov_lbl} ({oot_lbl})",
+        marker=dict(size=8, color=c_cov, symbol="square"), line=dict(color=c_cov, width=2),
+        hovertemplate=f"%{{x}}<br>{cov_lbl}=%{{y:.0%}}<extra></extra>",
+        yaxis="y2",
+    ))
+    fig.add_trace(go.Scatter(
+        x=xr, y=[0.8, 0.8], mode="lines", name=nominal_lbl,
+        line=dict(color=INK["300"], width=1.5, dash="dot"),
+        hoverinfo="skip", yaxis="y2",
+    ))
+    fig.update_layout(
+        height=300,
+        margin=dict(l=50, r=54, t=30, b=44),
+        xaxis=dict(title=year_lbl, dtick=1, range=xr),
+        yaxis=dict(title=point_lbl, side="left"),
+        yaxis2=dict(title=cov_lbl, overlaying="y", side="right", range=[0, 1.05],
+                    tickformat=".0%", showgrid=False),
+        legend=dict(orientation="h", x=0, y=1.14, xanchor="left", yanchor="bottom",
+                    font=dict(size=10)),
+    )
+    return fig
