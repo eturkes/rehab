@@ -34,7 +34,6 @@ with (MODELS_DIR / "simulator_defaults.json").open(encoding="utf-8") as _f:
     SIM_DEFAULTS = json.load(_f)
 FEATURE_SPEC = joblib.load(MODELS_DIR / "feature_spec.joblib")
 
-AIS_ORD_TO_LETTER = {1: "A", 2: "B", 3: "C", 4: "D", 5: "E"}
 DEFAULT_OUTCOME = "scim_total"
 
 

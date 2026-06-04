@@ -8,6 +8,7 @@ from typing import Final
 import numpy as np
 import pandas as pd
 
+from rehab_sci.constants import AIS_LETTER_TO_ORD
 from rehab_sci.schema import Schema, load_schema
 
 RAW_PATH_DEFAULT: Final[Path] = Path(__file__).resolve().parents[3] / "ALL_SCIDATA.csv"
@@ -20,7 +21,6 @@ _CORD_ORDER: Final[list[str]] = [
     "S1", "S2", "S3", "S45",
 ]
 _CORD_INDEX: Final[dict[str, int]] = {lvl: i for i, lvl in enumerate(_CORD_ORDER)}
-_AIS_NUMERIC: Final[dict[str, int]] = {"A": 1, "B": 2, "C": 3, "D": 4, "E": 5}
 
 
 def cord_level_to_int(level: str | None) -> float:
@@ -32,7 +32,7 @@ def cord_level_to_int(level: str | None) -> float:
 def ais_to_int(grade: str | None) -> float:
     if grade is None or (isinstance(grade, float) and np.isnan(grade)):
         return np.nan
-    return float(_AIS_NUMERIC.get(str(grade).strip(), np.nan))
+    return float(AIS_LETTER_TO_ORD.get(str(grade).strip(), np.nan))
 
 
 def _coerce_numeric(s: pd.Series, allow_bool: bool = False) -> pd.Series:
@@ -108,7 +108,7 @@ def normalize(df: pd.DataFrame, schema: Schema | None = None) -> pd.DataFrame:
             df[col] = (
                 df[col]
                 .astype("string")
-                .map(lambda v: schema.normalize_level(spec.levels, v) if pd.notna(v) else pd.NA)
+                .map(lambda v, _levels=spec.levels: schema.normalize_level(_levels, v) if pd.notna(v) else pd.NA)
             )
         elif spec.dtype == "datetime":
             df[col] = pd.to_datetime(df[col], errors="coerce")

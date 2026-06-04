@@ -23,7 +23,6 @@ from sklearn.cluster import KMeans
 from sklearn.metrics import silhouette_score
 from sklearn.preprocessing import StandardScaler
 
-
 RANDOM_STATE = 20260518
 
 
@@ -47,8 +46,6 @@ def build_trajectory_matrix(
         Column labels for ``traj_matrix`` (9 trajectory + ``"discharge"``).
     """
     eligible_mask = ep["IDNumber"].notna()
-    for col in feature_cols:
-        pass
     ep_eligible = ep[eligible_mask].copy()
     if ep_eligible.empty:
         return pd.DataFrame(), np.empty((0, 10)), []
@@ -77,7 +74,7 @@ def build_trajectory_matrix(
     pred_dis = discharge_model.predict(X)
     traj[:, -1] = np.clip(pred_dis, clip_min, clip_max)
 
-    timepoint_labels = list(tps) + ["discharge"]
+    timepoint_labels = [*tps, "discharge"]
     return X, traj, timepoint_labels
 
 

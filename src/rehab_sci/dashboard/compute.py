@@ -8,17 +8,16 @@ from __future__ import annotations
 import numpy as np
 import pandas as pd
 
-from rehab_sci.data.episodes import episode_admission_features
-from rehab_sci.models.outcomes import OUTCOMES, OutcomeSpec
-
+from rehab_sci.constants import AIS_ORD_TO_LETTER
 from rehab_sci.dashboard.state import (
-    AIS_ORD_TO_LETTER,
     EP,
     FEATURE_SPEC,
     OUTCOME_BUNDLES,
     SIM_DEFAULTS,
     TRAJECTORY_BUNDLE,
 )
+from rehab_sci.data.episodes import episode_admission_features
+from rehab_sci.models.outcomes import OUTCOMES, OutcomeSpec
 
 
 # ---------- conformal q resolution ----------
@@ -40,9 +39,8 @@ def resolve_group_q(q_by_group: dict | None, marginal: float, X: pd.DataFrame) -
     para_qs = q_by_group.get("paralysis", {})
     if para_qs and "対麻痺_四肢麻痺" in X.columns:
         para_val = row["対麻痺_四肢麻痺"]
-        if pd.notna(para_val):
-            if str(para_val) in para_qs:
-                return float(para_qs[str(para_val)])
+        if pd.notna(para_val) and str(para_val) in para_qs:
+            return float(para_qs[str(para_val)])
     return marginal
 
 

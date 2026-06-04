@@ -6,6 +6,7 @@ import numpy as np
 import pandas as pd
 import plotly.graph_objects as go
 
+from rehab_sci.constants import AIS_ORD_TO_LETTER
 from rehab_sci.dashboard.figures._common import _hex_to_rgba
 from rehab_sci.dashboard.i18n import level_label, t
 from rehab_sci.dashboard.theme import PALETTE_AIS, PALETTE_CATEGORICAL, PALETTE_PARA
@@ -52,7 +53,6 @@ def fig_patient_scim_timeline(
     pt = patient_timeline(long_df, key_record)
     pt_total = pt["SCIM_total"]
 
-    timeline_present = [tp for tp in PATIENT_TIMELINE if pt_total.loc[tp] == pt_total.loc[tp]]  # NaN-safe
     x_labels = [level_label(schema, "time_name", tp, lang) for tp in PATIENT_TIMELINE]
     x_pos = {tp: x_labels[i] for i, tp in enumerate(PATIENT_TIMELINE)}
 
@@ -195,7 +195,7 @@ def fig_patient_scim_timeline(
                     "<b>%{x}</b><br>"
                     + ("予測" if lang == "ja" else "Predicted")
                     + ": %{y:.0f}<br>"
-                    + ("80% PI" if lang == "en" else "80% PI")
+                    + "80% PI"
                     + ": %{customdata[0]:.0f}–%{customdata[1]:.0f}"
                     + "<extra></extra>"
                 ),
@@ -342,9 +342,6 @@ def fig_patient_prediction(
     return fig
 
 
-AIS_ORD_TO_LETTER = {1: "A", 2: "B", 3: "C", 4: "D", 5: "E"}
-
-
 def fig_neighbor_outcomes(
     neighbors: list[dict],
     pred: float | None,
@@ -364,7 +361,6 @@ def fig_neighbor_outcomes(
     over the query patient's prediction interval and observed value.
     """
     fig = go.Figure()
-    band_lbl = t(schema, "sim_prediction_interval", lang)
     pred_lbl = "予測中央値" if lang == "ja" else "Predicted median"
     obs_lbl = "実測値" if lang == "ja" else "Observed"
     nbr_lbl = "類似患者" if lang == "ja" else "Similar patients"

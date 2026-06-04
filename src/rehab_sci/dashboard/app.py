@@ -88,7 +88,7 @@ server = app.server
     State("lang-store", "data"),
     prevent_initial_call=True,
 )
-def update_lang(_n_ja, _n_en, _cur):  # noqa: ANN001
+def update_lang(_n_ja, _n_en, _cur):
     return "ja" if ctx.triggered_id == "lang-ja" else "en"
 
 
@@ -102,7 +102,7 @@ def update_lang(_n_ja, _n_en, _cur):  # noqa: ANN001
     Output("footer-note", "children"),
     Input("lang-store", "data"),
 )
-def update_chrome(lang):  # noqa: ANN001
+def update_chrome(lang):
     return (
         topbar(lang),
         t(SCHEMA, "tab_overview", lang),
@@ -120,7 +120,7 @@ def update_chrome(lang):  # noqa: ANN001
     Input("lang-store", "data"),
     State("patient-ref", "data"),
 )
-def update_tab(tab, lang, ref_data):  # noqa: ANN001
+def update_tab(tab, lang, ref_data):
     if tab == "overview":
         return render_overview(lang)
     if tab == "simulator":

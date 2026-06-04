@@ -8,6 +8,7 @@ import pandas as pd
 import plotly.graph_objects as go
 from dash import Input, Output, State, callback, dcc, html
 
+from rehab_sci.constants import AIS_ORD_TO_LETTER
 from rehab_sci.dashboard import figures as fg
 from rehab_sci.dashboard.compute import (
     aps_prediction_set,
@@ -28,7 +29,7 @@ from rehab_sci.dashboard.figures import (
     ARCHETYPE_NAMES_JA,
     PALETTE_ARCHETYPE,
 )
-from rehab_sci.dashboard.i18n import col_label, level_label, t
+from rehab_sci.dashboard.i18n import level_label, t
 from rehab_sci.dashboard.layout import (
     chart_card,
     fig_class_probabilities,
@@ -36,7 +37,6 @@ from rehab_sci.dashboard.layout import (
 )
 from rehab_sci.dashboard.report import generate_patient_report
 from rehab_sci.dashboard.state import (
-    AIS_ORD_TO_LETTER,
     ARCHETYPE_DATA,
     DEFAULT_OUTCOME,
     EP,
@@ -47,7 +47,6 @@ from rehab_sci.dashboard.state import (
     PATIENT_OPTIONS_BY_ID,
     SCHEMA,
     SCIM_TOTAL_BUNDLE,
-    SIM_DEFAULTS,
 )
 from rehab_sci.dashboard.theme import INK
 from rehab_sci.data.episodes import PATIENT_TIMELINE, patient_meta, patient_timeline
@@ -475,7 +474,7 @@ def _build_similarity_section(
     return sim_fig, html.Div([html.Div(summary_text, className="patient-sim-summary"), sim_table])
 
 
-def _compute_patient_tab(key_record, strata, outcome_key, lang):  # noqa: ANN001
+def _compute_patient_tab(key_record, strata, outcome_key, lang):
     if key_record is None:
         empty = go.Figure()
         return html.Div(), empty, html.Div(), [], empty, empty, "", empty, html.Div()
@@ -542,7 +541,7 @@ def _compute_patient_tab(key_record, strata, outcome_key, lang):  # noqa: ANN001
     Input("patient-id-dropdown", "value"),
     Input("lang-store", "data"),
 )
-def update_patient_picker(id_number, lang):  # noqa: ANN001
+def update_patient_picker(id_number, lang):
     return _patient_picker_options(lang), _episode_options_for_patient(id_number, lang)
 
 
@@ -551,7 +550,7 @@ def update_patient_picker(id_number, lang):  # noqa: ANN001
     Input("patient-id-dropdown", "value"),
     State("patient-episode-radio", "value"),
 )
-def reset_episode_on_patient_change(id_number, current):  # noqa: ANN001
+def reset_episode_on_patient_change(id_number, current):
     if id_number is None or id_number not in PATIENT_OPTIONS_BY_ID:
         return None
     krs = [int(k) for k in PATIENT_OPTIONS_BY_ID[id_number].key_records]
@@ -575,7 +574,7 @@ def reset_episode_on_patient_change(id_number, current):  # noqa: ANN001
     Input("patient-outcome", "value"),
     Input("lang-store", "data"),
 )
-def update_patient_tab(key_record, strata, outcome_key, lang):  # noqa: ANN001
+def update_patient_tab(key_record, strata, outcome_key, lang):
     return _compute_patient_tab(key_record, strata, outcome_key, lang)
 
 
@@ -589,7 +588,7 @@ def update_patient_tab(key_record, strata, outcome_key, lang):  # noqa: ANN001
     State("lang-store", "data"),
     prevent_initial_call=True,
 )
-def download_report(n_clicks, key_record, id_number, strata, lang):  # noqa: ANN001
+def download_report(n_clicks, key_record, id_number, strata, lang):
     if not n_clicks or key_record is None:
         return dash.no_update
     key_record = int(key_record)

@@ -50,7 +50,9 @@ target-version = "py312"
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "B", "UP", "SIM", "RUF"]
-ignore = ["E501", "B008"]
+# RUF001/002/003: ambiguous-unicode — false positives on the bilingual UI's
+# intentional JA text + scientific typography (en-dash ranges, ×, σ, thin-space).
+ignore = ["E501", "B008", "RUF001", "RUF002", "RUF003"]
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/rehab_sci"]

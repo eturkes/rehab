@@ -61,14 +61,14 @@ class Schema:
     """Bilingual schema registry. Constructed once via :func:`load_schema`."""
 
     __slots__ = (
-        "columns",
-        "level_sets",
-        "ui",
-        "scim",
-        "isncsci",
-        "_raw_index",
         "_alias_index",
         "_canon_index",
+        "_raw_index",
+        "columns",
+        "isncsci",
+        "level_sets",
+        "scim",
+        "ui",
     )
 
     def __init__(

@@ -14,7 +14,6 @@ import json
 from pathlib import Path
 
 import joblib
-import numpy as np
 from rich.console import Console
 from rich.table import Table
 
@@ -42,7 +41,7 @@ def main() -> None:
     discharge_model = joblib.load(MODELS_DIR / "scim_total" / "lgbm_median.joblib")
 
     console.print("[cyan]Building predicted trajectory matrix...[/cyan]")
-    X, traj_matrix, tp_labels = build_trajectory_matrix(
+    _X, traj_matrix, tp_labels = build_trajectory_matrix(
         ep,
         traj_bundle,
         discharge_model,
@@ -68,11 +67,11 @@ def main() -> None:
     console.print(f"\n[cyan]Clustering with k={best_k}...[/cyan]")
     labels, centroids, scaler = cluster_trajectories(traj_matrix, best_k)
 
-    labels, centroids, sort_order = order_archetypes_by_discharge(labels, centroids)
+    labels, centroids, _sort_order = order_archetypes_by_discharge(labels, centroids)
 
     ep_eligible = ep[ep["IDNumber"].notna()].copy()
     key_records = ep_eligible["KeyRecordNumber"].values
-    assignments = {int(kr): int(lbl) for kr, lbl in zip(key_records, labels)}
+    assignments = {int(kr): int(lbl) for kr, lbl in zip(key_records, labels, strict=True)}
 
     summaries = archetype_summary(ep_eligible, labels)
 

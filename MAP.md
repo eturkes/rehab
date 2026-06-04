@@ -3,7 +3,7 @@
 Regenerate after structural changes: `uv run python scripts/gen_map.py`.
 Line numbers are 1-indexed — slice with `Read(path, offset, limit)` instead of
 reading whole files.  Sources: src/rehab_sci, scripts.
-Index: 36 files, 7661 source lines.
+Index: 39 files, 7675 source lines.
 
 ## scripts
 
@@ -29,6 +29,11 @@ Generate MAP.md — a token-cheap navigation index of the codebase.
 
 ### __init__.py (0 lines)
 - (no top-level symbols)
+
+### constants.py (11 lines)
+Shared domain constants — single source of truth (imports nothing from the proje…
+- L10 `AIS_LETTER_TO_ORD` (const)
+- L11 `AIS_ORD_TO_LETTER` (const)
 
 ### schema.py (207 lines)
 Schema / bilingual translation registry.
@@ -57,23 +62,23 @@ Rehabilitation Analytics & Prediction Suite — bilingual Dash app.
 - L105 `update_chrome(lang)` [callback]
 - L123 `update_tab(tab, lang, ref_data)` [callback]
 
-### compute.py (266 lines)
+### compute.py (264 lines)
 Pure computation helpers for model inference, conformal PI, and SHAP.
-- L25 `resolve_group_q(q_by_group, marginal, X)` — Resolve Mondrian q for a single-row input.
-- L49 `resolve_conformal_q(fspec, X)`
-- L57 `resolve_aps_q(fspec, X)`
-- L66 `predict_trajectory(X)` — Predict SCIM-total at each trajectory timepoint for a single-row input.
-- L103 `aps_prediction_set(proba_row, q_hat)`
-- L116 `inv_transform_scalar(x, transform)`
-- L122 `clip_scalar(x, lo, hi)`
-- L130 `format_value(col, value)`
-- L139 `compute_ref_predictions(X)` — Compute predictions for all outcomes on a single-row X.
-- L178 `collect_sim_inputs(num_vals, num_ids, cat_vals, cat_ids)`
-- L198 `shap_for_row_regression(X, model)`
-- L211 `shap_for_row_class(X, clf, class_idx, n_classes)`
-- L240 `episode_row_for_model(key_record)` — Build a one-row model input from an episode's admission features.
-- L256 `episode_has_admission(key_record)`
-- L261 `get_observed_for_outcome(key_record, spec)`
+- L24 `resolve_group_q(q_by_group, marginal, X)` — Resolve Mondrian q for a single-row input.
+- L47 `resolve_conformal_q(fspec, X)`
+- L55 `resolve_aps_q(fspec, X)`
+- L64 `predict_trajectory(X)` — Predict SCIM-total at each trajectory timepoint for a single-row input.
+- L101 `aps_prediction_set(proba_row, q_hat)`
+- L114 `inv_transform_scalar(x, transform)`
+- L120 `clip_scalar(x, lo, hi)`
+- L128 `format_value(col, value)`
+- L137 `compute_ref_predictions(X)` — Compute predictions for all outcomes on a single-row X.
+- L176 `collect_sim_inputs(num_vals, num_ids, cat_vals, cat_ids)`
+- L196 `shap_for_row_regression(X, model)`
+- L209 `shap_for_row_class(X, clf, class_idx, n_classes)`
+- L238 `episode_row_for_model(key_record)` — Build a one-row model input from an episode's admission features.
+- L254 `episode_has_admission(key_record)`
+- L259 `get_observed_for_outcome(key_record, spec)`
 
 ### i18n.py (38 lines)
 Bilingual translation helpers used by every dashboard component.
@@ -95,18 +100,17 @@ Shared layout components: topbar, cards, sliders, prediction figures.
 - L149 `fig_prediction_interval(pred, lo, hi, spec, lang)`
 - L183 `fig_class_probabilities(proba, class_labels, spec, lang, conformal_set)`
 
-### report.py (329 lines)
+### report.py (328 lines)
 PDF patient report generator.
-- L23 `AIS_ORD_TO_LETTER` (const)
-- L67 `_t(key, lang)`
-- L77 `class _ReportPDF`
+- L66 `_t(key, lang)`
+- L76 `class _ReportPDF`
     methods: __init__, _font, header, footer, section_heading, kv_pair
-- L122 `_fig_to_png(fig, width, height)`
-- L126 `_shap_fig_for_pdf(fig)` — Return a copy of the SHAP figure with margins adjusted for PDF rendering.
-- L138 `_safe(v, na, fmt)`
-- L147 `generate_patient_report(meta, predictions, trajectory_fig, shap_fig, outcome_labels, lang)` — Build a 2-page PDF report for one patient episode.
+- L121 `_fig_to_png(fig, width, height)`
+- L125 `_shap_fig_for_pdf(fig)` — Return a copy of the SHAP figure with margins adjusted for PDF rendering.
+- L137 `_safe(v, na, fmt)`
+- L146 `generate_patient_report(meta, predictions, trajectory_fig, shap_fig, outcome_labels, lang)` — Build a 2-page PDF report for one patient episode.
 
-### state.py (77 lines)
+### state.py (76 lines)
 Startup data loading and global state for the dashboard.
 - L21 `ROOT` (const)
 - L22 `MODELS_DIR` (const)
@@ -115,15 +119,14 @@ Startup data loading and global state for the dashboard.
 - L28 `EP` (const)
 - L29 `LONG` (const)
 - L35 `FEATURE_SPEC` (const)
-- L37 `AIS_ORD_TO_LETTER` (const)
-- L38 `DEFAULT_OUTCOME` (const)
-- L41 `_load_outcome_bundle(spec)`
-- L60 `OUTCOME_BUNDLES` (const)
-- L61 `SCIM_TOTAL_BUNDLE` (const)
-- L71 `TRAJECTORY_BUNDLE` (const)
-- L74 `ARCHETYPE_DATA` (const)
-- L76 `PATIENT_OPTIONS` (const)
-- L77 `PATIENT_OPTIONS_BY_ID` (const)
+- L37 `DEFAULT_OUTCOME` (const)
+- L40 `_load_outcome_bundle(spec)`
+- L59 `OUTCOME_BUNDLES` (const)
+- L60 `SCIM_TOTAL_BUNDLE` (const)
+- L70 `TRAJECTORY_BUNDLE` (const)
+- L73 `ARCHETYPE_DATA` (const)
+- L75 `PATIENT_OPTIONS` (const)
+- L76 `PATIENT_OPTIONS_BY_ID` (const)
 
 ### theme.py (104 lines)
 Plotly theme + palettes used everywhere on the dashboard.
@@ -159,7 +162,7 @@ Plotly figures for the Methods tab — calibration and performance visualization
 - L120 `fig_confusion_matrix(shap_pack, schema, lang)`
 - L164 `fig_calibration_curve(shap_pack, schema, lang, *, n_bins)`
 
-### overview.py (416 lines)
+### overview.py (412 lines)
 Plotly figures for the Overview tab — cohort demographics, injury, recovery curv…
 - L15 `fig_age_distribution(ep, schema, lang)`
 - L34 `fig_sex_donut(ep, schema, lang)`
@@ -167,21 +170,20 @@ Plotly figures for the Overview tab — cohort demographics, injury, recovery cu
 - L75 `fig_discharge_scim(ep, schema, lang)`
 - L102 `fig_injury_treemap(ep, schema, lang)`
 - L176 `fig_ais_admit_discharge_sankey(ep, schema, lang)`
-- L223 `fig_recovery_curves(long_df, schema, lang)`
-- L296 `PALETTE_ARCHETYPE` (const)
-- L305 `ARCHETYPE_NAMES_JA` (const)
-- L308 `ARCHETYPE_NAMES_EN` (const)
-- L311 `fig_archetype_curves(centroids, timepoint_labels, summaries, schema, lang)` — Archetype recovery trajectory curves with centroid lines and member count annota…
-- L381 `fig_archetype_demographics(summaries, schema, lang)` — Stacked bar chart showing AIS grade distribution per archetype.
+- L221 `fig_recovery_curves(long_df, schema, lang)`
+- L292 `PALETTE_ARCHETYPE` (const)
+- L301 `ARCHETYPE_NAMES_JA` (const)
+- L304 `ARCHETYPE_NAMES_EN` (const)
+- L307 `fig_archetype_curves(centroids, timepoint_labels, summaries, schema, lang)` — Archetype recovery trajectory curves with centroid lines and member count annota…
+- L377 `fig_archetype_demographics(summaries, schema, lang)` — Stacked bar chart showing AIS grade distribution per archetype.
 
-### patient.py (512 lines)
+### patient.py (508 lines)
 Plotly figures for the Patient explorer tab — SCIM timeline, prediction, similar…
-- L22 `_subscale_label(key, lang)`
-- L32 `fig_patient_scim_timeline(long_df, ep, key_record, strata, schema, lang, trajectory)` — SCIM-III timeline for a single episode against cohort percentile bands.
+- L23 `_subscale_label(key, lang)`
+- L33 `fig_patient_scim_timeline(long_df, ep, key_record, strata, schema, lang, trajectory)` — SCIM-III timeline for a single episode against cohort percentile bands.
 - L267 `fig_patient_prediction(pred, lo, hi, observed, schema, lang, clip_min, clip_max, axis_label)` — Predicted discharge outcome with 80% PI and the observed value (if any).
-- L345 `AIS_ORD_TO_LETTER` (const)
-- L348 `fig_neighbor_outcomes(neighbors, pred, lo, hi, observed, schema, lang, *, clip_min, clip_max, axis_label)` — Strip chart of K nearest neighbors' actual outcomes on the prediction scale.
-- L452 `fig_neighbor_ais_distribution(neighbors, pred_proba, observed_ais, schema, lang)` — Bar chart comparing neighbor AIS grade distribution to the model's predicted pro…
+- L345 `fig_neighbor_outcomes(neighbors, pred, lo, hi, observed, schema, lang, *, clip_min, clip_max, axis_label)` — Strip chart of K nearest neighbors' actual outcomes on the prediction scale.
+- L448 `fig_neighbor_ais_distribution(neighbors, pred_proba, observed_ais, schema, lang)` — Bar chart comparing neighbor AIS grade distribution to the model's predicted pro…
 
 ### simulator.py (124 lines)
 Plotly figures for the Simulator tab — hypothetical recovery trajectory.
@@ -220,46 +222,46 @@ Overview tab — cohort KPIs, demographic charts, archetype curves with interact
 - L102 `_filtered_archetype_summaries(ep_f)` — Rebuild per-archetype summaries on the filtered episode subset.
 - L140 `update_overview_content(ais, para, age_range, arch, lang)` [callback]
 
-### patient.py (657 lines)
+### patient.py (656 lines)
 Patient explorer tab — real-patient predictions, similarity, PDF report.
-- L59 `_patient_picker_options(lang)`
-- L82 `_episode_options_for_patient(id_number, lang)`
-- L92 `_meta_strip(meta, lang)`
-- L145 `_isncsci_table(long_df, key_record, lang)`
-- L189 `render_patient(lang)`
-- L291 `_patient_regression(bundle, X, key_record, lang)`
-- L347 `_patient_multiclass(bundle, X, key_record, lang)`
-- L389 `_build_similarity_section(key_record, bundle, X, lang)`
-- L478 `_compute_patient_tab(key_record, strata, outcome_key, lang)`
-- L545 `update_patient_picker(id_number, lang)` [callback]
-- L554 `reset_episode_on_patient_change(id_number, current)` [callback]
-- L578 `update_patient_tab(key_record, strata, outcome_key, lang)` [callback]
-- L592 `download_report(n_clicks, key_record, id_number, strata, lang)` [callback]
+- L58 `_patient_picker_options(lang)`
+- L81 `_episode_options_for_patient(id_number, lang)`
+- L91 `_meta_strip(meta, lang)`
+- L144 `_isncsci_table(long_df, key_record, lang)`
+- L188 `render_patient(lang)`
+- L290 `_patient_regression(bundle, X, key_record, lang)`
+- L346 `_patient_multiclass(bundle, X, key_record, lang)`
+- L388 `_build_similarity_section(key_record, bundle, X, lang)`
+- L477 `_compute_patient_tab(key_record, strata, outcome_key, lang)`
+- L544 `update_patient_picker(id_number, lang)` [callback]
+- L553 `reset_episode_on_patient_change(id_number, current)` [callback]
+- L577 `update_patient_tab(key_record, strata, outcome_key, lang)` [callback]
+- L591 `download_report(n_clicks, key_record, id_number, strata, lang)` [callback]
 
-### simulator.py (373 lines)
+### simulator.py (371 lines)
 Simulator tab — hypothetical patient prediction + What-if counterfactual.
-- L49 `render_simulator(lang, ref_data)`
-- L132 `_simulate_regression(bundle, X, lang)`
-- L167 `_simulate_multiclass(bundle, X, lang)`
-- L209 `simulate(num_vals, cat_vals, num_ids, cat_ids, outcome_key, lang, ref_data)` [callback]
-- L299 `launch_whatif(n_clicks, key_record, id_number)` [callback]
-- L348 `update_whatif_banner(ref_data, lang)` [callback]
-- L372 `clear_whatif(_n)` [callback]
+- L50 `render_simulator(lang, ref_data)`
+- L133 `_simulate_regression(bundle, X, lang)`
+- L168 `_simulate_multiclass(bundle, X, lang)`
+- L210 `simulate(num_vals, cat_vals, num_ids, cat_ids, outcome_key, lang, ref_data)` [callback]
+- L297 `launch_whatif(n_clicks, key_record, id_number)` [callback]
+- L346 `update_whatif_banner(ref_data, lang)` [callback]
+- L370 `clear_whatif(_n)` [callback]
 
 ## src/rehab_sci/data
 
 ### __init__.py (0 lines)
 - (no top-level symbols)
 
-### archetypes.py (208 lines)
+### archetypes.py (205 lines)
 Recovery archetype discovery via k-means clustering on predicted trajectories.
-- L27 `RANDOM_STATE` (const)
-- L30 `build_trajectory_matrix(ep, trajectory_bundle, discharge_model, feature_cols, categorical_cols, numeric_cols)` — Predict 10-point recovery trajectory (9 intermediate + discharge) for all eligib…
-- L84 `find_best_k(traj_matrix, k_range)` — Evaluate k-means for each k in range; return best k by silhouette score.
-- L104 `cluster_trajectories(traj_matrix, k)` — Run k-means on standardized trajectory matrix.
-- L124 `order_archetypes_by_discharge(labels, centroids)` — Re-label archetypes so archetype 0 has the lowest discharge SCIM (last column).
-- L141 `archetype_summary(ep_eligible, labels)` — Compute per-archetype demographics and outcome summary.
-- L185 `assign_single(X_row, trajectory_bundle, discharge_model, scaler, centroids_std)` — Assign a single patient (one-row DataFrame) to the nearest archetype.
+- L26 `RANDOM_STATE` (const)
+- L29 `build_trajectory_matrix(ep, trajectory_bundle, discharge_model, feature_cols, categorical_cols, numeric_cols)` — Predict 10-point recovery trajectory (9 intermediate + discharge) for all eligib…
+- L81 `find_best_k(traj_matrix, k_range)` — Evaluate k-means for each k in range; return best k by silhouette score.
+- L101 `cluster_trajectories(traj_matrix, k)` — Run k-means on standardized trajectory matrix.
+- L121 `order_archetypes_by_discharge(labels, centroids)` — Re-label archetypes so archetype 0 has the lowest discharge SCIM (last column).
+- L138 `archetype_summary(ep_eligible, labels)` — Compute per-archetype demographics and outcome summary.
+- L182 `assign_single(X_row, trajectory_bundle, discharge_model, scaler, centroids_std)` — Assign a single patient (one-row DataFrame) to the nearest archetype.
 
 ### dataset.py (234 lines)
 Construct the analysis-ready frame: one row per patient-episode.
@@ -287,7 +289,7 @@ Per-episode views used by the dashboard's Patient explorer tab.
 
 ### loader.py (220 lines)
 ALL_SCIDATA.csv loader + cleaner. Patient data is held in-memory only — NEVER pe…
-- L13 `RAW_PATH_DEFAULT` (const)
+- L14 `RAW_PATH_DEFAULT` (const)
 - L26 `cord_level_to_int(level)`
 - L32 `ais_to_int(grade)`
 - L38 `_coerce_numeric(s, allow_bool)` — Coerce a column to numeric. If ``allow_bool``, FALSE/TRUE/NT are mapped to 0/1/N…
@@ -309,17 +311,36 @@ Patient similarity via Gower distance on admission features.
 ### __init__.py (0 lines)
 - (no top-level symbols)
 
-### archetypes.py (144 lines)
+### archetypes.py (143 lines)
 Compute recovery archetypes and persist artifacts.
-- L31 `ROOT` (const)
-- L32 `MODELS_DIR` (const)
-- L35 `main()`
+- L30 `ROOT` (const)
+- L31 `MODELS_DIR` (const)
+- L34 `main()`
+
+### conformal.py (188 lines)
+Split-conformal & APS prediction-set helpers (Mondrian per-AIS / per-paralysis).
+- L14 `AIS_ORD_COL` (const)
+- L15 `PARALYSIS_COL` (const)
+- L16 `MONDRIAN_MIN_N` (const)
+- L19 `_conformal_q(residuals, alpha)`
+- L25 `_compute_mondrian_q(residuals_t, X_cal, alpha)` — Per-AIS-grade and per-paralysis-class conformal quantiles.
+- L55 `_resolve_mondrian_q_array(marginal_q, q_by_group, X)` — Per-row conformal q: AIS group -> paralysis group -> marginal.
+- L81 `_mondrian_test_coverage(y_raw, lo, hi, X)` — Per-group coverage on the test set using Mondrian PI bounds.
+- L111 `_aps_scores(proba, y_true)` — APS nonconformity scores for conformal classification sets.
+- L130 `_aps_prediction_set(proba_row, q_hat)` — Class indices in the APS prediction set for one sample.
+- L143 `_aps_test_metrics(proba, y_true, q_arr, X)` — Coverage and avg set size on test set using per-row Mondrian APS q.
 
 ### outcomes.py (109 lines)
 Outcome registry — the source of truth for what `train.py` predicts.
 - L33 `class OutcomeSpec`
 - L46 `OUTCOMES` (const)
 - L105 `get(key)`
+
+### shap_utils.py (56 lines)
+TreeSHAP interaction-value encoding + top feature-pair ranking helpers.
+- L9 `_encode_cats_for_shap(X)` — Encode category-dtype columns to integer codes for shap_interaction_values.
+- L19 `_top_interactions(shap_interaction, feature_names, top_n)` — Rank feature pairs by mean |SHAP interaction| (regression: 3-D input).
+- L39 `_top_interactions_multiclass(shap_interaction, feature_names, top_n)` — Rank feature pairs by mean |SHAP interaction| (multiclass: 4-D input).
 
 ### subgroups.py (245 lines)
 Subgroup discovery + effect sizes for all prediction outcomes.
@@ -335,40 +356,26 @@ Subgroup discovery + effect sizes for all prediction outcomes.
 - L191 `_console_summary(key, out)`
 - L217 `main()`
 
-### train.py (1108 lines)
+### train.py (886 lines)
 Train one model per outcome spec + split-conformal PI + SHAP cache.
-- L61 `ROOT` (const)
-- L62 `OUT` (const)
-- L65 `RANDOM_STATE` (const)
-- L67 `AIS_ORD_TO_LETTER` (const)
-- L68 `AIS_ORD_COL` (const)
-- L69 `PARALYSIS_COL` (const)
-- L70 `MONDRIAN_MIN_N` (const)
-- L72 `TRAJECTORY_TIMEPOINTS` (const)
-- L77 `_prep(ep, feature_cols, numeric_cols, categorical_cols, target_col)`
-- L98 `_apply_transform(y, transform)`
-- L105 `_inverse_transform(y, transform)`
-- L111 `_clip(arr, lo, hi)`
-- L122 `_params_lgbm_reg()`
-- L140 `_params_quantile(alpha)`
-- L147 `_params_lgbm_clf(n_classes)`
-- L166 `_fit_reg(params, X_tr, y_tr, X_val, y_val, cat_cols)`
-- L178 `_fit_clf(params, X_tr, y_tr, X_val, y_val, cat_cols)`
-- L190 `_grouped_holdout(X, y, groups, test_size)`
-- L200 `_cv_score_reg(X, y_raw, groups, cat_cols, transform, clip_min, clip_max, n_splits)` — CV metrics reported on the *raw* (back-transformed, clipped) scale.
-- L242 `_cv_score_multiclass(X, y_codes, groups, cat_cols, class_codes, n_splits)`
-- L283 `_conformal_q(residuals, alpha)`
-- L289 `_compute_mondrian_q(residuals_t, X_cal, alpha)` — Per-AIS-grade and per-paralysis-class conformal quantiles.
-- L319 `_resolve_mondrian_q_array(marginal_q, q_by_group, X)` — Per-row conformal q: AIS group -> paralysis group -> marginal.
-- L345 `_mondrian_test_coverage(y_raw, lo, hi, X)` — Per-group coverage on the test set using Mondrian PI bounds.
-- L378 `_aps_scores(proba, y_true)` — APS nonconformity scores for conformal classification sets.
-- L397 `_aps_prediction_set(proba_row, q_hat)` — Class indices in the APS prediction set for one sample.
-- L410 `_aps_test_metrics(proba, y_true, q_arr, X)` — Coverage and avg set size on test set using per-row Mondrian APS q.
-- L460 `_encode_cats_for_shap(X)` — Encode category-dtype columns to integer codes for shap_interaction_values.
-- L472 `_top_interactions(shap_interaction, feature_names, top_n)` — Rank feature pairs by mean |SHAP interaction| (regression: 3-D input).
-- L492 `_top_interactions_multiclass(shap_interaction, feature_names, top_n)` — Rank feature pairs by mean |SHAP interaction| (multiclass: 4-D input).
-- L514 `_train_regression(spec, af, out_root)`
-- L698 `_train_multiclass(spec, af, out_root)`
-- L886 `_train_trajectory(af, out_root)` — Train per-timepoint SCIM-total models for recovery trajectory forecasting.
-- L1009 `_simulator_defaults(af)` — Return (defaults, ranges_and_categories) over the full episode frame.
-- L1053 `main()`
+- L75 `ROOT` (const)
+- L76 `OUT` (const)
+- L79 `RANDOM_STATE` (const)
+- L82 `TRAJECTORY_TIMEPOINTS` (const)
+- L87 `_prep(ep, feature_cols, numeric_cols, categorical_cols, target_col)`
+- L108 `_apply_transform(y, transform)`
+- L115 `_inverse_transform(y, transform)`
+- L121 `_clip(arr, lo, hi)`
+- L132 `_params_lgbm_reg()`
+- L150 `_params_quantile(alpha)`
+- L157 `_params_lgbm_clf(n_classes)`
+- L176 `_fit_reg(params, X_tr, y_tr, X_val, y_val, cat_cols)`
+- L188 `_fit_clf(params, X_tr, y_tr, X_val, y_val, cat_cols)`
+- L200 `_grouped_holdout(X, y, groups, test_size)`
+- L210 `_cv_score_reg(X, y_raw, groups, cat_cols, transform, clip_min, clip_max, n_splits)` — CV metrics reported on the *raw* (back-transformed, clipped) scale.
+- L252 `_cv_score_multiclass(X, y_codes, groups, cat_cols, class_codes, n_splits)`
+- L292 `_train_regression(spec, af, out_root)`
+- L476 `_train_multiclass(spec, af, out_root)`
+- L664 `_train_trajectory(af, out_root)` — Train per-timepoint SCIM-total models for recovery trajectory forecasting.
+- L787 `_simulator_defaults(af)` — Return (defaults, ranges_and_categories) over the full episode frame.
+- L831 `main()`

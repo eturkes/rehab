@@ -56,7 +56,21 @@ from sklearn.metrics import (
 from sklearn.model_selection import GroupKFold, GroupShuffleSplit
 
 from rehab_sci.data.dataset import AnalysisFrame, build_analysis_dataset
+from rehab_sci.models.conformal import (
+    MONDRIAN_MIN_N,
+    _aps_scores,
+    _aps_test_metrics,
+    _compute_mondrian_q,
+    _conformal_q,
+    _mondrian_test_coverage,
+    _resolve_mondrian_q_array,
+)
 from rehab_sci.models.outcomes import OUTCOMES, OutcomeSpec
+from rehab_sci.models.shap_utils import (
+    _encode_cats_for_shap,
+    _top_interactions,
+    _top_interactions_multiclass,
+)
 
 ROOT = Path(__file__).resolve().parents[3]
 OUT = ROOT / "models"
@@ -64,10 +78,6 @@ OUT.mkdir(parents=True, exist_ok=True)
 
 RANDOM_STATE = 20260518
 
-AIS_ORD_TO_LETTER = {1: "A", 2: "B", 3: "C", 4: "D", 5: "E"}
-AIS_ORD_COL = "AIS_ord"
-PARALYSIS_COL = "対麻痺_四肢麻痺"
-MONDRIAN_MIN_N = 8
 
 TRAJECTORY_TIMEPOINTS = ("72h", "2w", "4w", "6w", "2m", "3m", "4m", "5m", "6m")
 
@@ -277,238 +287,6 @@ def _cv_score_multiclass(
     }
 
 
-# ----------------------------- Mondrian conformal --------------------------
-
-
-def _conformal_q(residuals: np.ndarray, alpha: float) -> float:
-    q_idx = int(np.ceil((len(residuals) + 1) * (1 - alpha))) - 1
-    q_idx = max(0, min(q_idx, len(residuals) - 1))
-    return float(np.sort(residuals)[q_idx])
-
-
-def _compute_mondrian_q(
-    residuals_t: np.ndarray,
-    X_cal: pd.DataFrame,
-    alpha: float,
-) -> dict:
-    """Per-AIS-grade and per-paralysis-class conformal quantiles.
-
-    Groups with fewer than ``MONDRIAN_MIN_N`` calibration samples are omitted;
-    inference falls back to the next coarser group or to the marginal.
-    """
-    result: dict = {}
-    if AIS_ORD_COL in X_cal.columns:
-        ais_vals = pd.to_numeric(X_cal[AIS_ORD_COL], errors="coerce").to_numpy()
-        ais_qs: dict[str, float] = {}
-        for code, letter in AIS_ORD_TO_LETTER.items():
-            mask = ais_vals == code
-            if int(mask.sum()) >= MONDRIAN_MIN_N:
-                ais_qs[letter] = _conformal_q(residuals_t[mask], alpha)
-        result["ais"] = ais_qs
-    if PARALYSIS_COL in X_cal.columns:
-        para_vals = X_cal[PARALYSIS_COL].astype(str).to_numpy()
-        para_qs: dict[str, float] = {}
-        for label in ("TETRA", "PARA", "NONE"):
-            mask = para_vals == label
-            if int(mask.sum()) >= MONDRIAN_MIN_N:
-                para_qs[label] = _conformal_q(residuals_t[mask], alpha)
-        result["paralysis"] = para_qs
-    return result
-
-
-def _resolve_mondrian_q_array(
-    marginal_q: float,
-    q_by_group: dict,
-    X: pd.DataFrame,
-) -> np.ndarray:
-    """Per-row conformal q: AIS group -> paralysis group -> marginal."""
-    n = len(X)
-    q_arr = np.full(n, marginal_q)
-    resolved = np.zeros(n, dtype=bool)
-    ais_qs = q_by_group.get("ais", {})
-    if ais_qs and AIS_ORD_COL in X.columns:
-        ais_vals = pd.to_numeric(X[AIS_ORD_COL], errors="coerce").to_numpy()
-        for code, letter in AIS_ORD_TO_LETTER.items():
-            if letter in ais_qs:
-                mask = ais_vals == code
-                q_arr[mask] = ais_qs[letter]
-                resolved |= mask
-    para_qs = q_by_group.get("paralysis", {})
-    if para_qs and PARALYSIS_COL in X.columns:
-        para_vals = X[PARALYSIS_COL].astype(str).to_numpy()
-        for label, q in para_qs.items():
-            mask = (~resolved) & (para_vals == label)
-            q_arr[mask] = q
-    return q_arr
-
-
-def _mondrian_test_coverage(
-    y_raw: np.ndarray,
-    lo: np.ndarray,
-    hi: np.ndarray,
-    X: pd.DataFrame,
-) -> dict:
-    """Per-group coverage on the test set using Mondrian PI bounds."""
-    covered = (y_raw >= lo) & (y_raw <= hi)
-    result: dict = {}
-    if AIS_ORD_COL in X.columns:
-        ais_vals = pd.to_numeric(X[AIS_ORD_COL], errors="coerce").to_numpy()
-        ais_cov: dict = {}
-        for code, letter in AIS_ORD_TO_LETTER.items():
-            mask = ais_vals == code
-            n = int(mask.sum())
-            if n > 0:
-                ais_cov[letter] = {"n": n, "coverage": round(float(covered[mask].mean()), 4)}
-        result["ais"] = ais_cov
-    if PARALYSIS_COL in X.columns:
-        para_vals = X[PARALYSIS_COL].astype(str).to_numpy()
-        para_cov: dict = {}
-        for label in ("TETRA", "PARA", "NONE"):
-            mask = para_vals == label
-            n = int(mask.sum())
-            if n > 0:
-                para_cov[label] = {"n": n, "coverage": round(float(covered[mask].mean()), 4)}
-        result["paralysis"] = para_cov
-    return result
-
-
-# ----------------------------- APS conformal classification -----------------
-
-
-def _aps_scores(proba: np.ndarray, y_true: np.ndarray) -> np.ndarray:
-    """APS nonconformity scores for conformal classification sets.
-
-    For each sample: sort class probabilities descending, accumulate until the
-    true class is included.  The score is the total accumulated mass.
-    """
-    n = len(y_true)
-    scores = np.zeros(n)
-    for i in range(n):
-        order = np.argsort(-proba[i])
-        cumsum = 0.0
-        for j in order:
-            cumsum += proba[i, j]
-            if j == y_true[i]:
-                scores[i] = cumsum
-                break
-    return scores
-
-
-def _aps_prediction_set(proba_row: np.ndarray, q_hat: float) -> list[int]:
-    """Class indices in the APS prediction set for one sample."""
-    order = np.argsort(-proba_row)
-    cumsum = 0.0
-    pred_set: list[int] = []
-    for j in order:
-        pred_set.append(int(j))
-        cumsum += proba_row[j]
-        if cumsum >= q_hat:
-            break
-    return sorted(pred_set)
-
-
-def _aps_test_metrics(
-    proba: np.ndarray,
-    y_true: np.ndarray,
-    q_arr: np.ndarray,
-    X: pd.DataFrame,
-) -> dict:
-    """Coverage and avg set size on test set using per-row Mondrian APS q."""
-    n = len(y_true)
-    covered = np.zeros(n, dtype=bool)
-    sizes = np.zeros(n, dtype=int)
-    for i in range(n):
-        pset = _aps_prediction_set(proba[i], q_arr[i])
-        covered[i] = y_true[i] in pset
-        sizes[i] = len(pset)
-    result: dict = {
-        "coverage": round(float(covered.mean()), 4),
-        "avg_set_size": round(float(sizes.mean()), 3),
-        "n": n,
-    }
-    if AIS_ORD_COL in X.columns:
-        ais_vals = pd.to_numeric(X[AIS_ORD_COL], errors="coerce").to_numpy()
-        ais_cov: dict = {}
-        for code, letter in AIS_ORD_TO_LETTER.items():
-            mask = ais_vals == code
-            ng = int(mask.sum())
-            if ng > 0:
-                ais_cov[letter] = {
-                    "n": ng,
-                    "coverage": round(float(covered[mask].mean()), 4),
-                    "avg_set_size": round(float(sizes[mask].mean()), 3),
-                }
-        result["ais"] = ais_cov
-    if PARALYSIS_COL in X.columns:
-        para_vals = X[PARALYSIS_COL].astype(str).to_numpy()
-        para_cov: dict = {}
-        for label in ("TETRA", "PARA", "NONE"):
-            mask = para_vals == label
-            ng = int(mask.sum())
-            if ng > 0:
-                para_cov[label] = {
-                    "n": ng,
-                    "coverage": round(float(covered[mask].mean()), 4),
-                    "avg_set_size": round(float(sizes[mask].mean()), 3),
-                }
-        result["paralysis"] = para_cov
-    return result
-
-
-# ----------------------------- SHAP interaction helpers -------------------
-
-def _encode_cats_for_shap(X: pd.DataFrame) -> pd.DataFrame:
-    """Encode category-dtype columns to integer codes for shap_interaction_values."""
-    out = X.copy()
-    for c in out.columns:
-        if out[c].dtype.name == "category":
-            out[c] = out[c].cat.codes.astype(float)
-            out[c] = out[c].replace(-1, float("nan"))
-    return out
-
-
-# ----------------------------- SHAP interaction ranking -------------------
-
-def _top_interactions(
-    shap_interaction: np.ndarray,
-    feature_names: list[str],
-    top_n: int = 25,
-) -> list[dict]:
-    """Rank feature pairs by mean |SHAP interaction| (regression: 3-D input)."""
-    # shap_interaction shape: (n_samples, n_features, n_features)
-    abs_mean = np.abs(shap_interaction).mean(axis=0)  # (p, p)
-    n_feat = len(feature_names)
-    pairs = []
-    for i in range(n_feat):
-        for j in range(i + 1, n_feat):
-            pairs.append((feature_names[i], feature_names[j], float(abs_mean[i, j])))
-    pairs.sort(key=lambda x: -x[2])
-    return [
-        {"feat_a": a, "feat_b": b, "abs_mean_interaction": v}
-        for a, b, v in pairs[:top_n]
-    ]
-
-
-def _top_interactions_multiclass(
-    shap_interaction: np.ndarray,
-    feature_names: list[str],
-    top_n: int = 25,
-) -> list[dict]:
-    """Rank feature pairs by mean |SHAP interaction| (multiclass: 4-D input)."""
-    # shap_interaction shape: (n_samples, n_features, n_features, K)
-    abs_mean = np.abs(shap_interaction).mean(axis=(0, 3))  # (p, p)
-    n_feat = len(feature_names)
-    pairs = []
-    for i in range(n_feat):
-        for j in range(i + 1, n_feat):
-            pairs.append((feature_names[i], feature_names[j], float(abs_mean[i, j])))
-    pairs.sort(key=lambda x: -x[2])
-    return [
-        {"feat_a": a, "feat_b": b, "abs_mean_interaction": v}
-        for a, b, v in pairs[:top_n]
-    ]
-
-
 # ----------------------------- per-outcome trainers ----------------------
 
 def _train_regression(
@@ -537,7 +315,7 @@ def _train_regression(
     # holdout + calibration
     train_idx, test_idx = _grouped_holdout(X, y_t, groups, test_size=0.2)
     X_dev, X_te = X.iloc[train_idx], X.iloc[test_idx]
-    y_dev_t, y_te_t = y_t[train_idx], y_t[test_idx]
+    y_dev_t = y_t[train_idx]
     y_te_raw = y_raw_arr[test_idx]
     g_dev = groups.iloc[train_idx]
 
@@ -589,9 +367,9 @@ def _train_regression(
             k: v for k, v in q_by_group.items() if k != "min_n"
         },
         "raw_quantile_coverage_80": qcov,
-        "n_train": int(len(X_tr)),
-        "n_calib": int(len(X_cal)),
-        "n_test": int(len(X_te)),
+        "n_train": len(X_tr),
+        "n_calib": len(X_cal),
+        "n_test": len(X_te),
         "n_dev_patients": int(g_dev.nunique()),
         "n_test_patients": int(groups.iloc[test_idx].nunique()),
     }
@@ -690,7 +468,7 @@ def _train_regression(
         ],
         "global_interaction_top25": interaction_top25,
         "n_features": int(X.shape[1]),
-        "n_episodes_with_outcome": int(len(X)),
+        "n_episodes_with_outcome": len(X),
         "n_patients_with_outcome": int(groups.nunique()),
     }
 
@@ -760,9 +538,9 @@ def _train_multiclass(
         "accuracy": float(accuracy_score(y_te, pred_idx)),
         "kappa_quadratic": float(cohen_kappa_score(y_te, pred_idx, weights="quadratic")),
         "ordinal_mae": float(mean_absolute_error(code_arr[y_te], code_arr[pred_idx])),
-        "n_train": int(len(X_tr)),
-        "n_calib": int(len(X_cal)),
-        "n_test": int(len(X_te)),
+        "n_train": len(X_tr),
+        "n_calib": len(X_cal),
+        "n_test": len(X_te),
         "n_dev_patients": int(g_dev.nunique()),
         "n_test_patients": int(groups.iloc[test_idx].nunique()),
         "class_codes": [int(c) for c in class_codes],
@@ -875,7 +653,7 @@ def _train_multiclass(
         ],
         "global_interaction_top25": interaction_top25,
         "n_features": int(X.shape[1]),
-        "n_episodes_with_outcome": int(len(X)),
+        "n_episodes_with_outcome": len(X),
         "n_patients_with_outcome": int(groups.nunique()),
     }
 
@@ -953,10 +731,10 @@ def _train_trajectory(af: AnalysisFrame, out_root: Path) -> dict:
             "conformal_q": conformal_q,
             "conformal_coverage_80": covered,
             "raw_quantile_coverage_80": qcov,
-            "n_train": int(len(X_tr)),
-            "n_calib": int(len(X_cal)),
-            "n_test": int(len(X_te)),
-            "n_total": int(len(X)),
+            "n_train": len(X_tr),
+            "n_calib": len(X_cal),
+            "n_test": len(X_te),
+            "n_total": len(X),
         }
         print(
             f"   TEST  R²={test_m['r2']:.3f}  RMSE={test_m['rmse']:.3f}  "
@@ -1091,12 +869,12 @@ def main() -> None:
         "trajectory": traj_metrics,
         "trajectory_timepoints": list(TRAJECTORY_TIMEPOINTS),
         "random_state": RANDOM_STATE,
-        "n_episodes_total": int(len(af.df)),
+        "n_episodes_total": len(af.df),
         "n_patients_total": int(af.df["IDNumber"].nunique(dropna=True)),
-        "n_features": int(len(af.feature_cols)),
+        "n_features": len(af.feature_cols),
     }
     (OUT / "training_metrics.json").write_text(
-        json.dumps(metrics_payload, indent=2), encoding="utf-8"
+        json.dumps(metrics_payload, indent=2, ensure_ascii=False), encoding="utf-8"
     )
     (OUT / "simulator_defaults.json").write_text(
         json.dumps(defaults, indent=2, ensure_ascii=False), encoding="utf-8"

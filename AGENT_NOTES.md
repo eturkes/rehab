@@ -90,6 +90,25 @@ superseded, duplicated elsewhere, or has gone stale.
 * **Confirm dead code before deleting via a repo-wide grep of every call form.**
   `figures.kpi_card` was a stale dict-returning dup of `layout.kpi_card` (the
   `html.Div` version every caller imports); nothing referenced the figures one.
+* **`ruff` ambiguous-unicode rules (RUF001/002/003) fire on intentional text —
+  ignore them in config, never "fix" the strings.**  The flagged glyphs are
+  deliberate: full-width Japanese punctuation in bilingual UI strings and
+  scientific typography (en-dash ranges `0–100`, `×` for interactions, `σ`,
+  thin spaces).  Rewriting them to ASCII look-alikes corrupts the UI/maths.
+  They sit in `[tool.ruff.lint] ignore` beside `E501`/`B008`.
+* **LightGBM training is byte-reproducible here; k-means archetypes are not.**
+  A full retrain reproduces every LightGBM metric in `training_metrics.json`
+  exactly (fixed `random_state` suffices — no `deterministic=`/`num_threads=1`
+  needed), so a diff in the `outcomes` block is a *real* change worth
+  investigating.  The lone retrain churn is the `archetypes.centroids` array:
+  ~1e-15 last-bit noise from thread-order in numpy/sklearn BLAS.  `git checkout
+  models/training_metrics.json` drops that meaningless diff.
+* **Two writers touch `training_metrics.json`; run the full pipeline to restore
+  its committed form.**  `train.py` writes it first, then `archetypes.py`
+  rewrites it last (adding the `archetypes` key).  All metric writers now use
+  `ensure_ascii=False` (raw UTF-8 Japanese); a bare `train.py` run alone leaves
+  the file without the `archetypes` section, so run `train` → `archetypes` (the
+  full sequence in §6) before trusting or diffing it.
 
 ## 1. Data invariants (do not rediscover)
 
@@ -333,6 +352,15 @@ bgcmd 'exit()'; rm -rf "$BGCMDDIR"               # stop + clean
 
 One line per session; full detail is in Git history (`git log`, diffs).
 
+* **s25** — s24 optional cleanups, all three landed.  Ruff debt cleared (config
+  ignores `E501`/`B008`/`RUF001-003`; ~85 safe autofixes + 22 manual; repo lints
+  clean).  `AIS_ORD_TO_LETTER` deduped (was 4×) into new `constants.py` (bottom
+  of the import graph — imports nothing from the project).  `train.py` (1108 ln)
+  carved → core + new `models/conformal.py` (Mondrian/APS) + `models/shap_utils.py`
+  (SHAP-interaction helpers) via the AST-equivalence method.  Also fixed
+  `train.py`'s metrics write to `ensure_ascii=False` (was the lone escaped
+  writer).  Verified: full lint clean, all modules import, `train`+`archetypes`
+  retrain end-to-end (LightGBM metrics byte-identical), dashboard boots 200.
 * **s24** — token-efficiency pass: `figures.py` (1573 ln) → `figures/` package
   (6 tab modules; public surface preserved; carved via one-shot script + an
   AST-equivalence assertion, then ruff-pruned imports).  Added
@@ -395,23 +423,9 @@ implementation detail.  Shipped ledger (terse, by feature number):
   F20 app.py refactor · F22 overview cohort filtering.
 * (F11/F12/F15/F17/F19/F21 were never opened — numbering gaps only.)
 
-**Open items (optional cleanups surfaced in s24; none blocking):**
+**Open items: none.**  The three s24 optional cleanups (lint debt, dedup
+`AIS_ORD_TO_LETTER`, split `train.py`) all shipped in s25.
 
-* **Clear pre-existing lint debt.**  *What:* `uv run ruff check src/ scripts/`
-  reports ~139 issues (RUF100 unused-noqa, RUF046 redundant `int()`, F841 dead
-  locals, F401).  *Why:* dead cruft costs read-tokens.  *Effort:* `--fix` clears
-  ~45 safely in seconds; the rest are manual.  *Files:* repo-wide.  *Caveat:*
-  fixes under `models/` (pipeline) need a retrain (`-m rehab_sci.models.train`)
-  to re-verify before trusting.
-* **Dedup `AIS_ORD_TO_LETTER`.**  *What:* the `{1:"A"…5:"E"}` map is defined 4×
-  (`state`, `report`, `train`, `figures/patient`).  *Why:* drift risk + repeated
-  reads.  *Effort:* small.  *Files:* those 4 + importers; pick one home (e.g.
-  `schema` or a tiny constants module).  *Data dep:* none.
-* **Split `train.py` (1108 ln) like figures** *(low ROI)*.  *Why:* it is the #2
-  file but rarely edited, and `MAP.md` now indexes its internals so full reads
-  are seldom needed.  *Effort:* medium (dense shared `_params`/`_fit`/conformal
-  helpers).  *Data dep:* none; verify with a retrain.
-
-Otherwise: propose new feature candidates or maintenance (security audit,
-dependency refresh) and add them here with **what / why / effort / files / data
+Propose new feature candidates or maintenance (security audit, dependency
+refresh) and add them here with **what / why / effort / files / data
 dependency** before starting.

@@ -2,11 +2,13 @@
 
 from __future__ import annotations
 
+import contextlib
+
 import dash
 import numpy as np
 import pandas as pd
 import plotly.graph_objects as go
-from dash import Input, Output, State, callback, ctx, dcc, html
+from dash import Input, Output, State, callback, dcc, html
 
 from rehab_sci.dashboard import figures as fg
 from rehab_sci.dashboard.compute import (
@@ -35,7 +37,6 @@ from rehab_sci.dashboard.state import (
     EP,
     FEATURE_SPEC,
     OUTCOME_BUNDLES,
-    PATIENT_OPTIONS_BY_ID,
     SCHEMA,
     SCIM_TOTAL_BUNDLE,
     SIM_DEFAULTS,
@@ -206,11 +207,10 @@ def _simulate_multiclass(bundle: dict, X: pd.DataFrame, lang: str):
     Input("lang-store", "data"),
     State("patient-ref", "data"),
 )
-def simulate(num_vals, cat_vals, num_ids, cat_ids, outcome_key, lang, ref_data):  # noqa: ANN001
+def simulate(num_vals, cat_vals, num_ids, cat_ids, outcome_key, lang, ref_data):
     if not num_ids and not cat_ids:
         return [], go.Figure(), go.Figure(), go.Figure()
     bundle = OUTCOME_BUNDLES.get(outcome_key) or SCIM_TOTAL_BUNDLE
-    spec: OutcomeSpec = bundle["spec"]
     X = collect_sim_inputs(num_vals, num_ids, cat_vals, cat_ids)
 
     ref_pred_for_outcome: dict | None = None
@@ -234,10 +234,8 @@ def simulate(num_vals, cat_vals, num_ids, cat_ids, outcome_key, lang, ref_data):
             current_pred = ref_p
             for item in readout:
                 if hasattr(item, "className") and getattr(item, "className", "") == "pred":
-                    try:
+                    with contextlib.suppress(TypeError, ValueError):
                         current_pred = float(item.children)
-                    except (TypeError, ValueError):
-                        pass
                     break
             delta = current_pred - ref_p
             readout.append(html.Div(
@@ -296,7 +294,7 @@ def simulate(num_vals, cat_vals, num_ids, cat_ids, outcome_key, lang, ref_data):
     State("patient-id-dropdown", "value"),
     prevent_initial_call=True,
 )
-def launch_whatif(n_clicks, key_record, id_number):  # noqa: ANN001
+def launch_whatif(n_clicks, key_record, id_number):
     if not n_clicks or key_record is None or not episode_has_admission(int(key_record)):
         return dash.no_update, dash.no_update
     key_record = int(key_record)
@@ -345,7 +343,7 @@ def launch_whatif(n_clicks, key_record, id_number):  # noqa: ANN001
     Input("patient-ref", "data"),
     Input("lang-store", "data"),
 )
-def update_whatif_banner(ref_data, lang):  # noqa: ANN001
+def update_whatif_banner(ref_data, lang):
     if not ref_data:
         return []
     tmpl = t(SCHEMA, "whatif_banner", lang)
@@ -369,5 +367,5 @@ def update_whatif_banner(ref_data, lang):  # noqa: ANN001
     Input("whatif-clear-btn", "n_clicks"),
     prevent_initial_call=True,
 )
-def clear_whatif(_n):  # noqa: ANN001
+def clear_whatif(_n):
     return None

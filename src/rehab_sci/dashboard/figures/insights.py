@@ -272,7 +272,7 @@ def fig_interaction_dependence(
             mask_c = color_vals == cat
             fig.add_trace(
                 go.Scatter(
-                    x=x_vals[mask_c] if not isinstance(x_vals.iloc[0], str) else x_vals[mask_c],
+                    x=x_vals[mask_c],
                     y=int_vals[mask_c],
                     mode="markers",
                     name=str(cat),

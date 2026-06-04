@@ -112,7 +112,7 @@ def fig_injury_treemap(ep: pd.DataFrame, schema: Schema, lang: str) -> go.Figure
     sub["nli_label"] = sub["NLI"].map(
         lambda v: level_label(schema, "cord_level", str(v), lang) if v != "?" else ("不明" if lang == "ja" else "Unknown")
     )
-    raw_to_label = dict(zip(sub["対麻痺_四肢麻痺"].astype(str), sub["para_label"]))
+    raw_to_label = dict(zip(sub["対麻痺_四肢麻痺"].astype(str), sub["para_label"], strict=True))
     label_to_color = {
         raw_to_label.get(raw, raw): color
         for raw, color in PALETTE_PARA.items()
@@ -183,8 +183,6 @@ def fig_ais_admit_discharge_sankey(ep: pd.DataFrame, schema: Schema, lang: str) 
     grouped = sub.groupby(["admit", "dis"], observed=True).size().reset_index(name="n")
 
     grades = ["A", "B", "C", "D", "E"]
-    admit_nodes = [f"{g} →" for g in grades]
-    dis_nodes = [f"→ {g}" for g in grades]
     labels = (
         [level_label(schema, "ais", g, lang) + (" (入院)" if lang == "ja" else " (admit)") for g in grades]
         + [level_label(schema, "ais", g, lang) + (" (退院)" if lang == "ja" else " (discharge)") for g in grades]
@@ -239,11 +237,9 @@ def fig_recovery_curves(long_df: pd.DataFrame, schema: Schema, lang: str) -> go.
         agg.columns = ["t", "med", "q25", "q75", "n"]
         agg = agg[agg["n"] >= 5]
         x = [str(v) for v in agg["t"]]
-        x_label = [t(schema, "time_name", "ja") for _ in x]
-        # use translated time labels
         x_disp = [level_label(schema, "time_name", v, lang) for v in x]
         color = PALETTE_PARA.get(
-            ep_str := next(
+            next(
                 (k for k, v in PALETTE_PARA.items() if level_label(schema, "para_tetra", k, lang) == group),
                 "TETRA",
             ),
@@ -320,7 +316,7 @@ def fig_archetype_curves(
     names = ARCHETYPE_NAMES_JA if lang == "ja" else ARCHETYPE_NAMES_EN
     fig = go.Figure()
 
-    for i, (row, s) in enumerate(zip(centroids, summaries)):
+    for i, (row, s) in enumerate(zip(centroids, summaries, strict=True)):
         color = PALETTE_ARCHETYPE[i % len(PALETTE_ARCHETYPE)]
         label = f"{names[i]} (n={s['n']})"
 

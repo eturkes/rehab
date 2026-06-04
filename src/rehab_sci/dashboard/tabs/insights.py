@@ -136,7 +136,7 @@ def render_insights(lang: str) -> html.Div:
     Output("ins-outcome", "options"),
     Input("lang-store", "data"),
 )
-def update_insight_outcome_options(lang):  # noqa: ANN001
+def update_insight_outcome_options(lang):
     return _insight_outcome_options(lang)
 
 
@@ -145,7 +145,7 @@ def update_insight_outcome_options(lang):  # noqa: ANN001
     Input("ins-outcome", "value"),
     Input("lang-store", "data"),
 )
-def update_importance(outcome_key, lang):  # noqa: ANN001
+def update_importance(outcome_key, lang):
     m = METRICS["outcomes"].get(outcome_key or DEFAULT_OUTCOME, METRICS["outcomes"][DEFAULT_OUTCOME])
     return fg.fig_global_shap_importance(m, SCHEMA, lang)
 
@@ -157,7 +157,7 @@ def update_importance(outcome_key, lang):  # noqa: ANN001
     Input("ins-outcome", "value"),
     Input("lang-store", "data"),
 )
-def update_subgroup(feature, outcome_key, lang):  # noqa: ANN001
+def update_subgroup(feature, outcome_key, lang):
     outcome_key = outcome_key or DEFAULT_OUTCOME
     bundle = OUTCOME_BUNDLES.get(outcome_key) or SCIM_TOTAL_BUNDLE
     spec: OutcomeSpec = bundle["spec"]
@@ -187,7 +187,7 @@ def update_subgroup(feature, outcome_key, lang):  # noqa: ANN001
     Input("ins-outcome", "value"),
     Input("lang-store", "data"),
 )
-def update_dep_feature_options(outcome_key, lang):  # noqa: ANN001
+def update_dep_feature_options(outcome_key, lang):
     outcome_key = outcome_key or DEFAULT_OUTCOME
     m = METRICS["outcomes"].get(outcome_key, METRICS["outcomes"][DEFAULT_OUTCOME])
     items = m.get("global_importance_top25", [])[:15]
@@ -207,7 +207,7 @@ def update_dep_feature_options(outcome_key, lang):  # noqa: ANN001
     Output("ins-dep-class", "value"),
     Input("ins-outcome", "value"),
 )
-def update_dep_class_options(outcome_key):  # noqa: ANN001
+def update_dep_class_options(outcome_key):
     outcome_key = outcome_key or DEFAULT_OUTCOME
     bundle = OUTCOME_BUNDLES.get(outcome_key) or SCIM_TOTAL_BUNDLE
     if bundle["task"] == "multiclass":
@@ -225,7 +225,7 @@ def update_dep_class_options(outcome_key):  # noqa: ANN001
     Input("ins-dep-class", "value"),
     Input("lang-store", "data"),
 )
-def update_dependence(feature, outcome_key, class_val, lang):  # noqa: ANN001
+def update_dependence(feature, outcome_key, class_val, lang):
     outcome_key = outcome_key or DEFAULT_OUTCOME
     bundle = OUTCOME_BUNDLES.get(outcome_key) or SCIM_TOTAL_BUNDLE
     if feature is None:
@@ -240,7 +240,7 @@ def update_dependence(feature, outcome_key, class_val, lang):  # noqa: ANN001
     Input("ins-outcome", "value"),
     Input("lang-store", "data"),
 )
-def update_interaction_heatmap(outcome_key, lang):  # noqa: ANN001
+def update_interaction_heatmap(outcome_key, lang):
     m = METRICS["outcomes"].get(outcome_key or DEFAULT_OUTCOME, METRICS["outcomes"][DEFAULT_OUTCOME])
     return fg.fig_interaction_heatmap(m, SCHEMA, lang)
 
@@ -253,7 +253,7 @@ def update_interaction_heatmap(outcome_key, lang):  # noqa: ANN001
     Input("ins-outcome", "value"),
     Input("lang-store", "data"),
 )
-def update_int_feat_options(outcome_key, lang):  # noqa: ANN001
+def update_int_feat_options(outcome_key, lang):
     outcome_key = outcome_key or DEFAULT_OUTCOME
     m = METRICS["outcomes"].get(outcome_key, METRICS["outcomes"][DEFAULT_OUTCOME])
     items = m.get("global_interaction_top25", [])
@@ -276,7 +276,7 @@ def update_int_feat_options(outcome_key, lang):  # noqa: ANN001
     Input("ins-dep-class", "value"),
     Input("lang-store", "data"),
 )
-def update_interaction_dependence(feat_x, feat_y, outcome_key, class_val, lang):  # noqa: ANN001
+def update_interaction_dependence(feat_x, feat_y, outcome_key, class_val, lang):
     outcome_key = outcome_key or DEFAULT_OUTCOME
     bundle = OUTCOME_BUNDLES.get(outcome_key) or SCIM_TOTAL_BUNDLE
     if feat_x is None or feat_y is None:

@@ -140,8 +140,8 @@ def fig_confusion_matrix(
     text = [[f"{cm[i, j]}<br>({cm_pct[i, j]:.0f}%)" for j in range(k)] for i in range(k)]
     fig = go.Figure(go.Heatmap(
         z=cm_pct,
-        x=[f"AIS {l}" for l in labels],
-        y=[f"AIS {l}" for l in labels],
+        x=[f"AIS {g}" for g in labels],
+        y=[f"AIS {g}" for g in labels],
         text=text,
         texttemplate="%{text}",
         textfont=dict(size=12),

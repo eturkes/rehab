@@ -14,13 +14,12 @@ import copy
 import io
 from datetime import date
 
-import numpy as np
 from fpdf import FPDF
+
+from rehab_sci.constants import AIS_ORD_TO_LETTER
 
 _FONT_PATH = "/usr/local/share/fonts/truetype/ipaexg.ttf"
 _FONT_NAME = "IPAexGothic"
-
-AIS_ORD_TO_LETTER = {1: "A", 2: "B", 3: "C", 4: "D", 5: "E"}
 
 _S = {
     "title": ("患者レポート", "Patient Report"),
@@ -249,7 +248,7 @@ def generate_patient_report(
     pdf._font(8)
     pdf.set_fill_color(235, 245, 247)
     pdf.set_text_color(12, 90, 102)
-    for i, (hdr, w) in enumerate(zip(headers, col_widths)):
+    for i, (hdr, w) in enumerate(zip(headers, col_widths, strict=True)):
         pdf.cell(
             w, 6, hdr, border=1, fill=True,
             new_x="END" if i < len(headers) - 1 else "LMARGIN",
@@ -258,7 +257,7 @@ def generate_patient_report(
     pdf.set_text_color(0, 0, 0)
 
     pdf._font(8)
-    for key, display_label, unit_label in outcome_labels:
+    for key, display_label, _unit_label in outcome_labels:
         p = predictions.get(key, {})
         task = p.get("task", "regression")
 
@@ -285,7 +284,7 @@ def generate_patient_report(
             set_str = f"{{{', '.join(set_letters)}}}" if set_letters else ""
 
         row_data = [display_label, pred_val, pi_str, obs_str, set_str]
-        for i, (val, w) in enumerate(zip(row_data, col_widths)):
+        for i, (val, w) in enumerate(zip(row_data, col_widths, strict=True)):
             pdf.cell(
                 w, 5.5, val, border=1,
                 new_x="END" if i < len(row_data) - 1 else "LMARGIN",
