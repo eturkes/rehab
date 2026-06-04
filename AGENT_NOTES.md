@@ -65,6 +65,18 @@ superseded, duplicated elsewhere, or has gone stale.
   to integer codes (`cat.codes.astype(float)`) before calling.  TreeSHAP's
   `shap_values()` handles LightGBM categoricals internally; the interaction
   variant does not.
+* **Relocating the project root breaks `.venv` wholesale — `uv run` included.**
+  A moved checkout leaves stale absolute paths in every `.venv/bin` console
+  shebang, in `activate`'s `VIRTUAL_ENV=`, and in the editable `rehab_sci`
+  install (its import finder pins the old `src/`), so even
+  `uv run --no-sync python -c "import rehab_sci"` fails — not just console
+  scripts.  Fix is `rm -rf .venv && uv sync`; the warm uv cache makes it ~1 min
+  and offline.  `uv.lock` and the tracked tree hold no absolute paths, so
+  nothing in the repo needs editing — the fix is purely venv recreation.
+* **`grep` in this container is `ugrep`, not GNU grep** (`grep --version` to
+  confirm).  BRE alternation `\|` is matched *literally*, so `grep "a\|b"`
+  silently finds nothing — use ERE `grep -E "a|b"`.  Re-check surprising empty
+  sweeps before trusting them.
 
 ## 1. Data invariants (do not rediscover)
 
@@ -298,6 +310,10 @@ uv run pip-audit                                 # dependency vuln scan (dev dep
 
 One line per session; full detail is in Git history (`git log`, diffs).
 
+* **s23** — post-relocation repair: root moved `Documents/pro/rehab` →
+  `Projects/rehab`; only `.venv` broke (stale abs paths in 60 console shebangs,
+  `activate`, editable `rehab_sci`).  Fixed by `rm -rf .venv && uv sync` from
+  the clean lockfile; verified state/app/train load (899 ep, 6 outcomes).
 * **s22** — F22 overview cohort filtering (AIS/paralysis/age/archetype filter
   bar drives all overview KPIs + charts; `update_overview_content` callback).
 * **s21** — F20 refactor: `dashboard/app.py` monolith → 9 files
