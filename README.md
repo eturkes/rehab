@@ -140,22 +140,18 @@ or `lgbm_multiclass.joblib` + the same support files for the AIS head).
 - **AIS ordinal-aware metrics:** alongside accuracy we report
   quadratic-weighted Cohen κ and MAE on the ordinal code 1–5 so we
   monitor *how far off* misclassifications are — not just how often.
-  Conformal classification sets for AIS are deferred to a follow-up
-  (see AGENT_NOTES §8 F5).
+  AIS also gets **APS conformal classification sets** (Mondrian per-AIS /
+  per-paralysis `q_hat`), so the simulator can show a calibrated set of
+  plausible grades rather than a single point.
 - **TreeSHAP** values are cached on the held-out test set.  Multiclass
   AIS stores a 3-D `(n, p, K=5)` tensor; the simulator surfaces SHAP
   for the *predicted* class.
 
-Current test-split scores (random_state = 20260518):
-
-| outcome | n_train | n_calib | n_test | metric₁ | metric₂ | coverage(80 %) |
-|---|---|---|---|---|---|---|
-| SCIM-III total | 318 | 80 | 100 | R²=0.696 | RMSE=18.92 | 83 % (conformal) |
-| SCIM self-care | 318 | 80 | 100 | R²=0.666 | RMSE=4.08 | 77 % |
-| SCIM resp/sphincter | 318 | 80 | 100 | R²=0.618 | RMSE=8.10 | 81 % |
-| SCIM mobility | 318 | 80 | 100 | R²=0.695 | RMSE=8.39 | 82 % |
-| AIS discharge | 452 | n_val=50 | 126 | accuracy=0.714 | κ_quad=0.772 | — (point + probs) |
-| LOS days | 426 | 108 | 134 | R²=0.215 | RMSE=110 d | 81 % |
+Per-head test-split metrics — `n_train` / `n_calib` / `n_test`, R² / RMSE /
+MAE for the regression heads, accuracy + quadratic-weighted κ for AIS, and
+conformal coverage — are written to `models/training_metrics.json` at train
+time (the dashboard reads the same file).  That JSON is the single source of
+truth for scores, so they cannot drift from this README.
 
 ### 4. Subgroup discovery (`models/subgroups.py`)
 
