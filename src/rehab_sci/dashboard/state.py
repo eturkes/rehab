@@ -72,5 +72,14 @@ TRAJECTORY_BUNDLE: dict | None = joblib.load(_traj_path) if _traj_path.exists() 
 _arch_path = MODELS_DIR / "archetypes" / "archetypes.joblib"
 ARCHETYPE_DATA: dict | None = joblib.load(_arch_path) if _arch_path.exists() else None
 
+# F23 data-quality scorecard (aggregate, identifier-free). Absent until the report
+# is generated (`python -m rehab_sci.data.quality`); the Methods panel degrades gracefully.
+_dq_path = MODELS_DIR / "dataquality_summary.json"
+if _dq_path.exists():
+    with _dq_path.open(encoding="utf-8") as _f:
+        DATAQUALITY: dict | None = json.load(_f)
+else:
+    DATAQUALITY = None
+
 PATIENT_OPTIONS = list_patient_options(EP)
 PATIENT_OPTIONS_BY_ID = {p.id_number: p for p in PATIENT_OPTIONS}

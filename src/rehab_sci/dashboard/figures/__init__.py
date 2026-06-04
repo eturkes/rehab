@@ -14,6 +14,7 @@ from rehab_sci.dashboard.figures.insights import (
 from rehab_sci.dashboard.figures.methods import (
     fig_calibration_curve,
     fig_confusion_matrix,
+    fig_dataquality_overview,
     fig_pred_vs_observed,
     fig_residual_hist,
 )
@@ -51,6 +52,7 @@ __all__ = [
     "fig_archetype_demographics",
     "fig_calibration_curve",
     "fig_confusion_matrix",
+    "fig_dataquality_overview",
     "fig_dependence",
     "fig_discharge_scim",
     "fig_global_shap_importance",

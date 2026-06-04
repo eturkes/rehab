@@ -215,3 +215,52 @@ def fig_calibration_curve(
                     bgcolor="rgba(255,255,255,0.8)", font=dict(size=11)),
     )
     return fig
+
+
+# severity → semantic color (reuses this module's residual red / teal, plus an amber).
+_DQ_SEV_COLOR = {"error": "#a3354e", "warn": "#d98c1f", "info": "#117a8b"}
+_DQ_CAT_ORDER = ("domain", "cross_field", "longitudinal")
+
+
+def fig_dataquality_overview(summary: dict, lang: str) -> go.Figure | None:
+    """Stacked bar of finding counts per category, split by severity."""
+    rules = (summary or {}).get("rules")
+    if not rules:
+        return None
+    cat_label = {
+        "domain": "領域" if lang == "ja" else "Domain",
+        "cross_field": "項目間" if lang == "ja" else "Cross-field",
+        "longitudinal": "経時" if lang == "ja" else "Longitudinal",
+    }
+    sev_label = {
+        "error": "エラー" if lang == "ja" else "Error",
+        "warn": "警告" if lang == "ja" else "Warning",
+        "info": "情報" if lang == "ja" else "Info",
+    }
+    agg: dict[tuple[str, str], int] = {}
+    for r in rules:
+        key = (r["category"], r["severity"])
+        agg[key] = agg.get(key, 0) + int(r["count"])
+    cats = [c for c in _DQ_CAT_ORDER if any(k[0] == c for k in agg)]
+    findings_lbl = "件数" if lang == "ja" else "Findings"
+    fig = go.Figure()
+    for sev in ("error", "warn", "info"):
+        ys = [agg.get((c, sev), 0) for c in cats]
+        if not any(ys):
+            continue
+        fig.add_trace(go.Bar(
+            x=[cat_label[c] for c in cats], y=ys,
+            name=sev_label[sev],
+            marker=dict(color=_DQ_SEV_COLOR[sev]),
+            hovertemplate=f"%{{x}} · {sev_label[sev]}<br>{findings_lbl}: %{{y}}<extra></extra>",
+        ))
+    fig.update_layout(
+        barmode="stack",
+        height=280,
+        margin=dict(l=50, r=20, t=30, b=40),
+        xaxis=dict(title=""),
+        yaxis=dict(title=findings_lbl),
+        legend=dict(orientation="h", x=0, y=1.12, xanchor="left", yanchor="bottom",
+                    font=dict(size=11)),
+    )
+    return fig

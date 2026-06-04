@@ -6,7 +6,7 @@ from dash import dcc, html
 
 from rehab_sci.dashboard import figures as fg
 from rehab_sci.dashboard.i18n import t
-from rehab_sci.dashboard.state import METRICS, OUTCOME_BUNDLES, SCHEMA
+from rehab_sci.dashboard.state import DATAQUALITY, METRICS, OUTCOME_BUNDLES, SCHEMA
 from rehab_sci.dashboard.theme import INK
 from rehab_sci.models.outcomes import OUTCOMES, OutcomeSpec
 
@@ -169,6 +169,54 @@ def _perf_block_trajectory(lang: str) -> html.Div | None:
     )
 
 
+def _dataquality_block(lang: str) -> html.Div | None:
+    dq = DATAQUALITY
+    if not dq:
+        return None
+    tot, src = dq["totals"], dq["source"]
+    sev_label = {"error": "エラー" if lang == "ja" else "Error",
+                 "warn": "警告" if lang == "ja" else "Warning",
+                 "info": "情報" if lang == "ja" else "Info"}
+    cat_label = {"domain": "領域" if lang == "ja" else "Domain",
+                 "cross_field": "項目間" if lang == "ja" else "Cross-field",
+                 "longitudinal": "経時" if lang == "ja" else "Longitudinal"}
+    findings_lbl = "総検出数" if lang == "ja" else "Total findings"
+    ep_lbl = "対象症例" if lang == "ja" else "Episodes flagged"
+    sev_line = "   ".join(f"{sev_label.get(k, k)}={v}" for k, v in tot["by_severity"].items())
+    kpi = html.P(
+        f"{findings_lbl}: {tot['violations']:,}     "
+        f"{ep_lbl}: {tot['episodes_flagged']} / {src['n_episodes']}     ({sev_line})",
+        style={"fontSize": "13px", "color": INK["700"]},
+    )
+    header = html.Tr([
+        html.Th("規則" if lang == "ja" else "Rule"),
+        html.Th("区分" if lang == "ja" else "Category"),
+        html.Th("重大度" if lang == "ja" else "Severity"),
+        html.Th("行数" if lang == "ja" else "Rows"),
+        html.Th("症例" if lang == "ja" else "Ep"),
+    ])
+    body = [
+        html.Tr([
+            html.Td(r["id"]),
+            html.Td(cat_label.get(r["category"], r["category"])),
+            html.Td(sev_label.get(r["severity"], r["severity"])),
+            html.Td(f"{r['count']:,}"),
+            html.Td(str(r["episodes"])),
+        ])
+        for r in dq["rules"]
+    ]
+    children: list = [
+        html.H3(t(SCHEMA, "methods_dataquality_heading", lang)),
+        html.P(t(SCHEMA, "methods_dataquality_def", lang)),
+        kpi,
+    ]
+    fig = fg.fig_dataquality_overview(dq, lang)
+    if fig is not None:
+        children.append(dcc.Graph(figure=fig, config={"displayModeBar": False}))
+    children.append(html.Table([header, *body], className="patient-isncsci-table"))
+    return html.Div(className="methods-block", children=children)
+
+
 def render_methods(lang: str) -> html.Div:
     perf_children: list = [
         html.H3(t(SCHEMA, "methods_per_outcome_heading", lang)),
@@ -201,4 +249,7 @@ def render_methods(lang: str) -> html.Div:
             children=[html.H3(t(SCHEMA, title_key, lang)), html.P(t(SCHEMA, body_key, lang))],
         ))
     md.append(perf_block)
+    dq_block = _dataquality_block(lang)
+    if dq_block is not None:
+        md.append(dq_block)
     return html.Div(md, style={"maxWidth": "820px"})

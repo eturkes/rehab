@@ -36,6 +36,7 @@ src/rehab_sci/
   data/dataset.py                 # long → episode frame (1 row per KeyRecordNumber)
   models/train.py                 # LightGBM + split conformal PI + TreeSHAP
   models/subgroups.py             # Mann-Whitney / KW + Cliff's δ / d / η²
+  data/quality.py                 # data-quality / clinical-consistency report
   dashboard/                      # Plotly Dash app (JA default, EN toggle)
     app.py state.py compute.py layout.py figures/ tabs/ theme.py i18n.py
 
@@ -62,7 +63,11 @@ uv run python -m rehab_sci.models.train
 # 5. run subgroup discovery (writes models/subgroups.json)
 uv run python -m rehab_sci.models.subgroups
 
-# 6. launch the dashboard at http://127.0.0.1:8050/
+# 6. (optional) run the data-quality / clinical-consistency report
+#    writes models/dataquality_summary.json (tracked) + dataquality_report.json (git-ignored)
+uv run python -m rehab_sci.data.quality
+
+# 7. launch the dashboard at http://127.0.0.1:8050/
 uv run python -m rehab_sci.dashboard.app
 ```
 
@@ -166,7 +171,35 @@ across them:
 Results land in `models/subgroups.json`, which the dashboard reads
 on startup.
 
-### 5. Dashboard (`dashboard/app.py`)
+### 5. Data-quality report (`data/quality.py`)
+
+The loader is deliberately defensive — it coerces out-of-range numbers and
+unparseable tokens to `NaN` and retains unmapped categorical levels — which
+keeps the dashboard robust but hides data-entry errors.  This report re-reads
+the **raw** frame and runs a declarative rule engine that surfaces them:
+
+- **Domain** — values the loader dropped: numbers outside the schema `range`
+  (e.g. a SCIM item above its max), non-numeric tokens in numeric fields (e.g.
+  the asterisk-annotated `1*` ISNCSCI scores, a malformed `IDNumber`), and
+  categorical values matching no canonical level / `raw_alias` (a
+  schema-coverage check — e.g. `ALLEN分類` full-width Roman numerals).
+- **Cross-field** — per-assessment clinical consistency grounded in the
+  ISNCSCI / AIS / SCIM definitions: sacral sparing ↔ AIS completeness,
+  VAC ↔ AIS, complete/incomplete ↔ AIS, AIS-E ↔ maximal scores,
+  paraplegia/tetraplegia ↔ NLI region, NLI ↔ sensory/motor levels,
+  mFrankel ↔ AIS.
+- **Longitudinal** — per episode across its timepoints: AIS deterioration,
+  large SCIM-total drops, implausible NLI drift.
+
+Each rule fires only when every field it needs is present and the values
+contradict, so missing data is never a violation.  Two artifacts are written:
+an aggregate `models/dataquality_summary.json` (per-rule counts, no
+identifiers — **tracked**) and a detailed `models/dataquality_report.json`
+(row-level findings with `KeyRecordNumber` + offending values — **git-ignored**,
+never committed).  Findings are for data review only and never feed model
+training; the Methods tab surfaces the aggregate scorecard.
+
+### 6. Dashboard (`dashboard/app.py`)
 
 Tabs:
 
@@ -190,7 +223,8 @@ Tabs:
 4. **Insight engine** — global SHAP importance; per-feature subgroup
    box plot with effect-size annotation; SHAP dependence plot.
 5. **Methods** — model card with population, target, training protocol,
-   metrics, limitations.
+   metrics, limitations; plus a data-quality scorecard (counts of flagged
+   anomalies by category and severity).
 
 The top-right `日本語 / English` toggle drives a single `dcc.Store`;
 every label, axis, hover, tab title, and option list rerenders from the

@@ -109,6 +109,14 @@ superseded, duplicated elsewhere, or has gone stale.
   `ensure_ascii=False` (raw UTF-8 Japanese); a bare `train.py` run alone leaves
   the file without the `archetypes` section, so run `train` → `archetypes` (the
   full sequence in §6) before trusting or diffing it.
+* **Data-quality validation must read the RAW frame (or a raw→clean diff), not
+  the cleaned frame — the loader is defensive and hides anomalies.**  Out-of-
+  range numeric/ordinal values are coerced to NaN (re-parse raw vs the schema
+  `range` to recover them); unmapped categorical values are *kept as the raw
+  token* — `schema.normalize_level` falls back to the stripped raw string and
+  never returns NA — so detect those by testing the cleaned value against the
+  level set's `display` set, NOT by looking for NaN.  Pattern lives in
+  `data/quality.py`.
 
 ## 1. Data invariants (do not rediscover)
 
@@ -159,6 +167,18 @@ superseded, duplicated elsewhere, or has gone stale.
 * **LOS distribution** — heavy right tail (median ≈140 d, max ≈790 d).
   Modelled on `log1p` scale; conformal q computed in log-space and
   back-transformed.
+* **`mFrankel_Frankel` is a packed pair column** — missing marker `_/_`, and
+  valid values include mismatched pairs (`C1/C2` = mFrankel C1 / Frankel C2).
+  Validate it through the split `mFrankel_ord` / `Frankel_ord`, never the pair
+  string (which matches no `mfrankel_pair` display).
+* **`ALLEN分類` raw values are messy** — full-width Roman-numeral stages
+  (`DE-Ⅱ` vs the schema's ASCII `DE-2`), out-of-enum stages (`VC-3`), and
+  misplaced bony/level tokens — so ~442 rows fail to normalize via the `allen`
+  level set.  It is a model feature, so this is a real coverage gap (add
+  Roman-numeral `raw_aliases`, or treat the column as noisy).
+* **PinPrick sensory cells carry asterisk-annotated scores (`1*`, `0*`)** — the
+  ISNCSCI "non-SCI cause" convention.  `to_numeric` drops them to NaN, so the
+  annotation is silently lost on load.
 
 ## 2. Schema (`schema/*.yaml`) — source of truth
 
@@ -206,7 +226,9 @@ superseded, duplicated elsewhere, or has gone stale.
   AIS → paralysis → marginal.  Qualitatively AIS-C (motor-incomplete) gets the
   widest PI, AIS-D the tightest for SCIM — clinically correct, previously
   hidden by the marginal.
-* **AIS multiclass head** — classes encoded by severity (A=0 … E=4), so
+* **AIS multiclass head** — classes encoded by severity (A=0 … E=4 — the model's
+  0-based class index; note the `AIS_ord` *data* column is 1–5 via
+  `constants.AIS_LETTER_TO_ORD`), so
   `predict_proba` columns and the SHAP last axis are ordinally sorted.  Metrics:
   accuracy, quadratic-weighted κ, MAE-on-ordinal-code.
 * **APS conformal classification sets (AIS)** — calibration fold carved from
@@ -329,6 +351,7 @@ uv run python scripts/01_profile_raw.py          # refresh schema profile
 uv run python -m rehab_sci.models.train          # train + conformal + SHAP
 uv run python -m rehab_sci.models.subgroups      # subgroup discovery
 uv run python -m rehab_sci.models.archetypes     # recovery archetype clustering
+uv run python -m rehab_sci.data.quality          # data-quality / clinical-consistency report
 uv run python -m rehab_sci.dashboard.app         # serve at :8050
 pkill -f 'rehab_sci.dashboard.app'               # stop stale dashboard
 uv cache prune                                   # reclaim uv cache space
@@ -352,6 +375,15 @@ bgcmd 'exit()'; rm -rf "$BGCMDDIR"               # stop + clean
 
 One line per session; full detail is in Git history (`git log`, diffs).
 
+* **s26** — F23 data-quality / clinical-consistency report.  New
+  `data/quality.py`: declarative rule engine (15 rules — domain / cross-field /
+  longitudinal) over the raw + cleaned frame; writes a tracked aggregate
+  `models/dataquality_summary.json` (counts only) + a git-ignored detailed
+  `models/dataquality_report.json` (carries IDs + offending values).  Bilingual
+  Methods-tab panel surfaces the aggregate.  Real issues surfaced: out-of-range
+  SCIM items, the malformed `IDNumber`, asterisk PinPrick scores, the ALLEN
+  Roman-numeral coverage gap, tetra↔thoracic-NLI and AIS-deterioration flags.
+  Findings reproduced independently; lint clean; dashboard boots 200.
 * **s25** — s24 optional cleanups, all three landed.  Ruff debt cleared (config
   ignores `E501`/`B008`/`RUF001-003`; ~85 safe autofixes + 22 manual; repo lints
   clean).  `AIS_ORD_TO_LETTER` deduped (was 4×) into new `constants.py` (bottom
@@ -420,12 +452,26 @@ implementation detail.  Shipped ledger (terse, by feature number):
   F8 calibration & performance visuals · F9 What-if counterfactual explorer ·
   F10 PDF patient report · F13 SHAP interaction explorer · F14 dependency
   audit · F16 patient similarity explorer · F18 recovery archetype clustering ·
-  F20 app.py refactor · F22 overview cohort filtering.
+  F20 app.py refactor · F22 overview cohort filtering · F23 data-quality /
+  clinical-consistency report.
 * (F11/F12/F15/F17/F19/F21 were never opened — numbering gaps only.)
 
-**Open items: none.**  The three s24 optional cleanups (lint debt, dedup
-`AIS_ORD_TO_LETTER`, split `train.py`) all shipped in s25.
+**F23 (shipped s26): data-quality / clinical-consistency report** — see §7 and
+`data/quality.py`; durable data facts it surfaced live in §0b/§1, and the
+regenerated `models/dataquality_summary.json` holds the per-rule scorecard.
 
-Propose new feature candidates or maintenance (security audit, dependency
-refresh) and add them here with **what / why / effort / files / data
-dependency** before starting.
+**Ready candidates (proposed s26; pick the next unless redirected):**
+* **F24 temporal validation** — out-of-time eval on `BusinessYear` (2014–2025);
+  measures drift the random GroupKFold split hides.  Core clinical claim is
+  untested for temporal generalization.  M.  files: `models/`, Methods tab.
+  data: `BusinessYear` (verified populated; `STAMP` is 97.5 % missing → unusable).
+* **F25 partial-input prediction** — simulator accepts blank fields (LightGBM
+  ingests NaN) + reliability/OOD badge.  M.  caveat: conformal-PI validity under
+  missingness.  files: `compute.py`, simulator tab.
+* **F26 invariant test harness** — narrow pytest enforcing §1 data + model
+  invariants + a smoke test; skip-if-CSV-absent.  M.  files: `tests/`, pyproject.
+* **F27 dependency refresh** — minor/patch bumps + raise the `shap<0.52` cap;
+  retrain to verify byte-repro.  S, low value now (no CVEs, lint clean).
+
+Propose new feature candidates or maintenance and add them here with **what /
+why / effort / files / data dependency** before starting.

@@ -317,6 +317,12 @@ methods_per_outcome_heading:
 methods_trajectory_heading:
   ja: "回復軌道予測モデル (SCIM-III 各時点)"
   en: "Recovery trajectory models (SCIM-III per timepoint)"
+methods_dataquality_heading:
+  ja: "データ品質・整合性レポート"
+  en: "Data quality & consistency report"
+methods_dataquality_def:
+  ja: "ローダーが欠損値に変換して隠してしまう入力エラーや臨床的矛盾を抽出する診断レポート。検出区分は、領域 (範囲外の数値・未定義カテゴリ)、項目間 (AIS↔仙髄温存・NLI 整合性など)、経時 (同一症例の時点間での悪化・大幅低下)。モデル学習には使用せず、データ確認用。"
+  en: "Diagnostic report surfacing data-entry errors and clinical inconsistencies that the defensive loader would otherwise mask as missing values. Categories: domain (out-of-range numbers, undefined categories), cross-field (clinical consistency such as AIS ↔ sacral sparing and NLI), and longitudinal (deterioration / large drops across an episode's timepoints). For data review only — not used in model training."
 insight_outcome_label:
   ja: "分析対象アウトカム"
   en: "Outcome to analyze"

@@ -30,6 +30,10 @@ models/*.keras
 # F2 multi-outcome bundles: every per-outcome subdirectory is binary
 # joblib artifacts derived from row-level patient data — never commit.
 models/*/
+# F23 data-quality DETAIL report carries KeyRecordNumber + offending raw values
+# (row-level patient data) — never commit.  The aggregate models/dataquality_summary.json
+# (counts only, no identifiers) IS tracked.
+models/dataquality_report.json
 
 # logs, caches, reports with real values
 logs/

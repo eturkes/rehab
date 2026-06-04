@@ -3,7 +3,7 @@
 Regenerate after structural changes: `uv run python scripts/gen_map.py`.
 Line numbers are 1-indexed — slice with `Read(path, offset, limit)` instead of
 reading whole files.  Sources: src/rehab_sci, scripts.
-Index: 39 files, 7675 source lines.
+Index: 40 files, 8433 source lines.
 
 ## scripts
 
@@ -110,7 +110,7 @@ PDF patient report generator.
 - L137 `_safe(v, na, fmt)`
 - L146 `generate_patient_report(meta, predictions, trajectory_fig, shap_fig, outcome_labels, lang)` — Build a 2-page PDF report for one patient episode.
 
-### state.py (76 lines)
+### state.py (85 lines)
 Startup data loading and global state for the dashboard.
 - L21 `ROOT` (const)
 - L22 `MODELS_DIR` (const)
@@ -125,8 +125,8 @@ Startup data loading and global state for the dashboard.
 - L60 `SCIM_TOTAL_BUNDLE` (const)
 - L70 `TRAJECTORY_BUNDLE` (const)
 - L73 `ARCHETYPE_DATA` (const)
-- L75 `PATIENT_OPTIONS` (const)
-- L76 `PATIENT_OPTIONS_BY_ID` (const)
+- L84 `PATIENT_OPTIONS` (const)
+- L85 `PATIENT_OPTIONS_BY_ID` (const)
 
 ### theme.py (104 lines)
 Plotly theme + palettes used everywhere on the dashboard.
@@ -139,7 +139,7 @@ Plotly theme + palettes used everywhere on the dashboard.
 
 ## src/rehab_sci/dashboard/figures
 
-### __init__.py (71 lines)
+### __init__.py (73 lines)
 Plotly figure factories, split by dashboard tab.
 - (no top-level symbols)
 
@@ -155,12 +155,13 @@ Plotly figures for the Insight engine tab — SHAP importance, subgroups, depend
 - L155 `fig_interaction_heatmap(metrics, schema, lang, *, top_n)` — Upper-triangle heatmap of top feature-pair interactions by mean |SHAP|.
 - L222 `fig_interaction_dependence(shap_pack, X_test, feat_x, feat_y, schema, lang, *, class_idx)` — Scatter of feature-X value vs SHAP interaction(X,Y), colored by feature-Y value.
 
-### methods.py (217 lines)
+### methods.py (266 lines)
 Plotly figures for the Methods tab — calibration and performance visualizations.
 - L12 `fig_pred_vs_observed(shap_pack, schema, lang, *, clip_min, clip_max, axis_label)`
 - L79 `fig_residual_hist(shap_pack, schema, lang, *, axis_label)`
 - L120 `fig_confusion_matrix(shap_pack, schema, lang)`
 - L164 `fig_calibration_curve(shap_pack, schema, lang, *, n_bins)`
+- L225 `fig_dataquality_overview(summary, lang)` — Stacked bar of finding counts per category, split by severity.
 
 ### overview.py (412 lines)
 Plotly figures for the Overview tab — cohort demographics, injury, recovery curv…
@@ -208,12 +209,13 @@ Insight engine tab — SHAP importance, subgroups, dependence, interactions.
 - L256 `update_int_feat_options(outcome_key, lang)` [callback]
 - L279 `update_interaction_dependence(feat_x, feat_y, outcome_key, class_val, lang)` [callback]
 
-### methods.py (204 lines)
+### methods.py (255 lines)
 Methods tab — model documentation + per-outcome performance visualizations.
 - L14 `_perf_block_regression(spec, info, lang)`
 - L76 `_perf_block_multiclass(spec, info, lang)`
 - L145 `_perf_block_trajectory(lang)`
-- L172 `render_methods(lang)`
+- L172 `_dataquality_block(lang)`
+- L220 `render_methods(lang)`
 
 ### overview.py (257 lines)
 Overview tab — cohort KPIs, demographic charts, archetype curves with interactiv…
@@ -299,6 +301,54 @@ ALL_SCIDATA.csv loader + cleaner. Patient data is held in-memory only — NEVER 
 - L145 `add_isncsci_summaries(df, schema)` — Compute UEMS / LEMS / total motor / per-modality sensory totals per row.
 - L197 `add_scim_subscales(df, schema)` — Compute SCIM-III sub-scale and total scores.
 - L213 `load_clean(path, schema)` — Public entrypoint: load → normalize → add ISNCSCI summaries → add SCIM subscales…
+
+### quality.py (647 lines)
+Data-quality / clinical-consistency report over the SCI dataset.
+- L56 `MODELS_DIR` (const)
+- L57 `SUMMARY_PATH` (const)
+- L58 `DETAIL_PATH` (const)
+- L61 `SENTINELS` (const)
+- L63 `OPEN_ENDED_LEVELS` (const)
+- L66 `PACKED_COLUMNS` (const)
+- L69 `MFRANKEL_TO_AIS_SEV` (const)
+- L74 `CERVICAL_MAX_ORD` (const)
+- L75 `SCIM_DROP_MIN` (const)
+- L76 `NLI_DRIFT_SEGMENTS` (const)
+- L77 `MFRANKEL_AIS_GAP` (const)
+- L79 `SEV_ERROR` (const)
+- L80 `SEV_WARN` (const)
+- L81 `SEV_INFO` (const)
+- L85 `class Violation`
+- L97 `class Rule`
+- L105 `RULES` (const)
+- L108 `rule(rid, category, severity, description)` — Register a rule function ``(ctx) -> list[Violation]``.
+- L119 `class Context` — Loaded data + precomputed lookups shared across rules.
+    methods: build, col, rows, at
+- L169 `_eq(s, value)`
+- L173 `_is_sentinel(value)` — True for tokens meaning 'missing / not tested', including paired or packed
+- L187 `_scalar(v)` — JSON-safe scalar (numpy → python, NaN/NA → None).
+- L204 `_num_range(ctx)`
+- L227 `_num_parse(ctx)`
+- L250 `_cat_level(ctx)`
+- L274 `_sacral_signals(ctx)`
+- L285 `_sacral_ais_a(ctx)`
+- L302 `_sacral_ais_inc(ctx)`
+- L319 `_vac_ais(ctx)`
+- L332 `_comp_ais(ctx)`
+- L347 `_ais_e_max(ctx)`
+- L366 `_para_nli(ctx)`
+- L383 `_nli_levels(ctx)`
+- L406 `_mfrankel_ais(ctx)`
+- L424 `_auto_manual(ctx)`
+- L440 `_ordered_episode_series(ctx, value_col)` — Yield (KeyRecordNumber, frame) per episode, rows sorted chronologically,
+- L457 `_ais_deterioration(ctx)`
+- L474 `_scim_drop(ctx)`
+- L492 `_nli_drift(ctx)`
+- L510 `class QualityReport`
+    methods: summary, detail
+- L570 `run_quality_checks(path, schema)`
+- L587 `_print_summary(summary)`
+- L619 `main(argv)`
 
 ### similarity.py (151 lines)
 Patient similarity via Gower distance on admission features.
