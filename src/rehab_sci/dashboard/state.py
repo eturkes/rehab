@@ -90,5 +90,20 @@ if _temporal_path.exists():
 else:
     TEMPORAL = None
 
+# G1 landmark (dynamic) prediction. `landmark_metrics.json` (tracked) drives the Methods
+# value-of-observation curve; `landmark/bundle.joblib` (gitignored) holds the per-landmark
+# models for dynamic inference. Both absent until `python -m rehab_sci.models.landmark`.
+_landmark_path = MODELS_DIR / "landmark_metrics.json"
+if _landmark_path.exists():
+    with _landmark_path.open(encoding="utf-8") as _f:
+        LANDMARK: dict | None = json.load(_f)
+else:
+    LANDMARK = None
+
+_landmark_bundle_path = MODELS_DIR / "landmark" / "bundle.joblib"
+LANDMARK_BUNDLE: dict | None = (
+    joblib.load(_landmark_bundle_path) if _landmark_bundle_path.exists() else None
+)
+
 PATIENT_OPTIONS = list_patient_options(EP)
 PATIENT_OPTIONS_BY_ID = {p.id_number: p for p in PATIENT_OPTIONS}

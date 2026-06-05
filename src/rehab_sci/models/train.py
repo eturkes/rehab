@@ -665,7 +665,7 @@ def _train_trajectory(af: AnalysisFrame, out_root: Path) -> dict:
     """Train per-timepoint SCIM-total models for recovery trajectory forecasting.
 
     One LightGBM regression head per timepoint in ``TRAJECTORY_TIMEPOINTS``,
-    using the same 32 admission features as the discharge models.  Artifacts
+    using the same admission features as the discharge models.  Artifacts
     are bundled into ``models/trajectory/bundle.joblib``.
     """
     long = af.longitudinal

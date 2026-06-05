@@ -6,7 +6,14 @@ from dash import dcc, html
 
 from rehab_sci.dashboard import figures as fg
 from rehab_sci.dashboard.i18n import t
-from rehab_sci.dashboard.state import DATAQUALITY, METRICS, OUTCOME_BUNDLES, SCHEMA, TEMPORAL
+from rehab_sci.dashboard.state import (
+    DATAQUALITY,
+    LANDMARK,
+    METRICS,
+    OUTCOME_BUNDLES,
+    SCHEMA,
+    TEMPORAL,
+)
 from rehab_sci.dashboard.theme import INK
 from rehab_sci.models.outcomes import OUTCOMES, OutcomeSpec
 
@@ -219,6 +226,55 @@ def _temporal_block(lang: str) -> html.Div | None:
     return html.Div(className="methods-block", children=children)
 
 
+def _landmark_block(lang: str) -> html.Div | None:
+    """G1 — landmark (dynamic) prediction: value-of-observation curve, one card per outcome."""
+    lm = LANDMARK
+    if not lm or not lm.get("outcomes"):
+        return None
+    days = lm.get("landmark_days", {})
+    value_word = "観測価値" if lang == "ja" else "value"
+    hw_word = "PI半値幅" if lang == "ja" else "PI hw"
+    children: list = [
+        html.H3(t(SCHEMA, "methods_landmark_heading", lang)),
+        html.P(t(SCHEMA, "methods_landmark_def", lang)),
+    ]
+    for spec in OUTCOMES:
+        info = lm["outcomes"].get(spec.key)
+        by = (info or {}).get("by_landmark") or {}
+        if not by:
+            continue
+        lms = list(by)
+        first, last = lms[0], lms[-1]
+        if info["task"] == "regression":
+            r0, r1 = by[first]["landmark"]["r2"], by[last]["landmark"]["r2"]
+            hw0, hw1 = by[first]["landmark"]["pi_halfwidth_raw"], by[last]["landmark"]["pi_halfwidth_raw"]
+            d = by[last]["landmark"]["r2"] - by[last]["baseline"]["r2"]
+            line = (f"R² {first}:{r0:.2f} → {last}:{r1:.2f}    "
+                    f"{value_word} ΔR²={d:+.2f}    {hw_word} {hw0:.1f}→{hw1:.1f}")
+        else:
+            k0, k1 = by[first]["landmark"]["kappa_quadratic"], by[last]["landmark"]["kappa_quadratic"]
+            d = by[last]["landmark"]["kappa_quadratic"] - by[last]["baseline"]["kappa_quadratic"]
+            line = f"κ {first}:{k0:.2f} → {last}:{k1:.2f}    {value_word} Δκ={d:+.2f}"
+        card: list = [
+            html.H4(t(SCHEMA, spec.display_key, lang)),
+            html.P(line, style={"fontSize": "13px", "color": INK["700"]}),
+        ]
+        fig = fg.fig_landmark_value(info, days, lang)
+        if fig is not None:
+            card.append(dcc.Graph(figure=fig, config={"displayModeBar": False}))
+        children.append(html.Div(className="methods-perf-card", children=card))
+    children.append(html.P(
+        ("各ランドマークの予測区間は周辺split-conformal (α=0.2)。検証時点数が少ないためカバレッジは80%前後で変動する。"
+         "リスク集合はランドマークが進むほど縮小する (在院中の症例に限定) ため、同一集合で入院時のみ基準を併記し、観測の正味価値を示す。"
+         if lang == "ja" else
+         "Per-landmark PIs use marginal split-conformal (α=0.2); coverage fluctuates around 80% on the small "
+         "test folds. The still-admitted risk set shrinks as the landmark advances, so the admission-only "
+         "baseline is fit on the same set to isolate the net value of the observed scores."),
+        style={"fontSize": "12px", "color": INK["500"]},
+    ))
+    return html.Div(className="methods-block", children=children)
+
+
 def _dataquality_block(lang: str) -> html.Div | None:
     dq = DATAQUALITY
     if not dq:
@@ -302,6 +358,9 @@ def render_methods(lang: str) -> html.Div:
     temporal_block = _temporal_block(lang)
     if temporal_block is not None:
         md.append(temporal_block)
+    landmark_block = _landmark_block(lang)
+    if landmark_block is not None:
+        md.append(landmark_block)
     dq_block = _dataquality_block(lang)
     if dq_block is not None:
         md.append(dq_block)

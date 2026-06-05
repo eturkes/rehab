@@ -353,6 +353,12 @@ methods_temporal_heading:
 methods_temporal_def:
   ja: "業務年度 (2014–2025) に基づく期間外評価。各テスト年 T について、それ以前の全年で学習し T 年のみで評価する拡張窓ローリングオリジン方式 (患者単位で分割を保持)。ランダムな患者分割では見えない経年ドリフトを測定する。左軸=点予測精度 (回帰: R²、AIS: 正解率) と基準 (ランダム分割) 線、右軸=80% 区間/APS カバレッジ と名目 80% 線。診断用であり、本番モデルは変更しない。"
   en: "Out-of-time evaluation keyed on business year (2014–2025). For each test year T the model trains on all prior years and is tested on year T alone (expanding-window rolling origin, group-safe by patient). This measures the calendar drift the random patient split cannot see. Left axis = point accuracy (R² for regression, accuracy for AIS) with the random-split baseline line; right axis = 80% PI / APS coverage with the nominal-80% line. Diagnostic only — the production model is unchanged."
+methods_landmark_heading:
+  ja: "ランドマーク (動的) 予測 — 観測の価値"
+  en: "Landmark (dynamic) prediction — value of observation"
+methods_landmark_def:
+  ja: "退院時アウトカムを、入院時特徴に加えて各ランドマーク時点 (72h・2w・4w・6w・2m・3m) までに観測された臨床指標 (SCIM 合計/下位尺度・AIS・運動/感覚スコアの直近値) から予測する。ランドマークが進み実際の初期回復が観測されるほど、点予測精度は上がり予測区間は狭まる。これが「観測の価値」である。各ランドマークでは、その時点で在院中の症例 (リスク集合) のみを対象とし、同一集合・同一分割で入院時のみ基準モデルも学習することで、集合の縮小を補正した観測の正味価値を分離する。診断・推論層であり、本番モデルは変更しない。"
+  en: "Predict the discharge outcome from the admission features plus the clinical measures observed by each landmark time (72 h, 2 w, 4 w, 6 w, 2 m, 3 m) — the most-recent SCIM total / subscales, AIS grade, and motor / sensory scores. As the landmark advances and real early recovery is observed, point accuracy rises and the prediction interval narrows: the value of observation. Each landmark uses only the still-admitted episodes at that time (the risk set), and an admission-only baseline is fit on the same set and split, isolating the net value of the observed scores after correcting for the shrinking cohort. Diagnostic + inference layer — the production model is unchanged."
 insight_outcome_label:
   ja: "分析対象アウトカム"
   en: "Outcome to analyze"

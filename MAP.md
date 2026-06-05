@@ -3,7 +3,7 @@
 Regenerate after structural changes: `uv run python scripts/gen_map.py`.
 Line numbers are 1-indexed — slice with `Read(path, offset, limit)` instead of
 reading whole files.  Sources: src/rehab_sci, scripts.
-Index: 42 files, 9171 source lines.
+Index: 43 files, 9709 source lines.
 
 ## scripts
 
@@ -116,7 +116,7 @@ PDF patient report generator.
 - L137 `_safe(v, na, fmt)`
 - L146 `generate_patient_report(meta, predictions, trajectory_fig, shap_fig, outcome_labels, lang)` — Build a 2-page PDF report for one patient episode.
 
-### state.py (94 lines)
+### state.py (109 lines)
 Startup data loading and global state for the dashboard.
 - L21 `ROOT` (const)
 - L22 `MODELS_DIR` (const)
@@ -131,8 +131,9 @@ Startup data loading and global state for the dashboard.
 - L60 `SCIM_TOTAL_BUNDLE` (const)
 - L70 `TRAJECTORY_BUNDLE` (const)
 - L73 `ARCHETYPE_DATA` (const)
-- L93 `PATIENT_OPTIONS` (const)
-- L94 `PATIENT_OPTIONS_BY_ID` (const)
+- L104 `LANDMARK_BUNDLE` (const)
+- L108 `PATIENT_OPTIONS` (const)
+- L109 `PATIENT_OPTIONS_BY_ID` (const)
 
 ### theme.py (104 lines)
 Plotly theme + palettes used everywhere on the dashboard.
@@ -145,7 +146,7 @@ Plotly theme + palettes used everywhere on the dashboard.
 
 ## src/rehab_sci/dashboard/figures
 
-### __init__.py (75 lines)
+### __init__.py (77 lines)
 Plotly figure factories, split by dashboard tab.
 - (no top-level symbols)
 
@@ -161,7 +162,7 @@ Plotly figures for the Insight engine tab — SHAP importance, subgroups, depend
 - L155 `fig_interaction_heatmap(metrics, schema, lang, *, top_n)` — Upper-triangle heatmap of top feature-pair interactions by mean |SHAP|.
 - L222 `fig_interaction_dependence(shap_pack, X_test, feat_x, feat_y, schema, lang, *, class_idx)` — Scatter of feature-X value vs SHAP interaction(X,Y), colored by feature-Y value.
 
-### methods.py (342 lines)
+### methods.py (417 lines)
 Plotly figures for the Methods tab — calibration and performance visualizations.
 - L12 `fig_pred_vs_observed(shap_pack, schema, lang, *, clip_min, clip_max, axis_label)`
 - L79 `fig_residual_hist(shap_pack, schema, lang, *, axis_label)`
@@ -169,6 +170,7 @@ Plotly figures for the Methods tab — calibration and performance visualization
 - L164 `fig_calibration_curve(shap_pack, schema, lang, *, n_bins)`
 - L225 `fig_dataquality_overview(summary, lang)` — Stacked bar of finding counts per category, split by severity.
 - L269 `fig_temporal_drift(t_outcome, lang)` — Out-of-time drift across rolling-origin test years (F24).
+- L345 `fig_landmark_value(lm_outcome, landmark_days, lang)` — Value of observation: discharge-outcome accuracy + PI sharpening vs landmark tim…
 
 ### overview.py (412 lines)
 Plotly figures for the Overview tab — cohort demographics, injury, recovery curv…
@@ -216,14 +218,15 @@ Insight engine tab — SHAP importance, subgroups, dependence, interactions.
 - L256 `update_int_feat_options(outcome_key, lang)` [callback]
 - L279 `update_interaction_dependence(feat_x, feat_y, outcome_key, class_val, lang)` [callback]
 
-### methods.py (308 lines)
+### methods.py (367 lines)
 Methods tab — model documentation + per-outcome performance visualizations.
-- L14 `_perf_block_regression(spec, info, lang)`
-- L76 `_perf_block_multiclass(spec, info, lang)`
-- L145 `_perf_block_trajectory(lang)`
-- L172 `_temporal_block(lang)` — F24 — out-of-time rolling-origin drift, one card per outcome.
-- L222 `_dataquality_block(lang)`
-- L270 `render_methods(lang)`
+- L21 `_perf_block_regression(spec, info, lang)`
+- L83 `_perf_block_multiclass(spec, info, lang)`
+- L152 `_perf_block_trajectory(lang)`
+- L179 `_temporal_block(lang)` — F24 — out-of-time rolling-origin drift, one card per outcome.
+- L229 `_landmark_block(lang)` — G1 — landmark (dynamic) prediction: value-of-observation curve, one card per out…
+- L278 `_dataquality_block(lang)`
+- L326 `render_methods(lang)`
 
 ### overview.py (257 lines)
 Overview tab — cohort KPIs, demographic charts, archetype curves with interactiv…
@@ -389,6 +392,26 @@ Split-conformal & APS prediction-set helpers (Mondrian per-AIS / per-paralysis).
 - L111 `_aps_scores(proba, y_true)` — APS nonconformity scores for conformal classification sets.
 - L130 `_aps_prediction_set(proba_row, q_hat)` — Class indices in the APS prediction set for one sample.
 - L143 `_aps_test_metrics(proba, y_true, q_arr, X)` — Coverage and avg set size on test set using per-row Mondrian APS q.
+
+### landmark.py (387 lines)
+Landmark (dynamic) prediction — sharpen the discharge prognosis as early recover…
+- L64 `ROOT` (const)
+- L65 `OUT` (const)
+- L67 `ALPHA` (const)
+- L70 `LANDMARKS` (const)
+- L71 `LANDMARK_DAYS` (const)
+- L75 `LANDMARK_COLS` (const)
+- L87 `LM_PREFIX` (const)
+- L90 `TIMEPOINT_ORDER` (const)
+- L97 `MIN_COHORT` (const)
+- L102 `_latest_intermediate_oidx(long)` — Per-episode index of the latest intermediate timepoint carrying any tracked obse…
+- L117 `_locf_block(long, landmark)` — LOCF landmark block: last non-null value at or before ``landmark`` per episode.
+- L136 `_prep_landmark(af, target_col, eligible, lm_block)` — Build paired (X_base, X_landmark) matrices + target/groups for one (outcome, lan…
+- L172 `_refit_all(params, X, y, cat_cols, best_iter, *, clf)`
+- L181 `_eval_regression(X, y_t, y_raw, cat_cols, tr, cal, te, transform, clip_min, clip_max, *, persist)` — Fit a regression head on the train fold, conformalise on the calibration fold, s…
+- L222 `_eval_multiclass(X, y_codes, groups, cat_cols, class_codes, tr, cal, te, *, persist)` — Fit the AIS multiclass head, calibrate APS sets on the calibration fold, score o…
+- L272 `_run_outcome(spec, af, lm_blocks, max_oi)` — Fit every landmark (paired baseline + landmark model) for one outcome.
+- L334 `main()`
 
 ### outcomes.py (109 lines)
 Outcome registry — the source of truth for what `train.py` predicts.

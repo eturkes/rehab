@@ -340,3 +340,78 @@ def fig_temporal_drift(t_outcome: dict, lang: str) -> go.Figure | None:
                     font=dict(size=10)),
     )
     return fig
+
+
+def fig_landmark_value(lm_outcome: dict, landmark_days: dict, lang: str) -> go.Figure | None:
+    """Value of observation: discharge-outcome accuracy + PI sharpening vs landmark time (G1).
+
+    Left axis = point accuracy (R² for regression, quadratic κ for AIS), landmark model (solid)
+    vs the admission-only baseline on the *same* still-admitted risk set (dashed).  Right axis =
+    uncertainty (mean PI half-width for regression, APS set size for AIS), same pairing.  As the
+    landmark advances and more early recovery is observed, the landmark line pulls away from the
+    baseline while uncertainty falls.  ``lm_outcome`` is one entry of
+    ``landmark_metrics.json['outcomes']``.
+    """
+    by_lm = (lm_outcome or {}).get("by_landmark") or {}
+    if not by_lm:
+        return None
+    task = lm_outcome.get("task")
+    lms = list(by_lm)  # insertion order = chronological (written by the trainer)
+    x = [landmark_days.get(L, i) for i, L in enumerate(lms)]
+    n_test = [by_lm[L]["n_test"] for L in lms]
+
+    if task == "regression":
+        base_pt = [by_lm[L]["baseline"]["r2"] for L in lms]
+        lm_pt = [by_lm[L]["landmark"]["r2"] for L in lms]
+        base_u = [by_lm[L]["baseline"]["pi_halfwidth_raw"] for L in lms]
+        lm_u = [by_lm[L]["landmark"]["pi_halfwidth_raw"] for L in lms]
+        pt_lbl = "R²"
+        u_lbl = "PI半値幅" if lang == "ja" else "PI half-width"
+        u_fmt = ".1f"
+    else:
+        base_pt = [by_lm[L]["baseline"]["kappa_quadratic"] for L in lms]
+        lm_pt = [by_lm[L]["landmark"]["kappa_quadratic"] for L in lms]
+        base_u = [by_lm[L]["baseline"]["aps_avg_set_size"] for L in lms]
+        lm_u = [by_lm[L]["landmark"]["aps_avg_set_size"] for L in lms]
+        pt_lbl = "κ (二次)" if lang == "ja" else "κ (quadratic)"
+        u_lbl = "APS集合サイズ" if lang == "ja" else "APS set size"
+        u_fmt = ".2f"
+
+    lm_word = "ランドマーク" if lang == "ja" else "Landmark"
+    base_word = "基準(入院時のみ)" if lang == "ja" else "Baseline (admission-only)"
+    x_lbl = "観測ランドマーク時点" if lang == "ja" else "Landmark (time observed)"
+    n_lbl = "症例数" if lang == "ja" else "n"
+    c_pt = PALETTE_CATEGORICAL[0]
+    c_u = PALETTE_CATEGORICAL[1]
+
+    fig = go.Figure()
+    fig.add_trace(go.Scatter(
+        x=x, y=lm_pt, mode="lines+markers", name=f"{pt_lbl} · {lm_word}",
+        marker=dict(size=8, color=c_pt), line=dict(color=c_pt, width=2), customdata=n_test,
+        hovertemplate=f"{pt_lbl}=%{{y:.3f}}<br>{n_lbl}=%{{customdata}}<extra></extra>", yaxis="y",
+    ))
+    fig.add_trace(go.Scatter(
+        x=x, y=base_pt, mode="lines+markers", name=f"{pt_lbl} · {base_word}",
+        marker=dict(size=6, color=c_pt), line=dict(color=c_pt, width=1.5, dash="dash"),
+        hovertemplate=f"{pt_lbl}=%{{y:.3f}}<extra></extra>", yaxis="y",
+    ))
+    fig.add_trace(go.Scatter(
+        x=x, y=lm_u, mode="lines+markers", name=f"{u_lbl} · {lm_word}",
+        marker=dict(size=8, color=c_u, symbol="square"), line=dict(color=c_u, width=2),
+        hovertemplate=f"{u_lbl}=%{{y:{u_fmt}}}<extra></extra>", yaxis="y2",
+    ))
+    fig.add_trace(go.Scatter(
+        x=x, y=base_u, mode="lines+markers", name=f"{u_lbl} · {base_word}",
+        marker=dict(size=6, color=c_u, symbol="square"), line=dict(color=c_u, width=1.5, dash="dash"),
+        hovertemplate=f"{u_lbl}=%{{y:{u_fmt}}}<extra></extra>", yaxis="y2",
+    ))
+    fig.update_layout(
+        height=300,
+        margin=dict(l=50, r=54, t=30, b=44),
+        xaxis=dict(title=x_lbl, tickmode="array", tickvals=x, ticktext=lms),
+        yaxis=dict(title=pt_lbl, side="left"),
+        yaxis2=dict(title=u_lbl, overlaying="y", side="right", showgrid=False, rangemode="tozero"),
+        legend=dict(orientation="h", x=0, y=1.14, xanchor="left", yanchor="bottom",
+                    font=dict(size=10)),
+    )
+    return fig

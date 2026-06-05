@@ -1,0 +1,838 @@
+{
+  "landmarks": [
+    "72h",
+    "2w",
+    "4w",
+    "6w",
+    "2m",
+    "3m"
+  ],
+  "landmark_days": {
+    "72h": 3,
+    "2w": 14,
+    "4w": 28,
+    "6w": 42,
+    "2m": 60,
+    "3m": 90
+  },
+  "landmark_cols": [
+    "SCIM_total",
+    "SCIM_self_care",
+    "SCIM_respiration_sphincter",
+    "SCIM_mobility",
+    "AIS_ord",
+    "UEMS",
+    "LEMS",
+    "TotalMotor",
+    "LightTouchTotal",
+    "PinPrickTotal"
+  ],
+  "random_state": 20260518,
+  "alpha": 0.2,
+  "outcomes": {
+    "scim_total": {
+      "task": "regression",
+      "transform": null,
+      "clip_min": 0.0,
+      "clip_max": 100.0,
+      "by_landmark": {
+        "72h": {
+          "n_eligible": 491,
+          "n_test": 99,
+          "n_test_patients": 99,
+          "baseline": {
+            "r2": 0.6835981942255015,
+            "rmse": 20.661392777941103,
+            "mae": 15.67911582145597,
+            "coverage_80": 0.7171717171717171,
+            "pi_halfwidth_raw": 19.41677973552265,
+            "conformal_q_transformed": 22.602960996731277
+          },
+          "landmark": {
+            "r2": 0.7273922216925939,
+            "rmse": 19.178261621665797,
+            "mae": 14.616772194382232,
+            "coverage_80": 0.7171717171717171,
+            "pi_halfwidth_raw": 17.470615770844905,
+            "conformal_q_transformed": 19.95988005151247
+          }
+        },
+        "2w": {
+          "n_eligible": 471,
+          "n_test": 95,
+          "n_test_patients": 95,
+          "baseline": {
+            "r2": 0.6019196549631529,
+            "rmse": 21.257290554795876,
+            "mae": 15.197139919939197,
+            "coverage_80": 0.8315789473684211,
+            "pi_halfwidth_raw": 23.448344892265137,
+            "conformal_q_transformed": 27.90274728378968
+          },
+          "landmark": {
+            "r2": 0.6640404547006828,
+            "rmse": 19.5283717356067,
+            "mae": 14.368898932693519,
+            "coverage_80": 0.6947368421052632,
+            "pi_halfwidth_raw": 17.303767657299282,
+            "conformal_q_transformed": 20.153723512715132
+          }
+        },
+        "4w": {
+          "n_eligible": 450,
+          "n_test": 90,
+          "n_test_patients": 90,
+          "baseline": {
+            "r2": 0.588370450376638,
+            "rmse": 21.453647877451978,
+            "mae": 15.8723805379724,
+            "coverage_80": 0.7555555555555555,
+            "pi_halfwidth_raw": 23.82469795220056,
+            "conformal_q_transformed": 27.64976100014997
+          },
+          "landmark": {
+            "r2": 0.698088616056532,
+            "rmse": 18.373319226134832,
+            "mae": 12.901975138909943,
+            "coverage_80": 0.8,
+            "pi_halfwidth_raw": 18.193771535731383,
+            "conformal_q_transformed": 20.666789915378253
+          }
+        },
+        "6w": {
+          "n_eligible": 426,
+          "n_test": 86,
+          "n_test_patients": 86,
+          "baseline": {
+            "r2": 0.6617412885661831,
+            "rmse": 20.63454577505193,
+            "mae": 15.487234711205259,
+            "coverage_80": 0.8837209302325582,
+            "pi_halfwidth_raw": 25.638172782710864,
+            "conformal_q_transformed": 30.32714125023103
+          },
+          "landmark": {
+            "r2": 0.8126815156187222,
+            "rmse": 15.355385918234147,
+            "mae": 10.768604454074516,
+            "coverage_80": 0.813953488372093,
+            "pi_halfwidth_raw": 16.971623855649195,
+            "conformal_q_transformed": 19.47537352745559
+          }
+        },
+        "2m": {
+          "n_eligible": 402,
+          "n_test": 81,
+          "n_test_patients": 81,
+          "baseline": {
+            "r2": 0.6137300530952988,
+            "rmse": 22.008691769809836,
+            "mae": 16.66582078033068,
+            "coverage_80": 0.7901234567901234,
+            "pi_halfwidth_raw": 24.55515971674764,
+            "conformal_q_transformed": 27.569295133905428
+          },
+          "landmark": {
+            "r2": 0.7790564186829391,
+            "rmse": 16.645217059912266,
+            "mae": 12.170041727964911,
+            "coverage_80": 0.7283950617283951,
+            "pi_halfwidth_raw": 14.92316826269926,
+            "conformal_q_transformed": 17.159181957130357
+          }
+        },
+        "3m": {
+          "n_eligible": 349,
+          "n_test": 70,
+          "n_test_patients": 70,
+          "baseline": {
+            "r2": 0.6059736609924442,
+            "rmse": 21.358588466458723,
+            "mae": 17.076336939790952,
+            "coverage_80": 0.7857142857142857,
+            "pi_halfwidth_raw": 23.235438234873286,
+            "conformal_q_transformed": 26.086600448774234
+          },
+          "landmark": {
+            "r2": 0.9017030159933265,
+            "rmse": 10.66792656676634,
+            "mae": 8.124334462190053,
+            "coverage_80": 0.8142857142857143,
+            "pi_halfwidth_raw": 13.020091323944357,
+            "conformal_q_transformed": 13.857021445407455
+          }
+        }
+      }
+    },
+    "scim_self_care": {
+      "task": "regression",
+      "transform": null,
+      "clip_min": 0.0,
+      "clip_max": 20.0,
+      "by_landmark": {
+        "72h": {
+          "n_eligible": 491,
+          "n_test": 99,
+          "n_test_patients": 99,
+          "baseline": {
+            "r2": 0.6481697715756904,
+            "rmse": 4.652732040686675,
+            "mae": 3.496934198224361,
+            "coverage_80": 0.7676767676767676,
+            "pi_halfwidth_raw": 4.439443667275644,
+            "conformal_q_transformed": 5.392082889653615
+          },
+          "landmark": {
+            "r2": 0.6689210836760984,
+            "rmse": 4.513435378663188,
+            "mae": 3.3010566626715834,
+            "coverage_80": 0.6767676767676768,
+            "pi_halfwidth_raw": 3.384504618287338,
+            "conformal_q_transformed": 4.01860301655109
+          }
+        },
+        "2w": {
+          "n_eligible": 471,
+          "n_test": 95,
+          "n_test_patients": 95,
+          "baseline": {
+            "r2": 0.6465245844020076,
+            "rmse": 4.300527727687105,
+            "mae": 3.177644190939971,
+            "coverage_80": 0.8526315789473684,
+            "pi_halfwidth_raw": 5.141269809152344,
+            "conformal_q_transformed": 6.341508380917856
+          },
+          "landmark": {
+            "r2": 0.6918322612445753,
+            "rmse": 4.0154639482705905,
+            "mae": 2.9012538677908353,
+            "coverage_80": 0.7894736842105263,
+            "pi_halfwidth_raw": 4.129360708836226,
+            "conformal_q_transformed": 4.932719903215142
+          }
+        },
+        "4w": {
+          "n_eligible": 450,
+          "n_test": 90,
+          "n_test_patients": 90,
+          "baseline": {
+            "r2": 0.569393471475798,
+            "rmse": 4.782257958498133,
+            "mae": 3.52903760397653,
+            "coverage_80": 0.7777777777777778,
+            "pi_halfwidth_raw": 4.879925788034076,
+            "conformal_q_transformed": 5.730556918164927
+          },
+          "landmark": {
+            "r2": 0.6732500137332504,
+            "rmse": 4.165819826416809,
+            "mae": 3.00302151245171,
+            "coverage_80": 0.8,
+            "pi_halfwidth_raw": 3.999414187319296,
+            "conformal_q_transformed": 4.7024551848272536
+          }
+        },
+        "6w": {
+          "n_eligible": 426,
+          "n_test": 86,
+          "n_test_patients": 86,
+          "baseline": {
+            "r2": 0.6384633014520364,
+            "rmse": 4.615469384845311,
+            "mae": 3.6231379389633678,
+            "coverage_80": 0.8255813953488372,
+            "pi_halfwidth_raw": 5.1524558969352805,
+            "conformal_q_transformed": 6.112316025507077
+          },
+          "landmark": {
+            "r2": 0.7903301984029006,
+            "rmse": 3.5148566930628675,
+            "mae": 2.564900419886925,
+            "coverage_80": 0.7093023255813954,
+            "pi_halfwidth_raw": 3.0962244601500553,
+            "conformal_q_transformed": 3.6058513706971382
+          }
+        },
+        "2m": {
+          "n_eligible": 402,
+          "n_test": 81,
+          "n_test_patients": 81,
+          "baseline": {
+            "r2": 0.48756002099550644,
+            "rmse": 5.347526619279652,
+            "mae": 4.5060851695075135,
+            "coverage_80": 0.7777777777777778,
+            "pi_halfwidth_raw": 5.86206665592849,
+            "conformal_q_transformed": 6.3110993908487245
+          },
+          "landmark": {
+            "r2": 0.7714277298286423,
+            "rmse": 3.5714388915006006,
+            "mae": 2.651768343937937,
+            "coverage_80": 0.7283950617283951,
+            "pi_halfwidth_raw": 3.3649360795493615,
+            "conformal_q_transformed": 3.951964161345746
+          }
+        },
+        "3m": {
+          "n_eligible": 349,
+          "n_test": 70,
+          "n_test_patients": 70,
+          "baseline": {
+            "r2": 0.5897079041278495,
+            "rmse": 4.809662617776571,
+            "mae": 3.7015391465309806,
+            "coverage_80": 0.8428571428571429,
+            "pi_halfwidth_raw": 5.621106819714229,
+            "conformal_q_transformed": 6.705409610572017
+          },
+          "landmark": {
+            "r2": 0.8984329598139219,
+            "rmse": 2.3930095740432757,
+            "mae": 1.7575516364575567,
+            "coverage_80": 0.9285714285714286,
+            "pi_halfwidth_raw": 3.6420352109041927,
+            "conformal_q_transformed": 4.419040429071323
+          }
+        }
+      }
+    },
+    "scim_resp_sphincter": {
+      "task": "regression",
+      "transform": null,
+      "clip_min": 0.0,
+      "clip_max": 40.0,
+      "by_landmark": {
+        "72h": {
+          "n_eligible": 491,
+          "n_test": 99,
+          "n_test_patients": 99,
+          "baseline": {
+            "r2": 0.6290971474592392,
+            "rmse": 8.248280203677561,
+            "mae": 6.065112271115402,
+            "coverage_80": 0.8080808080808081,
+            "pi_halfwidth_raw": 9.71679528778277,
+            "conformal_q_transformed": 12.34399459738015
+          },
+          "landmark": {
+            "r2": 0.6404856348045074,
+            "rmse": 8.120662165972933,
+            "mae": 6.165568234738528,
+            "coverage_80": 0.7575757575757576,
+            "pi_halfwidth_raw": 8.525028277357519,
+            "conformal_q_transformed": 10.408663445907077
+          }
+        },
+        "2w": {
+          "n_eligible": 471,
+          "n_test": 95,
+          "n_test_patients": 95,
+          "baseline": {
+            "r2": 0.5087520726755062,
+            "rmse": 9.112234649341685,
+            "mae": 6.338537335905816,
+            "coverage_80": 0.7578947368421053,
+            "pi_halfwidth_raw": 8.016967187233371,
+            "conformal_q_transformed": 10.082924170266548
+          },
+          "landmark": {
+            "r2": 0.5264478968407045,
+            "rmse": 8.946608106715637,
+            "mae": 5.914077888958207,
+            "coverage_80": 0.7473684210526316,
+            "pi_halfwidth_raw": 7.66538247739957,
+            "conformal_q_transformed": 9.772772823132328
+          }
+        },
+        "4w": {
+          "n_eligible": 450,
+          "n_test": 90,
+          "n_test_patients": 90,
+          "baseline": {
+            "r2": 0.4563844211166117,
+            "rmse": 9.356128554051502,
+            "mae": 6.76340476617143,
+            "coverage_80": 0.7333333333333333,
+            "pi_halfwidth_raw": 8.376301533348874,
+            "conformal_q_transformed": 9.998552927791572
+          },
+          "landmark": {
+            "r2": 0.5122679106511177,
+            "rmse": 8.862186766533691,
+            "mae": 5.909499670373999,
+            "coverage_80": 0.7555555555555555,
+            "pi_halfwidth_raw": 7.4559418067288545,
+            "conformal_q_transformed": 8.672703387829511
+          }
+        },
+        "6w": {
+          "n_eligible": 426,
+          "n_test": 86,
+          "n_test_patients": 86,
+          "baseline": {
+            "r2": 0.6288659894039281,
+            "rmse": 8.507219758441508,
+            "mae": 6.257623681184817,
+            "coverage_80": 0.8372093023255814,
+            "pi_halfwidth_raw": 9.206162859969226,
+            "conformal_q_transformed": 10.762888306817157
+          },
+          "landmark": {
+            "r2": 0.7436879855667486,
+            "rmse": 7.06979394648107,
+            "mae": 4.580248001481755,
+            "coverage_80": 0.8837209302325582,
+            "pi_halfwidth_raw": 8.448463774459018,
+            "conformal_q_transformed": 10.45975631071423
+          }
+        },
+        "2m": {
+          "n_eligible": 402,
+          "n_test": 81,
+          "n_test_patients": 81,
+          "baseline": {
+            "r2": 0.5761026027957394,
+            "rmse": 8.960696850792882,
+            "mae": 7.056280767922699,
+            "coverage_80": 0.7777777777777778,
+            "pi_halfwidth_raw": 9.42673087148245,
+            "conformal_q_transformed": 11.20281111621296
+          },
+          "landmark": {
+            "r2": 0.6990844765256765,
+            "rmse": 7.549769738636795,
+            "mae": 5.000761149080158,
+            "coverage_80": 0.8024691358024691,
+            "pi_halfwidth_raw": 7.432759060831058,
+            "conformal_q_transformed": 9.432055484188183
+          }
+        },
+        "3m": {
+          "n_eligible": 349,
+          "n_test": 70,
+          "n_test_patients": 70,
+          "baseline": {
+            "r2": 0.5778195144655444,
+            "rmse": 8.56129593023334,
+            "mae": 7.050238281932689,
+            "coverage_80": 0.7285714285714285,
+            "pi_halfwidth_raw": 8.904237772701961,
+            "conformal_q_transformed": 10.185884726580973
+          },
+          "landmark": {
+            "r2": 0.8141215876112065,
+            "rmse": 5.680739950680453,
+            "mae": 3.7260944462915404,
+            "coverage_80": 0.8571428571428571,
+            "pi_halfwidth_raw": 6.6014211986242595,
+            "conformal_q_transformed": 8.062922712934105
+          }
+        }
+      }
+    },
+    "scim_mobility": {
+      "task": "regression",
+      "transform": null,
+      "clip_min": 0.0,
+      "clip_max": 40.0,
+      "by_landmark": {
+        "72h": {
+          "n_eligible": 491,
+          "n_test": 99,
+          "n_test_patients": 99,
+          "baseline": {
+            "r2": 0.6550791378992425,
+            "rmse": 9.597180356464635,
+            "mae": 7.315320180797751,
+            "coverage_80": 0.8383838383838383,
+            "pi_halfwidth_raw": 10.242562340618882,
+            "conformal_q_transformed": 12.636958870654585
+          },
+          "landmark": {
+            "r2": 0.727030008773162,
+            "rmse": 8.53770958337116,
+            "mae": 6.322557804917217,
+            "coverage_80": 0.7474747474747475,
+            "pi_halfwidth_raw": 7.669243737365,
+            "conformal_q_transformed": 9.224710030517695
+          }
+        },
+        "2w": {
+          "n_eligible": 471,
+          "n_test": 95,
+          "n_test_patients": 95,
+          "baseline": {
+            "r2": 0.5251987933935287,
+            "rmse": 10.280587801426561,
+            "mae": 7.372410259488951,
+            "coverage_80": 0.8210526315789474,
+            "pi_halfwidth_raw": 10.972514356076573,
+            "conformal_q_transformed": 13.504554681478275
+          },
+          "landmark": {
+            "r2": 0.6119249157047962,
+            "rmse": 9.294369196673093,
+            "mae": 6.96009307777318,
+            "coverage_80": 0.8,
+            "pi_halfwidth_raw": 9.504073291320482,
+            "conformal_q_transformed": 11.689584939130349
+          }
+        },
+        "4w": {
+          "n_eligible": 450,
+          "n_test": 90,
+          "n_test_patients": 90,
+          "baseline": {
+            "r2": 0.6085665009670134,
+            "rmse": 9.244381160249636,
+            "mae": 7.0605428231021365,
+            "coverage_80": 0.7555555555555555,
+            "pi_halfwidth_raw": 8.85574796388953,
+            "conformal_q_transformed": 10.037378415791338
+          },
+          "landmark": {
+            "r2": 0.7527808067678059,
+            "rmse": 7.346659997682588,
+            "mae": 5.361020086311947,
+            "coverage_80": 0.8222222222222222,
+            "pi_halfwidth_raw": 7.024881563647371,
+            "conformal_q_transformed": 8.189512613090486
+          }
+        },
+        "6w": {
+          "n_eligible": 426,
+          "n_test": 86,
+          "n_test_patients": 86,
+          "baseline": {
+            "r2": 0.6689792188815784,
+            "rmse": 8.588519833124067,
+            "mae": 6.27662375947317,
+            "coverage_80": 0.813953488372093,
+            "pi_halfwidth_raw": 9.637134290580914,
+            "conformal_q_transformed": 11.656844629197643
+          },
+          "landmark": {
+            "r2": 0.7862033662319049,
+            "rmse": 6.90225698287272,
+            "mae": 5.278245598036532,
+            "coverage_80": 0.7674418604651163,
+            "pi_halfwidth_raw": 6.426441244050319,
+            "conformal_q_transformed": 7.4909637217304805
+          }
+        },
+        "2m": {
+          "n_eligible": 402,
+          "n_test": 81,
+          "n_test_patients": 81,
+          "baseline": {
+            "r2": 0.5929312423509676,
+            "rmse": 9.733300628676858,
+            "mae": 7.577591956016597,
+            "coverage_80": 0.7530864197530864,
+            "pi_halfwidth_raw": 9.629635960486242,
+            "conformal_q_transformed": 10.856671675065321
+          },
+          "landmark": {
+            "r2": 0.7873736633309705,
+            "rmse": 7.034525041860357,
+            "mae": 5.529170376945978,
+            "coverage_80": 0.7283950617283951,
+            "pi_halfwidth_raw": 6.810063487514703,
+            "conformal_q_transformed": 7.731412213462683
+          }
+        },
+        "3m": {
+          "n_eligible": 349,
+          "n_test": 70,
+          "n_test_patients": 70,
+          "baseline": {
+            "r2": 0.5503680771067101,
+            "rmse": 9.791213280917574,
+            "mae": 7.601912043603318,
+            "coverage_80": 0.8142857142857143,
+            "pi_halfwidth_raw": 9.939055203874378,
+            "conformal_q_transformed": 11.579632596355786
+          },
+          "landmark": {
+            "r2": 0.8665436250581768,
+            "rmse": 5.334302055681121,
+            "mae": 4.082265928752806,
+            "coverage_80": 0.8142857142857143,
+            "pi_halfwidth_raw": 5.628792292538212,
+            "conformal_q_transformed": 6.567519403174003
+          }
+        }
+      }
+    },
+    "ais_discharge": {
+      "task": "multiclass",
+      "transform": null,
+      "clip_min": null,
+      "clip_max": null,
+      "by_landmark": {
+        "72h": {
+          "n_eligible": 603,
+          "n_test": 121,
+          "n_test_patients": 120,
+          "baseline": {
+            "accuracy": 0.6611570247933884,
+            "kappa_quadratic": 0.787556836086976,
+            "ordinal_mae": 0.4297520661157025,
+            "aps_coverage_80": 0.9834710743801653,
+            "aps_avg_set_size": 2.834710743801653,
+            "aps_q_hat": 0.9319979790598122
+          },
+          "landmark": {
+            "accuracy": 0.6694214876033058,
+            "kappa_quadratic": 0.7643707176343311,
+            "ordinal_mae": 0.4380165289256198,
+            "aps_coverage_80": 0.9752066115702479,
+            "aps_avg_set_size": 2.909090909090909,
+            "aps_q_hat": 0.9012331409649352
+          }
+        },
+        "2w": {
+          "n_eligible": 570,
+          "n_test": 115,
+          "n_test_patients": 114,
+          "baseline": {
+            "accuracy": 0.6347826086956522,
+            "kappa_quadratic": 0.7897856311970309,
+            "ordinal_mae": 0.43478260869565216,
+            "aps_coverage_80": 0.9826086956521739,
+            "aps_avg_set_size": 2.8347826086956522,
+            "aps_q_hat": 0.9360743414056849
+          },
+          "landmark": {
+            "accuracy": 0.6782608695652174,
+            "kappa_quadratic": 0.8077502809065746,
+            "ordinal_mae": 0.391304347826087,
+            "aps_coverage_80": 0.9826086956521739,
+            "aps_avg_set_size": 2.8434782608695652,
+            "aps_q_hat": 0.9488819609249983
+          }
+        },
+        "4w": {
+          "n_eligible": 542,
+          "n_test": 109,
+          "n_test_patients": 108,
+          "baseline": {
+            "accuracy": 0.6788990825688074,
+            "kappa_quadratic": 0.7650114861282912,
+            "ordinal_mae": 0.3944954128440367,
+            "aps_coverage_80": 0.9724770642201835,
+            "aps_avg_set_size": 3.0091743119266057,
+            "aps_q_hat": 0.9455891289304434
+          },
+          "landmark": {
+            "accuracy": 0.7155963302752294,
+            "kappa_quadratic": 0.7508927296100557,
+            "ordinal_mae": 0.3669724770642202,
+            "aps_coverage_80": 0.9724770642201835,
+            "aps_avg_set_size": 2.8073394495412844,
+            "aps_q_hat": 0.9251018099627627
+          }
+        },
+        "6w": {
+          "n_eligible": 504,
+          "n_test": 100,
+          "n_test_patients": 100,
+          "baseline": {
+            "accuracy": 0.68,
+            "kappa_quadratic": 0.6527196652719665,
+            "ordinal_mae": 0.47,
+            "aps_coverage_80": 0.97,
+            "aps_avg_set_size": 2.69,
+            "aps_q_hat": 0.9554304124979747
+          },
+          "landmark": {
+            "accuracy": 0.84,
+            "kappa_quadratic": 0.8443133398885612,
+            "ordinal_mae": 0.22,
+            "aps_coverage_80": 1.0,
+            "aps_avg_set_size": 2.8,
+            "aps_q_hat": 0.972663366201911
+          }
+        },
+        "2m": {
+          "n_eligible": 470,
+          "n_test": 94,
+          "n_test_patients": 94,
+          "baseline": {
+            "accuracy": 0.6702127659574468,
+            "kappa_quadratic": 0.7172729876826125,
+            "ordinal_mae": 0.43617021276595747,
+            "aps_coverage_80": 1.0,
+            "aps_avg_set_size": 2.904255319148936,
+            "aps_q_hat": 0.9555476752623924
+          },
+          "landmark": {
+            "accuracy": 0.776595744680851,
+            "kappa_quadratic": 0.8672177461546511,
+            "ordinal_mae": 0.24468085106382978,
+            "aps_coverage_80": 0.9893617021276596,
+            "aps_avg_set_size": 2.595744680851064,
+            "aps_q_hat": 0.9225931232089094
+          }
+        },
+        "3m": {
+          "n_eligible": 409,
+          "n_test": 83,
+          "n_test_patients": 82,
+          "baseline": {
+            "accuracy": 0.6626506024096386,
+            "kappa_quadratic": 0.6155490629231098,
+            "ordinal_mae": 0.46987951807228917,
+            "aps_coverage_80": 0.9879518072289156,
+            "aps_avg_set_size": 2.746987951807229,
+            "aps_q_hat": 0.9172724720983261
+          },
+          "landmark": {
+            "accuracy": 0.8554216867469879,
+            "kappa_quadratic": 0.8791010612471388,
+            "ordinal_mae": 0.18072289156626506,
+            "aps_coverage_80": 1.0,
+            "aps_avg_set_size": 3.5060240963855422,
+            "aps_q_hat": 0.9923050801015776
+          }
+        }
+      }
+    },
+    "los_days": {
+      "task": "regression",
+      "transform": "log1p",
+      "clip_min": 0.0,
+      "clip_max": null,
+      "by_landmark": {
+        "72h": {
+          "n_eligible": 595,
+          "n_test": 121,
+          "n_test_patients": 118,
+          "baseline": {
+            "r2": 0.14854172176034142,
+            "rmse": 124.31224453289825,
+            "mae": 82.58480328682278,
+            "coverage_80": 0.7851239669421488,
+            "pi_halfwidth_raw": 128.57192400042916,
+            "conformal_q_transformed": 0.8514091629374723
+          },
+          "landmark": {
+            "r2": 0.16109749614002367,
+            "rmse": 123.3922737852927,
+            "mae": 81.45784627030883,
+            "coverage_80": 0.7851239669421488,
+            "pi_halfwidth_raw": 114.36670569901916,
+            "conformal_q_transformed": 0.7605391502703478
+          }
+        },
+        "2w": {
+          "n_eligible": 550,
+          "n_test": 110,
+          "n_test_patients": 109,
+          "baseline": {
+            "r2": 0.18536709394392004,
+            "rmse": 118.07214029512235,
+            "mae": 82.90387873700064,
+            "coverage_80": 0.7909090909090909,
+            "pi_halfwidth_raw": 134.47025311438549,
+            "conformal_q_transformed": 0.7627801194627102
+          },
+          "landmark": {
+            "r2": 0.20210198696786785,
+            "rmse": 116.85307708266386,
+            "mae": 80.91471691915409,
+            "coverage_80": 0.7545454545454545,
+            "pi_halfwidth_raw": 117.17911130020173,
+            "conformal_q_transformed": 0.6829361311442841
+          }
+        },
+        "4w": {
+          "n_eligible": 517,
+          "n_test": 105,
+          "n_test_patients": 103,
+          "baseline": {
+            "r2": 0.15117629887935058,
+            "rmse": 101.6763954773113,
+            "mae": 77.30810454759059,
+            "coverage_80": 0.7619047619047619,
+            "pi_halfwidth_raw": 130.03388958857164,
+            "conformal_q_transformed": 0.6870593014229556
+          },
+          "landmark": {
+            "r2": 0.2082837534827514,
+            "rmse": 98.19653681502042,
+            "mae": 69.0769938698475,
+            "coverage_80": 0.8,
+            "pi_halfwidth_raw": 111.35523083756512,
+            "conformal_q_transformed": 0.5889182550667291
+          }
+        },
+        "6w": {
+          "n_eligible": 480,
+          "n_test": 97,
+          "n_test_patients": 95,
+          "baseline": {
+            "r2": 0.15336513782643413,
+            "rmse": 102.47612996593195,
+            "mae": 75.87777290311011,
+            "coverage_80": 0.8350515463917526,
+            "pi_halfwidth_raw": 132.5815831001921,
+            "conformal_q_transformed": 0.6648775630879671
+          },
+          "landmark": {
+            "r2": 0.2427675804306817,
+            "rmse": 96.91460759228904,
+            "mae": 68.88977106764288,
+            "coverage_80": 0.8041237113402062,
+            "pi_halfwidth_raw": 108.3594575257224,
+            "conformal_q_transformed": 0.5507537212980402
+          }
+        },
+        "2m": {
+          "n_eligible": 447,
+          "n_test": 91,
+          "n_test_patients": 89,
+          "baseline": {
+            "r2": 0.23253751315854365,
+            "rmse": 112.06118363989552,
+            "mae": 77.485214384783,
+            "coverage_80": 0.7912087912087912,
+            "pi_halfwidth_raw": 108.05621466874304,
+            "conformal_q_transformed": 0.5421477145685669
+          },
+          "landmark": {
+            "r2": 0.29519916830434445,
+            "rmse": 107.38900809743849,
+            "mae": 72.65877315418926,
+            "coverage_80": 0.7912087912087912,
+            "pi_halfwidth_raw": 107.95644275382851,
+            "conformal_q_transformed": 0.5338261593868658
+          }
+        },
+        "3m": {
+          "n_eligible": 391,
+          "n_test": 79,
+          "n_test_patients": 78,
+          "baseline": {
+            "r2": 0.1556931085704215,
+            "rmse": 99.75244215186102,
+            "mae": 72.60731847864338,
+            "coverage_80": 0.810126582278481,
+            "pi_halfwidth_raw": 114.25687199485374,
+            "conformal_q_transformed": 0.5276603763551568
+          },
+          "landmark": {
+            "r2": 0.37227417637316096,
+            "rmse": 86.01186557188157,
+            "mae": 62.02659928466918,
+            "coverage_80": 0.8607594936708861,
+            "pi_halfwidth_raw": 104.50886351597325,
+            "conformal_q_transformed": 0.46782962975462095
+          }
+        }
+      }
+    }
+  }
+}

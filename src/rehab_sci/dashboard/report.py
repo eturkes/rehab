@@ -46,10 +46,10 @@ _S = {
     ),
     "methods": ("方法論", "Methodology"),
     "methods_text": (
-        "LightGBM 勾配ブースティングモデルにより、32 の入院時特徴量から退院時アウトカムを予測。"
+        "LightGBM 勾配ブースティングモデルにより、入院時特徴量から退院時アウトカムを予測。"
         "80% 分割共形予測区間 (Mondrian per-AIS / per-paralysis) により不確実性を定量化。"
         "SHAP (TreeExplainer) により個別患者への寄与要因を分解。",
-        "Discharge outcomes predicted from 32 admission features using LightGBM gradient boosting. "
+        "Discharge outcomes predicted from admission features using LightGBM gradient boosting. "
         "Uncertainty quantified via 80% split-conformal prediction intervals (Mondrian per-AIS / "
         "per-paralysis). Individual patient contributions decomposed using SHAP (TreeExplainer).",
     ),

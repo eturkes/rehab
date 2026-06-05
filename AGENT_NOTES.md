@@ -34,9 +34,12 @@ superseded, duplicated elsewhere, or has gone stale.
   CLAUDE.md, wrap to a clean boundary at ≥80 % for a manual `/compact`.
 * This file — agent-facing scratchpad.  Read before planning; update after each
   session; prune duplication per the inclusion rule above.
-* **Default-work pool: §8 backlog.**  F1–F25 are shipped (see §7 index).  Open
-  candidates: F26 invariant test harness · F27 dependency refresh — pick the
-  first unless redirected; propose new candidates as the list drains.
+* **Default-work pool: §8 backlog.**  F1–F25 shipped + G1 landmark prediction
+  (training + Methods curve) shipped s29 (see §7).  Open: G1-pt2 interactive
+  simulator landmark selector · G2 value-of-information · G3 observed-trajectory
+  phenotyping · G4 AIS conversion · F26 test harness · F27 dep refresh.  The user
+  steers toward *insightful* (clinical/scientific) features over infra/maintenance
+  — propose those (G-series) first unless redirected.
 
 ## 0b. Lessons & mistakes (append; prune when superseded)
 
@@ -117,6 +120,13 @@ superseded, duplicated elsewhere, or has gone stale.
   never returns NA — so detect those by testing the cleaned value against the
   level set's `display` set, NOT by looking for NaN.  Pattern lives in
   `data/quality.py`.
+* **The admission-feature count is 30, not 32 — docs had drifted; cite "the
+  admission features" without a number.**  `af.feature_cols` (== `len(
+  ADMISSION_FEATURES)`) is **30**: 2 demographics + 9 injury/admin + 15
+  ISNCSCI/AIS + 4 SCIM-ADL.  Stale "32" copies were corrected in `report.py`
+  (PDF methods text), `train.py` (trajectory docstring), and §3 here.  When a
+  count is load-bearing, derive it from `len(af.feature_cols)` at runtime
+  rather than re-typing a literal that silently drifts.
 
 ## 1. Data invariants (do not rediscover)
 
@@ -279,7 +289,7 @@ superseded, duplicated elsewhere, or has gone stale.
 * **Holm correction** — running **max** over sorted p×(n−k+1), not running min
   (see §0b).
 * **Trajectory models** — 9 independent LightGBM regressions predicting
-  SCIM-total at intermediate timepoints (72h…6m) from the same 32 admission
+  SCIM-total at intermediate timepoints (72h…6m) from the same admission
   features.  `models/trajectory/bundle.joblib` = dict (`timepoints`, `models`,
   `conformal`, `clip_min`, `clip_max`); each timepoint has median/p10/p90 +
   Mondrian q.  No SHAP (redundant with per-outcome SHAP).  Admission features
@@ -308,6 +318,29 @@ superseded, duplicated elsewhere, or has gone stale.
   Finding: SCIM heads lose only ΔR²≈−0.04…−0.08 out-of-time with coverage
   ≈nominal; AIS robust (APS stays conservative ~0.99); LOS is hard both in- and
   out-of-time (R²≈0.2) and censored (§1).
+* **Landmark (dynamic) prediction (`models/landmark.py`, G1)** — diagnostic +
+  inference layer built like `temporal.py`: writes its own tracked
+  `models/landmark_metrics.json` + a git-ignored `models/landmark/bundle.joblib`
+  and never touches `train.py`'s artifacts (byte-repro preserved).  Per
+  landmark L ∈ {72h, 2w, 4w, 6w, 2m, 3m}, refits the **discharge** outcome on
+  admission features **plus a LOCF observation block** — the 10 early-recovery
+  measures in `LANDMARK_COLS` (SCIM total + 3 subscales, AIS_ord, UEMS, LEMS,
+  TotalMotor, LightTouch, PinPrick), each carried forward as its last non-null
+  value at an intermediate timepoint ≤ L, prefixed `L_`.  **Eligibility = the
+  still-admitted risk set**: an episode enters L only if it has a tracked
+  observation at an intermediate timepoint with order-index ≥ L (the
+  `discharge` slot is excluded from `TIMEPOINT_ORDER`), which avoids
+  immortal-time/leakage.  Each landmark model is paired with an **admission-only
+  baseline refit on the identical eligible cohort + split** (split computed once
+  on `X_base`, reused for `X_lm`) so the reported delta isolates the *value of
+  observation* and is not confounded by the shrinking risk set.  Conformal/APS
+  is **marginal** (per-landmark folds too small for Mondrian); regression
+  reports R²/RMSE/MAE + `pi_halfwidth_raw` (mean conformal half-width), AIS
+  reports κ_quadratic + `aps_avg_set_size`.  `MIN_COHORT=120` skips landmarks
+  whose eligible n is too small.  Findings: SCIM-total ΔR² climbs ≈+0.04 (72h)
+  → +0.30 (3m) with PI half-width roughly halving (≈23→13 pts); AIS κ rises
+  toward ≈0.88; LOS stays hard but improves (R²≈0.15→0.37).  Bundle shape and
+  metrics keys are documented inline at the top of `landmark.py`.
 
 ## 4. Dashboard conventions
 
@@ -398,6 +431,7 @@ uv run python -m rehab_sci.models.subgroups      # subgroup discovery
 uv run python -m rehab_sci.models.archetypes     # recovery archetype clustering
 uv run python -m rehab_sci.data.quality          # data-quality / clinical-consistency report
 uv run python -m rehab_sci.models.temporal       # out-of-time temporal validation (F24)
+uv run python -m rehab_sci.models.landmark       # landmark (dynamic) prediction — value of observation (G1)
 uv run python -m rehab_sci.dashboard.app         # serve at :8050
 pkill -f 'rehab_sci.dashboard.app'               # stop stale dashboard
 uv cache prune                                   # reclaim uv cache space
@@ -421,6 +455,20 @@ bgcmd 'exit()'; rm -rf "$BGCMDDIR"               # stop + clean
 
 One line per session; full detail is in Git history (`git log`, diffs).
 
+* **s29** — G1 landmark (dynamic) prediction, part 1 (training + Methods curve).
+  New `models/landmark.py`: per landmark L∈{72h,2w,4w,6w,2m,3m}, refits each
+  discharge outcome on admission features + a LOCF block of 10 early-recovery
+  measures (`L_`-prefixed), conditioned on the still-admitted risk set, each
+  paired with an admission-only baseline on the identical cohort+split to
+  isolate the *value of observation*; marginal conformal/APS.  Writes tracked
+  `landmark_metrics.json` + git-ignored `landmark/bundle.joblib`; production
+  artifacts untouched (byte-repro verified).  Bilingual Methods-tab
+  value-of-observation curve (`fig_landmark_value`, dual-axis: point accuracy +
+  PI-width/APS-set-size vs landmark, baseline dashed).  Findings: SCIM ΔR²
+  +0.04→+0.30 (72h→3m), PI half-width ~halves; AIS κ→≈0.88; LOS improves
+  (R²≈0.15→0.37).  Also corrected the long-standing "32 admission features"
+  doc-drift to the actual 30 (see §0b).  Lint clean; dashboard boots 200.
+  Deferred: G1-pt2 interactive simulator landmark selector (bundle ready).
 * **s28** — F25 partial-input prediction.  Simulator opens **blank**; numeric
   sliders → clearable `dcc.Input(number)`; blanks pass through as NaN
   (`collect_sim_inputs` no longer imputes `SIM_DEFAULTS`).  New pure
@@ -475,7 +523,7 @@ One line per session; full detail is in Git history (`git log`, diffs).
   (state/compute/layout + 5 tab modules); acyclic deps; zero behavior change.
 * **s20** — F18 recovery archetype clustering (k-means on predicted
   trajectories; 3 archetypes; overview curves + patient chip).
-* **s19** — F16 patient similarity explorer (Gower-distance KNN over 32
+* **s19** — F16 patient similarity explorer (Gower-distance KNN over the 30
   admission features; neighbor outcome strip / AIS-distribution charts).
 * **s18** — F13 SHAP interaction explorer (interaction values at train time;
   heatmap + 2-feature dependence in insight engine).
@@ -508,9 +556,11 @@ One line per session; full detail is in Git history (`git log`, diffs).
 
 ## 8. Feature backlog (default-work pool)
 
-Propose from here unless the user redirects.  **Items F1–F25 are shipped** —
-see §7 for the session each landed in, and Git history for implementation
-detail.  Shipped ledger (terse, by feature number):
+Propose from here unless the user redirects.  **Items F1–F25 + G1 (part 1) are
+shipped** — see §7 for the session each landed in, and Git history for
+implementation detail.  The user steers toward *insightful* (clinical/
+scientific) features over infra/maintenance — lead with the **G-series**.
+Shipped ledger (terse, by feature number):
 
 * F1 patient explorer · F2 multi-outcome prediction · F3 Mondrian conformal ·
   F4 multi-outcome insight engine + explorer · F5 APS classification sets ·
@@ -522,12 +572,40 @@ detail.  Shipped ledger (terse, by feature number):
   clinical-consistency report · F24 temporal (out-of-time) validation ·
   F25 partial-input prediction (clearable inputs + reliability/OOD badge).
 * (F11/F12/F15/F17/F19/F21 were never opened — numbering gaps only.)
+* **G1 landmark (dynamic) prediction — part 1** (training + Methods curve,
+  s29): `models/landmark.py` + value-of-observation curve.  See §3 for the
+  contract and §7 for the session.  Part 2 (interactive simulator selector)
+  remains open below.
 
 **F23 (shipped s26): data-quality / clinical-consistency report** — see §7 and
 `data/quality.py`; durable data facts it surfaced live in §0b/§1, and the
 regenerated `models/dataquality_summary.json` holds the per-rule scorecard.
 
-**Ready candidates (pick the next unless redirected):**
+**Ready candidates (pick the next unless redirected; lead with G-series):**
+* **G1-pt2 interactive simulator landmark selector** — *what:* simulator gains a
+  landmark dropdown (72h…3m) + the 10 `LANDMARK_COLS` observed-score inputs;
+  builds an `L_`-prefixed row from `LANDMARK_BUNDLE`, predicts with the landmark
+  model + marginal conformal q, and shows the updated/tightened PI beside the
+  admission-only baseline (the curve, made live per-patient).  *why:* turns the
+  static value-of-observation finding into a bedside "what does observing X by
+  week W buy me".  *effort:* M.  *files:* `dashboard/compute.py` (pure landmark
+  inference helper), `tabs/simulator.py`, `ui_strings.yaml` (`state.py` already
+  loads `LANDMARK_BUNDLE`).  *data dep:* the persisted bundle — no retrain.
+* **G2 value-of-information** — *what:* per patient, rank which *next*
+  observation (which measure × which next landmark) most tightens the PI /
+  reduces expected loss.  *why:* prescribes what to measure next, not just what
+  observing helps on average.  *effort:* M–L.  *files:* landmark bundle + new
+  compute helper + patient/Methods surface.  *data dep:* landmark bundle.
+* **G3 observed-trajectory phenotyping** — *what:* cluster patients by their
+  *observed* early-recovery trajectory (contrast §3 archetypes, which cluster
+  *predicted* curves) and surface phenotype-conditioned prognosis.  *why:*
+  data-driven recovery shapes independent of model bias.  *effort:* L.  *files:*
+  new model module + overview/patient surface.  *data dep:* longitudinal frame.
+* **G4 AIS-conversion modeling** — *what:* model AIS-grade *conversion* (Δ from
+  admission to discharge, or across landmarks) as its own outcome, not just the
+  absolute discharge grade.  *why:* conversion is the clinically salient
+  endpoint.  *effort:* M.  *files:* new outcome/model + Methods.  *data dep:*
+  `AIS_ord` at admission + discharge (present).
 * **F26 invariant test harness** — narrow pytest enforcing §1 data + model
   invariants + a smoke test; skip-if-CSV-absent.  M.  files: `tests/`, pyproject.
 * **F27 dependency refresh** — minor/patch bumps + raise the `shap<0.52` cap;

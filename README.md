@@ -36,6 +36,7 @@ src/rehab_sci/
   data/dataset.py                 # long → episode frame (1 row per KeyRecordNumber)
   models/train.py                 # LightGBM + split conformal PI + TreeSHAP
   models/temporal.py              # out-of-time rolling-origin validation (drift)
+  models/landmark.py              # landmark (dynamic) prediction — value of observation
   models/subgroups.py             # Mann-Whitney / KW + Cliff's δ / d / η²
   data/quality.py                 # data-quality / clinical-consistency report
   dashboard/                      # Plotly Dash app (JA default, EN toggle)
@@ -72,7 +73,11 @@ uv run python -m rehab_sci.data.quality
 # 7. (optional) run out-of-time temporal validation (writes models/temporal_metrics.json)
 uv run python -m rehab_sci.models.temporal
 
-# 8. launch the dashboard at http://127.0.0.1:8050/
+# 8. (optional) run landmark (dynamic) prediction — value of observed early recovery
+#    writes models/landmark_metrics.json (tracked) + models/landmark/bundle.joblib (git-ignored)
+uv run python -m rehab_sci.models.landmark
+
+# 9. launch the dashboard at http://127.0.0.1:8050/
 uv run python -m rehab_sci.dashboard.app
 ```
 
@@ -220,7 +225,31 @@ outcome's drift curve.  It is a diagnostic — no artifact the dashboard loads f
 prediction is modified.  (`LOS_days` is right-censored for recent years —
 unlabelled from 2024 — so its backtest covers fewer origins.)
 
-### 7. Dashboard (`dashboard/app.py`)
+### 7. Landmark (dynamic) prediction (`models/landmark.py`)
+
+The production heads predict the discharge outcome from admission data alone.
+This optional layer asks a complementary question: **as a patient's early
+recovery is actually observed, how much does the discharge prognosis sharpen?**
+For each landmark time `L` ∈ {72 h, 2 w, 4 w, 6 w, 2 m, 3 m} it fits one model
+per outcome from the admission features **plus** the last value observed on or
+before `L` (LOCF) for ten recovery-tracking measures (SCIM total + subscales,
+AIS grade, motor / sensory totals).  Eligibility is the **still-admitted risk
+set** at `L` (an intermediate observation at or after `L`), so the model never
+"predicts" an already-discharged patient (the immortal-time / leakage trap).
+Because that risk set shrinks as `L` advances, a paired **admission-only
+baseline** is fit on the same cohort and split — the landmark-minus-baseline gap
+is the net *value of observation*, controlling for the cohort shift.  Reusing the
+production prep / conformal / APS helpers (marginal calibration), it records per
+outcome and landmark the point accuracy and the prediction-interval half-width /
+APS set size for both models.  Results land in the tracked
+`models/landmark_metrics.json` (curves) and `models/landmark/bundle.joblib`
+(per-landmark models, git-ignored); the Methods tab plots each outcome's
+value-of-observation curve.  It is a diagnostic + inference layer — no artifact
+the production pipeline writes is modified.  Finding: for SCIM the gain grows
+from ΔR² ≈ +0.04 (72 h) to **+0.30 (3 m)** while the interval half-width nearly
+halves; AIS quadratic-κ climbs to ≈0.88; LOS stays hard but still improves.
+
+### 8. Dashboard (`dashboard/app.py`)
 
 Tabs:
 
@@ -253,9 +282,11 @@ Tabs:
    box plot with effect-size annotation; SHAP dependence plot.
 5. **Methods** — model card with population, target, training protocol,
    metrics, limitations; per-outcome temporal-drift curves (out-of-time
-   accuracy + interval coverage vs the random-split baseline); plus a
-   data-quality scorecard (counts of flagged anomalies by category and
-   severity).
+   accuracy + interval coverage vs the random-split baseline);
+   per-outcome landmark value-of-observation curves (accuracy + interval
+   half-width vs landmark time, landmark model vs admission-only baseline);
+   plus a data-quality scorecard (counts of flagged anomalies by category
+   and severity).
 
 The top-right `日本語 / English` toggle drives a single `dcc.Store`;
 every label, axis, hover, tab title, and option list rerenders from the
