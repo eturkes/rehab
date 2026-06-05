@@ -174,14 +174,13 @@ def compute_ref_predictions(X: pd.DataFrame) -> dict:
 
 # ---------- simulator input collection ----------
 def collect_sim_inputs(num_vals, num_ids, cat_vals, cat_ids) -> pd.DataFrame:
+    # Blank fields stay unknown (NaN) — LightGBM uses native missing handling,
+    # matching training (features keep NaN; see train.py:_prep). No imputation.
     row: dict[str, object] = {}
     for ident, v in zip(num_ids, num_vals, strict=False):
         row[ident["col"]] = v
     for ident, v in zip(cat_ids, cat_vals, strict=False):
         row[ident["col"]] = v
-    for c in FEATURE_SPEC["feature_cols"]:
-        if c not in row or row[c] is None:
-            row[c] = SIM_DEFAULTS.get(c)
     X = pd.DataFrame([{c: row.get(c) for c in FEATURE_SPEC["feature_cols"]}])
     for c in FEATURE_SPEC["categorical_cols"]:
         if c in X.columns:

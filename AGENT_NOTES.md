@@ -34,10 +34,9 @@ superseded, duplicated elsewhere, or has gone stale.
   CLAUDE.md, wrap to a clean boundary at ≥80 % for a manual `/compact`.
 * This file — agent-facing scratchpad.  Read before planning; update after each
   session; prune duplication per the inclusion rule above.
-* **Default-work pool: §8 backlog.**  F1–F24 are shipped (see §7 index).  Open
-  candidates: F25 partial-input prediction · F26 invariant test harness · F27
-  dependency refresh — pick the first unless redirected; propose new candidates
-  as the list drains.
+* **Default-work pool: §8 backlog.**  F1–F25 are shipped (see §7 index).  Open
+  candidates: F26 invariant test harness · F27 dependency refresh — pick the
+  first unless redirected; propose new candidates as the list drains.
 
 ## 0b. Lessons & mistakes (append; prune when superseded)
 
@@ -131,6 +130,17 @@ superseded, duplicated elsewhere, or has gone stale.
   `schema.normalize_level()` returning `pd.NA` for unknown categorical levels.
   (No `_apply_missing_sentinels` helper exists — that was a phantom; the two
   mechanisms just described produce the effect.)
+* **Feature missingness is high and preserved into the model.**
+  `train.py::_prep` drops only rows missing the *target* or `IDNumber`; feature
+  NaNs flow into LightGBM unchanged (native missing handling).  Admission
+  missingness is the cohort norm — e.g. 糖尿病 ~79 %, Frankel ~74 %,
+  損傷部位/保険 ~73 %, ALLEN ~66 %, motor/sensory levels ~30 %, SCIM ~22 %,
+  AIS ~12 %.  So passing NaN at inference (F25 partial input) matches training,
+  and the conformal calibration set was itself built under this missingness —
+  the 80 % PI stays approximately valid for partial input.  The conformal
+  half-width `q` is a fixed calibrated scalar (Mondrian-by-AIS → marginal when
+  `AIS_ord` is blank), so it does **not** widen as input grows sparser; the
+  simulator's reliability badge is the separate completeness/OOD cue.
 * **Excel booleans** — many bool-like columns arrive as the literal strings
   `"FALSE"` / `"TRUE"` (uppercase).  Coerced to `0`/`1` then to `Y`/`N` via the
   schema level mapping.
@@ -307,6 +317,10 @@ superseded, duplicated elsewhere, or has gone stale.
     data/model layers (no other dashboard module imports it transitively).
   - `compute.py` is pure (model inference, conformal-q, APS, SHAP, row-prep) —
     **no Dash/Plotly**.
+  - `reliability.py` is pure (no Dash) — `assess_input(X, bundle, feature_spec)`
+    returns importance-weighted completeness + OOD (range violations /
+    atypicality from `feature_spec['ranges']` q05–q95) for the simulator's
+    partial-input badge; gain importances cached per outcome key.
   - `layout.py` owns the shared *prediction* figures (`fig_shap_local`,
     `fig_prediction_interval`, `fig_class_probabilities`) — these are **not** in
     the figures package.
@@ -328,6 +342,11 @@ superseded, duplicated elsewhere, or has gone stale.
   components with new lang labels).
 * Pattern-matched simulator inputs use IDs `{"type":"num"/"cat","col":<raw>}`
   with `dash.ALL`.  Input order is fixed by `feature_spec['feature_cols']`.
+  Numeric fields are **clearable `dcc.Input(number)`** (not sliders) and the
+  form opens **blank** (F25) — `collect_sim_inputs` leaves blanks as NaN (no
+  imputation); *Fill cohort defaults* / *Clear all* set every value via a single
+  pattern-matching value-Output callback; What-if mode prefills from the
+  reference episode.  (`simulate` returns 5 outputs incl. `sim-reliability`.)
 * Plotly template name: `"medical"` (registered in `theme.py`).  Palettes:
   `PALETTE_CATEGORICAL`, `PALETTE_AIS` (A→E cool→warm), `PALETTE_PARA`,
   `PALETTE_ARCHETYPE`.  Use them — do not hand-pick per-chart colors.
@@ -402,6 +421,15 @@ bgcmd 'exit()'; rm -rf "$BGCMDDIR"               # stop + clean
 
 One line per session; full detail is in Git history (`git log`, diffs).
 
+* **s28** — F25 partial-input prediction.  Simulator opens **blank**; numeric
+  sliders → clearable `dcc.Input(number)`; blanks pass through as NaN
+  (`collect_sim_inputs` no longer imputes `SIM_DEFAULTS`).  New pure
+  `dashboard/reliability.py` (`assess_input`) → importance-weighted completeness
+  + OOD (range/atypicality from `feature_spec` ranges); rendered as a reliability
+  badge (`sim-reliability`, 5th `simulate` output) with a conformal-missingness
+  caveat.  *Fill cohort defaults* / *Clear all* buttons.  No retrain, no new
+  artifact, production model untouched.  Files: `reliability.py`, `compute.py`,
+  `layout.py`, `tabs/simulator.py`, `ui_strings.yaml`, `assets/style.css`.
 * **s27** — F24 temporal (out-of-time) validation.  New `models/temporal.py`:
   expanding-window rolling-origin backtest (test years 2020–2025; train =
   earlier years; group-safe by patient) for all 6 outcomes; marginal
@@ -480,7 +508,7 @@ One line per session; full detail is in Git history (`git log`, diffs).
 
 ## 8. Feature backlog (default-work pool)
 
-Propose from here unless the user redirects.  **Items F1–F24 are shipped** —
+Propose from here unless the user redirects.  **Items F1–F25 are shipped** —
 see §7 for the session each landed in, and Git history for implementation
 detail.  Shipped ledger (terse, by feature number):
 
@@ -491,21 +519,15 @@ detail.  Shipped ledger (terse, by feature number):
   F10 PDF patient report · F13 SHAP interaction explorer · F14 dependency
   audit · F16 patient similarity explorer · F18 recovery archetype clustering ·
   F20 app.py refactor · F22 overview cohort filtering · F23 data-quality /
-  clinical-consistency report.
+  clinical-consistency report · F24 temporal (out-of-time) validation ·
+  F25 partial-input prediction (clearable inputs + reliability/OOD badge).
 * (F11/F12/F15/F17/F19/F21 were never opened — numbering gaps only.)
 
 **F23 (shipped s26): data-quality / clinical-consistency report** — see §7 and
 `data/quality.py`; durable data facts it surfaced live in §0b/§1, and the
 regenerated `models/dataquality_summary.json` holds the per-rule scorecard.
 
-**Ready candidates (proposed s26; pick the next unless redirected):**
-* **F24 temporal validation** — out-of-time eval on `BusinessYear` (2014–2025);
-  measures drift the random GroupKFold split hides.  Core clinical claim is
-  untested for temporal generalization.  M.  files: `models/`, Methods tab.
-  data: `BusinessYear` (verified populated; `STAMP` is 97.5 % missing → unusable).
-* **F25 partial-input prediction** — simulator accepts blank fields (LightGBM
-  ingests NaN) + reliability/OOD badge.  M.  caveat: conformal-PI validity under
-  missingness.  files: `compute.py`, simulator tab.
+**Ready candidates (pick the next unless redirected):**
 * **F26 invariant test harness** — narrow pytest enforcing §1 data + model
   invariants + a smoke test; skip-if-CSV-absent.  M.  files: `tests/`, pyproject.
 * **F27 dependency refresh** — minor/patch bumps + raise the `shap<0.52` cap;

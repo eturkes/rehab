@@ -3,7 +3,7 @@
 Regenerate after structural changes: `uv run python scripts/gen_map.py`.
 Line numbers are 1-indexed — slice with `Read(path, offset, limit)` instead of
 reading whole files.  Sources: src/rehab_sci, scripts.
-Index: 41 files, 8935 source lines.
+Index: 42 files, 9171 source lines.
 
 ## scripts
 
@@ -62,7 +62,7 @@ Rehabilitation Analytics & Prediction Suite — bilingual Dash app.
 - L105 `update_chrome(lang)` [callback]
 - L123 `update_tab(tab, lang, ref_data)` [callback]
 
-### compute.py (264 lines)
+### compute.py (263 lines)
 Pure computation helpers for model inference, conformal PI, and SHAP.
 - L24 `resolve_group_q(q_by_group, marginal, X)` — Resolve Mondrian q for a single-row input.
 - L47 `resolve_conformal_q(fspec, X)`
@@ -74,11 +74,11 @@ Pure computation helpers for model inference, conformal PI, and SHAP.
 - L128 `format_value(col, value)`
 - L137 `compute_ref_predictions(X)` — Compute predictions for all outcomes on a single-row X.
 - L176 `collect_sim_inputs(num_vals, num_ids, cat_vals, cat_ids)`
-- L196 `shap_for_row_regression(X, model)`
-- L209 `shap_for_row_class(X, clf, class_idx, n_classes)`
-- L238 `episode_row_for_model(key_record)` — Build a one-row model input from an episode's admission features.
-- L254 `episode_has_admission(key_record)`
-- L259 `get_observed_for_outcome(key_record, spec)`
+- L195 `shap_for_row_regression(X, model)`
+- L208 `shap_for_row_class(X, clf, class_idx, n_classes)`
+- L237 `episode_row_for_model(key_record)` — Build a one-row model input from an episode's admission features.
+- L253 `episode_has_admission(key_record)`
+- L258 `get_observed_for_outcome(key_record, spec)`
 
 ### i18n.py (38 lines)
 Bilingual translation helpers used by every dashboard component.
@@ -88,17 +88,23 @@ Bilingual translation helpers used by every dashboard component.
 - L25 `all_levels_in_order(schema, level_key, lang)` — Return (display, ja-or-en label) pairs in their YAML declaration order.
 - L36 `level_key_for_column(schema, raw)`
 
-### layout.py (216 lines)
+### layout.py (221 lines)
 Shared layout components: topbar, cards, sliders, prediction figures.
 - L20 `topbar(lang)`
 - L48 `kpi_card(label, value, sub)`
 - L55 `chart_card(title, content)`
 - L60 `input_id(prefix, col)`
-- L64 `slider_for(feature, lang, defaults)`
-- L92 `dropdown_for(feature, lang, defaults)`
-- L120 `fig_shap_local(values, X, base, lang)`
-- L149 `fig_prediction_interval(pred, lo, hi, spec, lang)`
-- L183 `fig_class_probabilities(proba, class_labels, spec, lang, conformal_set)`
+- L64 `number_input_for(feature, lang, defaults)` — Clearable numeric input. A blank field is left unknown (NaN) so the model
+- L96 `dropdown_for(feature, lang, defaults)`
+- L125 `fig_shap_local(values, X, base, lang)`
+- L154 `fig_prediction_interval(pred, lo, hi, spec, lang)`
+- L188 `fig_class_probabilities(proba, class_labels, spec, lang, conformal_set)`
+
+### reliability.py (141 lines)
+Input reliability + out-of-distribution assessment for the simulator.
+- L36 `_gain_importance(bundle)` — Per-feature LightGBM gain importance keyed by feature name (cached).
+- L51 `_supplied(value)` — True when a cell holds a real user-supplied value (not blank / NaN).
+- L59 `assess_input(X, bundle, feature_spec)` — Assess a single-row model input for completeness and OOD.
 
 ### report.py (328 lines)
 PDF patient report generator.
@@ -242,15 +248,17 @@ Patient explorer tab — real-patient predictions, similarity, PDF report.
 - L577 `update_patient_tab(key_record, strata, outcome_key, lang)` [callback]
 - L591 `download_report(n_clicks, key_record, id_number, strata, lang)` [callback]
 
-### simulator.py (371 lines)
+### simulator.py (462 lines)
 Simulator tab — hypothetical patient prediction + What-if counterfactual.
-- L50 `render_simulator(lang, ref_data)`
-- L133 `_simulate_regression(bundle, X, lang)`
-- L168 `_simulate_multiclass(bundle, X, lang)`
-- L210 `simulate(num_vals, cat_vals, num_ids, cat_ids, outcome_key, lang, ref_data)` [callback]
-- L297 `launch_whatif(n_clicks, key_record, id_number)` [callback]
-- L346 `update_whatif_banner(ref_data, lang)` [callback]
-- L370 `clear_whatif(_n)` [callback]
+- L51 `render_simulator(lang, ref_data)`
+- L153 `_simulate_regression(bundle, X, lang)`
+- L188 `_simulate_multiclass(bundle, X, lang)`
+- L217 `_reliability_badge(a, lang)`
+- L280 `simulate(num_vals, cat_vals, num_ids, cat_ids, outcome_key, lang, ref_data)` [callback]
+- L368 `launch_whatif(n_clicks, key_record, id_number)` [callback]
+- L417 `update_whatif_banner(ref_data, lang)` [callback]
+- L441 `clear_whatif(_n)` [callback]
+- L455 `fill_or_clear(_fill, _clear, num_ids, cat_ids)` [callback] — Fill every field with the cohort default, or clear all to blank (NaN).
 
 ## src/rehab_sci/data
 

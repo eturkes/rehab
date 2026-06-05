@@ -8,7 +8,7 @@ import dash
 import numpy as np
 import pandas as pd
 import plotly.graph_objects as go
-from dash import Input, Output, State, callback, dcc, html
+from dash import Input, Output, State, callback, ctx, dcc, html
 
 from rehab_sci.dashboard import figures as fg
 from rehab_sci.dashboard.compute import (
@@ -24,14 +24,15 @@ from rehab_sci.dashboard.compute import (
     shap_for_row_class,
     shap_for_row_regression,
 )
-from rehab_sci.dashboard.i18n import t
+from rehab_sci.dashboard.i18n import col_label, t
 from rehab_sci.dashboard.layout import (
     dropdown_for,
     fig_class_probabilities,
     fig_prediction_interval,
     fig_shap_local,
-    slider_for,
+    number_input_for,
 )
+from rehab_sci.dashboard.reliability import assess_input
 from rehab_sci.dashboard.state import (
     DEFAULT_OUTCOME,
     EP,
@@ -48,9 +49,11 @@ from rehab_sci.models.outcomes import OUTCOMES, OutcomeSpec
 
 # ---------- layout ----------
 def render_simulator(lang: str, ref_data: dict | None = None) -> html.Div:
-    defaults = SIM_DEFAULTS
+    # Open blank: the user supplies only known fields (blanks → unknown/NaN).
+    # What-if mode prefills the reference episode's admission values instead.
+    defaults: dict = {}
     if ref_data and ref_data.get("features"):
-        defaults = {**SIM_DEFAULTS, **{k: v for k, v in ref_data["features"].items() if v is not None}}
+        defaults = {k: v for k, v in ref_data["features"].items() if v is not None}
 
     sections: list = []
     sections.append(html.Div(
@@ -61,7 +64,7 @@ def render_simulator(lang: str, ref_data: dict | None = None) -> html.Div:
     sections.append(html.Div(t(SCHEMA, "sim_input_demographics", lang), className="sim-section-title"))
     for f in ["年齢", "性別"]:
         if f in FEATURE_SPEC["numeric_cols"]:
-            sections.append(slider_for(f, lang, defaults))
+            sections.append(number_input_for(f, lang, defaults))
         else:
             sections.append(dropdown_for(f, lang, defaults))
 
@@ -71,26 +74,41 @@ def render_simulator(lang: str, ref_data: dict | None = None) -> html.Div:
 
     sections.append(html.Div(t(SCHEMA, "sim_input_isncsci", lang), className="sim-section-title"))
     for f in ["AIS_ord", "mFrankel_ord", "NLI_ord", "RightMotorLevel_ord", "LeftMotorLevel_ord"]:
-        sections.append(slider_for(f, lang, defaults))
+        sections.append(number_input_for(f, lang, defaults))
     for f in ["VAC", "DAP"]:
         sections.append(dropdown_for(f, lang, defaults))
 
     sections.append(html.Div(t(SCHEMA, "sim_input_motor", lang), className="sim-section-title"))
     for f in ["UEMS", "LEMS", "TotalMotor"]:
-        sections.append(slider_for(f, lang, defaults))
+        sections.append(number_input_for(f, lang, defaults))
 
     sections.append(html.Div(t(SCHEMA, "sim_input_sensory", lang), className="sim-section-title"))
     for f in ["LightTouchTotal", "PinPrickTotal", "RightSensoryLevel_ord", "LeftSensoryLevel_ord"]:
-        sections.append(slider_for(f, lang, defaults))
+        sections.append(number_input_for(f, lang, defaults))
 
     sections.append(html.Div(
         "入院時の SCIM (任意)" if lang == "ja" else "Admission SCIM (optional)",
         className="sim-section-title",
     ))
     for f in ["SCIM_total", "SCIM_self_care", "SCIM_respiration_sphincter", "SCIM_mobility"]:
-        sections.append(slider_for(f, lang, defaults))
+        sections.append(number_input_for(f, lang, defaults))
 
-    input_panel = html.Div(className="sim-input-card", children=sections)
+    actions = html.Div(
+        className="sim-input-actions",
+        children=[
+            html.Button(
+                t(SCHEMA, "sim_fill_defaults", lang), id="sim-fill-defaults",
+                n_clicks=0, className="sim-action-btn",
+            ),
+            html.Button(
+                t(SCHEMA, "sim_clear_all", lang), id="sim-clear-all",
+                n_clicks=0, className="sim-action-btn sim-action-btn--ghost",
+            ),
+        ],
+    )
+    input_panel = html.Div(
+        className="sim-input-card", children=[sections[0], actions, *sections[1:]],
+    )
 
     outcome_selector = html.Div(
         className="sim-outcome-selector",
@@ -112,7 +130,9 @@ def render_simulator(lang: str, ref_data: dict | None = None) -> html.Div:
             html.Div(id="whatif-banner"),
             outcome_selector,
             html.Div(id="sim-readout", className="sim-readout"),
+            html.Div(id="sim-reliability", className="sim-reliability"),
             html.Div(id="sim-pi-fig", children=dcc.Graph(id="sim-pi-graph", config={"displayModeBar": False})),
+            html.Div(t(SCHEMA, "sim_pi_caveat", lang), className="sim-caveat"),
             html.H2(
                 t(SCHEMA, "sim_local_explanation", lang),
                 style={"marginTop": "16px", "fontSize": "14.5px", "fontWeight": 600, "color": INK["900"]},
@@ -193,12 +213,62 @@ def _simulate_multiclass(bundle: dict, X: pd.DataFrame, lang: str):
     return readout, fig_class_probabilities(proba, class_labels, spec, lang, conformal_set), fig_shap_local(shap_vals, X, base, lang)
 
 
+# ---------- reliability badge ----------
+def _reliability_badge(a: dict, lang: str) -> html.Div:
+    pct = a["completeness"] * 100
+    ood = a["ood_level"]
+    ood_text = {
+        "low": t(SCHEMA, "sim_ood_typical", lang),
+        "medium": t(SCHEMA, "sim_ood_atypical", lang),
+        "high": t(SCHEMA, "sim_ood_outrange", lang),
+    }[ood]
+    chip_children = [html.Span(ood_text)]
+    flagged = a["range_violations"] or a["atypical"]
+    if flagged:
+        sep = "、" if lang == "ja" else ", "
+        names = sep.join(col_label(SCHEMA, f["feature"], lang) for f in flagged[:4])
+        chip_children.append(html.Span(f" · {names}", className="ood-detail"))
+    fields_txt = (
+        f"{a['n_supplied']}/{a['n_total']} 項目"
+        if lang == "ja"
+        else f"{a['n_supplied']}/{a['n_total']} fields"
+    )
+    return html.Div(
+        className="sim-reliability-inner",
+        children=[
+            html.Div(
+                t(SCHEMA, "sim_reliability_heading", lang),
+                className="sim-reliability-title",
+            ),
+            html.Div(
+                className="completeness-row",
+                children=[
+                    html.Div(
+                        className="completeness-bar",
+                        children=html.Div(
+                            className=f"completeness-fill rel-{a['reliability_level']}",
+                            style={"width": f"{pct:.0f}%"},
+                        ),
+                    ),
+                    html.Span(f"{pct:.0f}% · {fields_txt}", className="completeness-text"),
+                ],
+            ),
+            html.Div(
+                t(SCHEMA, "sim_completeness_label", lang),
+                className="completeness-sublabel",
+            ),
+            html.Div(className=f"ood-chip ood-{ood}", children=chip_children),
+        ],
+    )
+
+
 # ---------- simulate callback ----------
 @callback(
     Output("sim-readout", "children"),
     Output("sim-pi-graph", "figure"),
     Output("sim-shap-graph", "figure"),
     Output("sim-traj-graph", "figure"),
+    Output("sim-reliability", "children"),
     Input({"type": "num", "col": dash.ALL}, "value"),
     Input({"type": "cat", "col": dash.ALL}, "value"),
     State({"type": "num", "col": dash.ALL}, "id"),
@@ -209,9 +279,10 @@ def _simulate_multiclass(bundle: dict, X: pd.DataFrame, lang: str):
 )
 def simulate(num_vals, cat_vals, num_ids, cat_ids, outcome_key, lang, ref_data):
     if not num_ids and not cat_ids:
-        return [], go.Figure(), go.Figure(), go.Figure()
+        return [], go.Figure(), go.Figure(), go.Figure(), []
     bundle = OUTCOME_BUNDLES.get(outcome_key) or SCIM_TOTAL_BUNDLE
     X = collect_sim_inputs(num_vals, num_ids, cat_vals, cat_ids)
+    reliability = _reliability_badge(assess_input(X, bundle, FEATURE_SPEC), lang)
 
     ref_pred_for_outcome: dict | None = None
     if ref_data and ref_data.get("outcomes"):
@@ -282,7 +353,7 @@ def simulate(num_vals, cat_vals, num_ids, cat_ids, outcome_key, lang, ref_data):
         traj_fig = fg.fig_sim_trajectory(traj, SCHEMA, lang, ref_trajectory=ref_traj)
     else:
         traj_fig = go.Figure()
-    return readout, pi_fig, shap_fig, traj_fig
+    return readout, pi_fig, shap_fig, traj_fig, reliability
 
 
 # ---------- what-if counterfactual callbacks ----------
@@ -369,3 +440,23 @@ def update_whatif_banner(ref_data, lang):
 )
 def clear_whatif(_n):
     return None
+
+
+# ---------- fill / clear input helpers ----------
+@callback(
+    Output({"type": "num", "col": dash.ALL}, "value"),
+    Output({"type": "cat", "col": dash.ALL}, "value"),
+    Input("sim-fill-defaults", "n_clicks"),
+    Input("sim-clear-all", "n_clicks"),
+    State({"type": "num", "col": dash.ALL}, "id"),
+    State({"type": "cat", "col": dash.ALL}, "id"),
+    prevent_initial_call=True,
+)
+def fill_or_clear(_fill, _clear, num_ids, cat_ids):
+    """Fill every field with the cohort default, or clear all to blank (NaN)."""
+    if ctx.triggered_id == "sim-fill-defaults":
+        return (
+            [SIM_DEFAULTS.get(i["col"]) for i in num_ids],
+            [SIM_DEFAULTS.get(i["col"]) for i in cat_ids],
+        )
+    return [None] * len(num_ids), [None] * len(cat_ids)

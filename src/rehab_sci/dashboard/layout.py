@@ -61,30 +61,34 @@ def input_id(prefix: str, col: str) -> dict:
     return {"type": prefix, "col": col}
 
 
-def slider_for(feature: str, lang: str, defaults: dict | None = None) -> html.Div:
+def number_input_for(feature: str, lang: str, defaults: dict | None = None) -> html.Div:
+    """Clearable numeric input. A blank field is left unknown (NaN) so the model
+    uses its native missing-value handling; ``defaults={}`` opens it blank."""
     rng = FEATURE_SPEC["ranges"].get(feature)
-    default = (defaults or SIM_DEFAULTS).get(feature)
     if rng is None:
         return html.Div()
-    lo = rng["min"]
-    hi = rng["max"]
-    if default is None:
-        default = rng["median"]
-    step = 1.0 if (hi - lo) > 20 else 0.5
-    marks_targets = sorted({lo, rng["q05"], rng["median"], rng["q95"], hi})
-    marks = {float(v): f"{v:.0f}" for v in marks_targets}
+    src = SIM_DEFAULTS if defaults is None else defaults
+    value = src.get(feature)
+    lo, hi, med = rng["min"], rng["max"], rng["median"]
+    hint = (
+        f"範囲 {lo:.0f}–{hi:.0f}・中央 {med:.0f}"
+        if lang == "ja"
+        else f"range {lo:.0f}–{hi:.0f} · median {med:.0f}"
+    )
     return html.Div(
         className="sim-field",
         children=[
             html.Label(col_label(SCHEMA, feature, lang)),
-            dcc.Slider(
+            dcc.Input(
                 id=input_id("num", feature),
-                min=lo, max=hi, step=step,
-                value=float(default),
-                marks=marks,
-                tooltip={"placement": "bottom", "always_visible": False},
-                updatemode="drag",
+                type="number",
+                min=lo, max=hi, step=1,
+                value=value,
+                debounce=True,
+                placeholder=("未入力 = 不明" if lang == "ja" else "blank = unknown"),
+                className="sim-number",
             ),
+            html.Span(hint, className="sim-hint"),
         ],
     )
 
@@ -100,7 +104,8 @@ def dropdown_for(feature: str, lang: str, defaults: dict | None = None) -> html.
         }
         for c in cats
     ]
-    default = (defaults or SIM_DEFAULTS).get(feature)
+    src = SIM_DEFAULTS if defaults is None else defaults
+    default = src.get(feature)
     return html.Div(
         className="sim-field",
         children=[

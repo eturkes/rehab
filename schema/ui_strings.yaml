@@ -82,8 +82,8 @@ chart_recovery_curves:
 
 # --- simulator ---
 sim_intro:
-  ja: "入院時の状態を入力すると、退院時 SCIM-III 合計の予測と寄与要因が表示されます。"
-  en: "Enter admission characteristics to view predicted discharge SCIM-III total and the factors driving it."
+  ja: "わかる範囲で入院時の状態を入力してください（空欄は「不明」として扱われます）。退院時 SCIM-III 合計の予測、寄与要因、入力の信頼度が表示されます。"
+  en: "Enter whatever admission characteristics are known — blank fields are treated as unknown. The predicted discharge SCIM-III total, its drivers, and an input-reliability badge are shown."
 sim_input_demographics:
   ja: "人口統計"
   en: "Demographics"
@@ -123,6 +123,30 @@ sim_pushes_down:
 sim_reset:
   ja: "リセット"
   en: "Reset"
+sim_reliability_heading:
+  ja: "入力の信頼度"
+  en: "Input reliability"
+sim_completeness_label:
+  ja: "入力充足度（重要度加重）"
+  en: "Input completeness (importance-weighted)"
+sim_ood_typical:
+  ja: "代表的な入力範囲内"
+  en: "Within the typical input range"
+sim_ood_atypical:
+  ja: "一部に非典型的な値"
+  en: "Some atypical values"
+sim_ood_outrange:
+  ja: "学習範囲外の値（外挿）"
+  en: "Values outside the training range (extrapolation)"
+sim_pi_caveat:
+  ja: "予測区間の被覆率（80%）は本コホートの自然な欠測のもとで較正されています。入力が少ないほど信頼度バッジが低下します。"
+  en: "The interval's 80% coverage is calibrated under this cohort's natural missingness; the reliability badge falls as fewer fields are supplied."
+sim_fill_defaults:
+  ja: "代表値を入力"
+  en: "Fill cohort defaults"
+sim_clear_all:
+  ja: "すべて消去"
+  en: "Clear all"
 
 # --- insight engine ---
 insight_global_importance:

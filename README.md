@@ -40,6 +40,7 @@ src/rehab_sci/
   data/quality.py                 # data-quality / clinical-consistency report
   dashboard/                      # Plotly Dash app (JA default, EN toggle)
     app.py state.py compute.py layout.py figures/ tabs/ theme.py i18n.py
+    reliability.py                # partial-input completeness + OOD assessment
 
 models/                           # trained artifacts (gitignored)
 reports/                          # exported figures (gitignored)
@@ -227,13 +228,21 @@ Tabs:
    SCIM); age / sex / mechanism distributions; injury sunburst
    (paralysis → AIS → NLI); AIS admit→discharge Sankey; SCIM recovery
    curves with IQR ribbons by paralysis type.
-2. **Patient simulator** — every admission feature is exposed as an
-   input; an outcome dropdown selects which of the six prediction
-   heads to render.  Regression heads (SCIM total / 3 subscales /
-   LOS) show a live point prediction + 80 % conformal interval; the
-   AIS head shows the predicted class + a class-probability bar
-   chart.  A local SHAP bar (top contributors for the current input)
-   accompanies whichever head is selected.
+2. **Patient simulator** — every admission feature is exposed as a
+   clearable input; an outcome dropdown selects which of the six
+   prediction heads to render.  Regression heads (SCIM total / 3
+   subscales / LOS) show a live point prediction + 80 % conformal
+   interval; the AIS head shows the predicted class + a
+   class-probability bar chart.  A local SHAP bar (top contributors
+   for the current input) accompanies whichever head is selected.
+   **Partial input (F25):** the form opens blank — supply only what
+   is known and blanks pass through as NaN (LightGBM's native missing
+   handling, matching training).  A reliability badge reports
+   importance-weighted input completeness plus an out-of-distribution
+   flag (values outside the observed range / atypical), since the
+   conformal half-width is fixed and will not itself widen as input
+   grows sparser.  *Fill cohort defaults* / *Clear all* buttons toggle
+   between a representative patient and a blank form.
 3. **Patient explorer** — pick a real patient by IDNumber and see
    their observed SCIM-III trajectory (total + subscales) against
    cohort 10–90 / 25–75 percentile bands stratified by paralysis ±
