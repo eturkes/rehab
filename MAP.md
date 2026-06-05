@@ -3,7 +3,7 @@
 Regenerate after structural changes: `uv run python scripts/gen_map.py`.
 Line numbers are 1-indexed — slice with `Read(path, offset, limit)` instead of
 reading whole files.  Sources: src/rehab_sci, scripts.
-Index: 43 files, 10471 source lines.
+Index: 45 files, 11437 source lines.
 
 ## scripts
 
@@ -128,7 +128,7 @@ PDF patient report generator.
 - L137 `_safe(v, na, fmt)`
 - L146 `generate_patient_report(meta, predictions, trajectory_fig, shap_fig, outcome_labels, lang)` — Build a 2-page PDF report for one patient episode.
 
-### state.py (109 lines)
+### state.py (116 lines)
 Startup data loading and global state for the dashboard.
 - L21 `ROOT` (const)
 - L22 `MODELS_DIR` (const)
@@ -144,8 +144,9 @@ Startup data loading and global state for the dashboard.
 - L70 `TRAJECTORY_BUNDLE` (const)
 - L73 `ARCHETYPE_DATA` (const)
 - L104 `LANDMARK_BUNDLE` (const)
-- L108 `PATIENT_OPTIONS` (const)
-- L109 `PATIENT_OPTIONS_BY_ID` (const)
+- L113 `PHENOTYPE_DATA` (const)
+- L115 `PATIENT_OPTIONS` (const)
+- L116 `PATIENT_OPTIONS_BY_ID` (const)
 
 ### theme.py (104 lines)
 Plotly theme + palettes used everywhere on the dashboard.
@@ -158,7 +159,7 @@ Plotly theme + palettes used everywhere on the dashboard.
 
 ## src/rehab_sci/dashboard/figures
 
-### __init__.py (79 lines)
+### __init__.py (89 lines)
 Plotly figure factories, split by dashboard tab.
 - (no top-level symbols)
 
@@ -185,20 +186,26 @@ Plotly figures for the Methods tab — calibration and performance visualization
 - L345 `fig_landmark_value(lm_outcome, landmark_days, lang)` — Value of observation: discharge-outcome accuracy + PI sharpening vs landmark tim…
 - L420 `fig_voi_scorecard(lm_outcome, lang, measure_labels)` — Value-of-information scorecard: per-measure × per-landmark uncertainty reduction…
 
-### overview.py (412 lines)
+### overview.py (508 lines)
 Plotly figures for the Overview tab — cohort demographics, injury, recovery curv…
-- L15 `fig_age_distribution(ep, schema, lang)`
-- L34 `fig_sex_donut(ep, schema, lang)`
-- L53 `fig_mechanism(ep, schema, lang)`
-- L75 `fig_discharge_scim(ep, schema, lang)`
-- L102 `fig_injury_treemap(ep, schema, lang)`
-- L176 `fig_ais_admit_discharge_sankey(ep, schema, lang)`
-- L221 `fig_recovery_curves(long_df, schema, lang)`
-- L292 `PALETTE_ARCHETYPE` (const)
-- L301 `ARCHETYPE_NAMES_JA` (const)
-- L304 `ARCHETYPE_NAMES_EN` (const)
-- L307 `fig_archetype_curves(centroids, timepoint_labels, summaries, schema, lang)` — Archetype recovery trajectory curves with centroid lines and member count annota…
-- L377 `fig_archetype_demographics(summaries, schema, lang)` — Stacked bar chart showing AIS grade distribution per archetype.
+- L16 `fig_age_distribution(ep, schema, lang)`
+- L35 `fig_sex_donut(ep, schema, lang)`
+- L54 `fig_mechanism(ep, schema, lang)`
+- L76 `fig_discharge_scim(ep, schema, lang)`
+- L103 `fig_injury_treemap(ep, schema, lang)`
+- L177 `fig_ais_admit_discharge_sankey(ep, schema, lang)`
+- L222 `fig_recovery_curves(long_df, schema, lang)`
+- L293 `PALETTE_ARCHETYPE` (const)
+- L302 `ARCHETYPE_NAMES_JA` (const)
+- L305 `ARCHETYPE_NAMES_EN` (const)
+- L308 `fig_archetype_curves(centroids, timepoint_labels, summaries, schema, lang)` — Archetype recovery trajectory curves with centroid lines and member count annota…
+- L378 `_ais_distribution_bars(summaries, group_labels, lang)` — Stacked AIS-grade-distribution bar chart shared by archetype + phenotype demogra…
+- L403 `fig_archetype_demographics(summaries, schema, lang)` — Stacked bar chart showing AIS grade distribution per archetype.
+- L419 `PALETTE_PHENOTYPE` (const)
+- L427 `PHENOTYPE_NAMES_JA` (const)
+- L428 `PHENOTYPE_NAMES_EN` (const)
+- L431 `fig_phenotype_curves(class_means, window, summaries, measure_labels, schema, lang, class_support)` — Observed-trajectory phenotype mean curves, one stacked panel per measure (SCIM, …
+- L505 `fig_phenotype_demographics(summaries, schema, lang)` — Stacked AIS-grade distribution per observed-trajectory phenotype.
 
 ### patient.py (508 lines)
 Plotly figures for the Patient explorer tab — SCIM timeline, prediction, similar…
@@ -241,12 +248,12 @@ Methods tab — model documentation + per-outcome performance visualizations.
 - L291 `_dataquality_block(lang)`
 - L339 `render_methods(lang)`
 
-### overview.py (257 lines)
+### overview.py (291 lines)
 Overview tab — cohort KPIs, demographic charts, archetype curves with interactiv…
-- L27 `render_overview(lang)` — Return filter bar + empty content div (populated by callback).
-- L78 `_apply_filters(ais, para, age_range, arch)` — AND-combine all active filters on the global EP/LONG frames.
-- L102 `_filtered_archetype_summaries(ep_f)` — Rebuild per-archetype summaries on the filtered episode subset.
-- L140 `update_overview_content(ais, para, age_range, arch, lang)` [callback]
+- L28 `render_overview(lang)` — Return filter bar + empty content div (populated by callback).
+- L79 `_apply_filters(ais, para, age_range, arch)` — AND-combine all active filters on the global EP/LONG frames.
+- L103 `_filtered_archetype_summaries(ep_f)` — Rebuild per-archetype summaries on the filtered episode subset.
+- L141 `update_overview_content(ais, para, age_range, arch, lang)` [callback]
 
 ### patient.py (770 lines)
 Patient explorer tab — real-patient predictions, similarity, PDF report.
@@ -334,6 +341,38 @@ ALL_SCIDATA.csv loader + cleaner. Patient data is held in-memory only — NEVER 
 - L145 `add_isncsci_summaries(df, schema)` — Compute UEMS / LEMS / total motor / per-modality sensory totals per row.
 - L197 `add_scim_subscales(df, schema)` — Compute SCIM-III sub-scale and total scores.
 - L213 `load_clean(path, schema)` — Public entrypoint: load → normalize → add ISNCSCI summaries → add SCIM subscales…
+
+### phenotypes.py (609 lines)
+Multivariate growth mixture model (GMM) for observed-trajectory phenotyping (G3)…
+- L46 `MEASURES` (const)
+- L51 `WINDOW` (const)
+- L52 `WINDOW_DAYS` (const)
+- L56 `TIME_SCALE` (const)
+- L58 `N_RANDOM` (const)
+- L62 `scaled_time(timepoint)` — Scaled time in [0, 1] for a window timepoint slot.
+- L71 `_poly_basis(t, degree)` — Vandermonde basis ``[1, t, t^2, ..., t^degree]`` (shape ``(n, degree+1)``).
+- L77 `class GMMData` — Pre-built per-individual design matrices for the mixture of linear mixed models.
+    methods: N, p_fixed, p_random
+- L105 `build_individual_design(times, meas, degree, n_measures)` — Build ``(Phi, Z)`` for one individual from per-cell scaled times + measure indic…
+- L124 `build_gmm_data(long_df, cohort_keys, degree, measures)` — Assemble :class:`GMMData` from the longitudinal frame for the given cohort.
+- L172 `class GMMParams` — Fitted growth-mixture-model parameters (class-invariant G & sigma2).
+    methods: n_free_params
+- L193 `_block_diag_project(G, n_measures)` — Zero the cross-measure blocks so random effects are independent across measures.
+- L207 `_cov_and_inv(Z, meas, G, sigma2)` — Marginal covariance ``V = Z G Z' + diag(sigma2[meas])`` with its inverse + logde…
+- L223 `_e_step(data, p)` — Posterior class responsibilities + observed-data log-likelihood.
+- L252 `_m_step(data, resp, p, Vinv_list)` — ECM update: pi, then GLS beta, then random-effect covariance G + residual sigma2…
+- L310 `_init_params(data, K, resp0)` — Seed parameters from an initial (hard or soft) responsibility matrix.
+- L344 `_crude_features(data)` — Per-individual summary (per-measure mean + OLS slope) for k-means initialization…
+- L365 `fit_once(data, K, resp0, *, max_iter, tol)` — Run EM to convergence from one initialization.  Returns ``(params, resp, loglik)…
+- L383 `fit(data, K, *, n_restarts, seed, max_iter, tol)` — Fit ``K``-class GMM with multiple restarts; keep the highest-likelihood solution…
+- L423 `predict_proba(data, p)` — Posterior phenotype membership for (possibly partially observed) individuals.
+- L433 `bic(loglik, n_free, N)`
+- L437 `diagnostics(resp)` — GMM separation diagnostics: relative entropy + per-class APPA + min class share.
+- L458 `class_means(p, timepoints)` — Fitted class mean trajectories, shape ``(K, n_measures, len(timepoints))``.
+- L470 `class_support(long_df, assignments, k, measures, *, min_coverage)` — Last window index per (class, measure) where >= ``min_coverage`` of the class is…
+- L510 `order_by_discharge(p, resp, support)` — Relabel classes by ascending SCIM recovery (class 0 = lowest recovery).
+- L530 `select(data_by_degree, k_range, degrees, *, n_restarts, seed, min_class_share, progress)` — Sweep ``K x degree`` by BIC.  Returns ``(best_key, fits, table)``.
+- L576 `phenotype_summary(ep_eligible, assignments, k)` — Per-phenotype demographics + conditioned outcomes (mirrors archetype_summary).
 
 ### quality.py (647 lines)
 Data-quality / clinical-consistency report over the SCI dataset.
@@ -439,6 +478,18 @@ Outcome registry — the source of truth for what `train.py` predicts.
 - L33 `class OutcomeSpec`
 - L46 `OUTCOMES` (const)
 - L105 `get(key)`
+
+### phenotypes.py (210 lines)
+Observed-trajectory phenotyping (G3) — fit + persist a growth mixture model.
+- L47 `ROOT` (const)
+- L48 `MODELS_DIR` (const)
+- L50 `MIN_SCIM_OBS` (const)
+- L51 `K_RANGE` (const)
+- L52 `DEGREES` (const)
+- L53 `N_RESTARTS` (const)
+- L54 `SEED` (const)
+- L57 `_cohort_keys(ep, long)` — Episodes with >= MIN_SCIM_OBS observed SCIM points in the window and a real IDNu…
+- L71 `main()`
 
 ### shap_utils.py (56 lines)
 TreeSHAP interaction-value encoding + top feature-pair ranking helpers.

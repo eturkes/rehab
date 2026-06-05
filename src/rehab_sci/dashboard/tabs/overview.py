@@ -14,7 +14,8 @@ from rehab_sci.dashboard import figures as fg
 from rehab_sci.dashboard.figures import ARCHETYPE_NAMES_EN, ARCHETYPE_NAMES_JA
 from rehab_sci.dashboard.i18n import level_label, t
 from rehab_sci.dashboard.layout import chart_card, kpi_card
-from rehab_sci.dashboard.state import ARCHETYPE_DATA, EP, LONG, SCHEMA
+from rehab_sci.dashboard.state import ARCHETYPE_DATA, EP, LONG, PHENOTYPE_DATA, SCHEMA
+from rehab_sci.data.phenotypes import phenotype_summary
 
 _AGE_MIN = 10
 _AGE_MAX = 95
@@ -249,6 +250,39 @@ def update_overview_content(ais, para, age_range, arch, lang):
                 t(SCHEMA, "chart_archetype_demographics", lang),
                 dcc.Graph(
                     figure=fg.fig_archetype_demographics(summaries, SCHEMA, lang),
+                    config=_gc,
+                ),
+            ),
+        ]))
+
+    if PHENOTYPE_DATA is not None:
+        pheno_sum = (
+            phenotype_summary(ep, PHENOTYPE_DATA["assignments"], PHENOTYPE_DATA["k"])
+            if is_filtered else PHENOTYPE_DATA["summaries"]
+        )
+        _mkey = {"SCIM_total": "pheno_measure_scim", "TotalMotor": "pheno_measure_motor"}
+        measure_labels = [t(SCHEMA, _mkey.get(m, m), lang) for m in PHENOTYPE_DATA["measures"]]
+        children.append(html.Div(t(SCHEMA, "phenotype_caption", lang), className="ov-section-note"))
+        children.append(html.Div(className="chart-row", children=[
+            chart_card(
+                t(SCHEMA, "chart_phenotype_curves", lang),
+                dcc.Graph(
+                    figure=fg.fig_phenotype_curves(
+                        PHENOTYPE_DATA["class_means"],
+                        list(PHENOTYPE_DATA["window"]),
+                        pheno_sum,
+                        measure_labels,
+                        SCHEMA,
+                        lang,
+                        class_support=PHENOTYPE_DATA["class_support"],
+                    ),
+                    config=_gc,
+                ),
+            ),
+            chart_card(
+                t(SCHEMA, "chart_phenotype_demographics", lang),
+                dcc.Graph(
+                    figure=fg.fig_phenotype_demographics(pheno_sum, SCHEMA, lang),
                     config=_gc,
                 ),
             ),

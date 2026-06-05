@@ -625,6 +625,13 @@ input[type="number"]:focus, input[type="text"]:focus, select:focus {
   color: var(--accent-dark, #0c5a66);
   font-weight: 500;
 }
+.ov-section-note {
+  margin: 1.25rem 0 0.5rem;
+  font-size: 0.85rem;
+  line-height: 1.5;
+  color: var(--ink-500);
+  max-width: 78ch;
+}
 .overview-empty {
   padding: 3rem;
   text-align: center;

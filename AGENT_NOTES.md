@@ -382,6 +382,42 @@ superseded, duplicated elsewhere, or has gone stale.
   obtainable, grey = already observed) with a "next best to obtain" + "most
   informative observed" readout.
 
+* **Observed-trajectory phenotyping (`data/phenotypes.py` + `models/phenotypes.py`, G3)** —
+  a **multivariate growth mixture model** (mixture of linear mixed models) over the *observed*
+  early-recovery trajectories of **SCIM-total + total motor**, jointly.  Contrast §3 archetypes
+  (k-means on model-*predicted* curves): this clusters the *raw* curves, soft-assigns, and is
+  likelihood-based.  Per individual `y_{i,m}(t) = beta_{k,m}·phi(t) + b_{i,m}·psi(t) + eps`;
+  `phi` = polynomial basis (degree D, BIC-chosen ∈{1,2}), `psi`=[1,t] random intercept+slope
+  per measure.  **Class-invariant `G` (block-diagonal across measures) and `sigma2` (per-measure
+  residual)** — the robust spec that avoids variance-collapse non-identifiability, so the
+  marginal covariance `V_i = Z_i G Z_i' + R_i` is class-independent and built once per individual
+  per EM iter; only the mean `Phi_i beta_k` is class-specific (distinct from LCGA, which sets
+  G=0).  **Missingness is native** (each individual contributes only its observed (measure,
+  timepoint) cells) — the methodological win over k-means-on-imputed-curves.  Fit = EM
+  (log-sum-exp E-step; ECM M-step: resp-weighted GLS beta + Laird-Ware variance components) with
+  multiple restarts (k-means init + Dirichlet perturbation); **K×degree chosen by BIC** subject to
+  a min-class-share floor; separation reported by relative entropy / per-class APPA / min share.
+  Fit landed **K=5, degree=2** (cohort: 590 episodes with ≥3 observed SCIM points in the 0day–6m
+  window + real IDNumber).  **CRUX (two coupled extrapolation traps a degree-2 basis creates):**
+  the fitted means are only valid over each class's *observed support* — an early-discharge class
+  (e.g. mild/rapid recoverers, LOS≈51d) whose members exit by ~6w has a quadratic mean that dives
+  to absurd values out-of-range (SCIM −1277 at 6m).  `class_support(long, assignments, k,
+  min_coverage=0.20)` → `(K, M)` last window index where ≥20 % of the class is still observed; the
+  trainer stores it and **(a)** the Overview figure blanks (NaN) each line past its support so a
+  curve is drawn only where observed (the figure also clips to [0,100] for the at-ceiling
+  overshoot), and **(b)** `order_by_discharge(p, resp, support)` ranks phenotypes (class 0 =
+  lowest recovery) by clipped SCIM at the *latest universally-supported* timepoint — never by the
+  raw 6m value, which would mislabel the best early-discharge recoverer as the worst.  Persists a
+  tracked identifier-free `models/phenotype_metrics.json` (k, degree, selection table, **raw**
+  class_means [no NaN tokens], class_support, min_coverage, summaries, diagnostics) and a
+  git-ignored `models/phenotypes/phenotypes.joblib` (GMMParams + per-episode hard assignments +
+  posterior + class_means + class_support + summaries) for the dashboard / part-2 patient surface.
+  Diagnostic/inference module, NOT a production training step — never touches `train.py` artifacts.
+  Part 1 (this session): model + **Overview** cohort surface (`fig_phenotype_curves` truncated
+  per-measure stacked panels with conditioned-prognosis hover + `fig_phenotype_demographics` AIS
+  bars, reusing the archetype `_ais_distribution_bars` helper).  Part 2 (deferred): patient-level
+  phenotype prognosis via `predict_proba` on a partially-observed individual.
+
 ## 4. Dashboard conventions
 
 * **Module layout** (`src/rehab_sci/dashboard/`) — `MAP.md` is the authoritative
@@ -487,6 +523,7 @@ uv run python -m rehab_sci.models.archetypes     # recovery archetype clustering
 uv run python -m rehab_sci.data.quality          # data-quality / clinical-consistency report
 uv run python -m rehab_sci.models.temporal       # out-of-time temporal validation (F24)
 uv run python -m rehab_sci.models.landmark       # landmark (dynamic) prediction — value of observation (G1)
+uv run python -m rehab_sci.models.phenotypes     # observed-trajectory phenotyping — growth mixture model (G3); ~5 min
 uv run python -m rehab_sci.dashboard.app         # serve at :8050
 pkill -f 'rehab_sci.dashboard.app'               # stop stale dashboard
 uv cache prune                                   # reclaim uv cache space
@@ -510,6 +547,28 @@ bgcmd 'exit()'; rm -rf "$BGCMDDIR"               # stop + clean
 
 One line per session; full detail is in Git history (`git log`, diffs).
 
+* **s32** — G3 observed-trajectory phenotyping, **Part 1** (user fork: GMM with
+  random effects · multivariate SCIM+motor · model+cohort surface).  New
+  `data/phenotypes.py` (multivariate growth mixture model — mixture of linear
+  mixed models, class-invariant block-diagonal G + per-measure sigma2, native
+  missingness, EM w/ k-means+Dirichlet restarts, BIC over K×degree) + trainer
+  `models/phenotypes.py`.  Validated the EM on synthetic data first (ARI 0.95,
+  params + BIC-K recovered).  Fit → **K=5, degree=2** on 590 episodes.  **Caught
+  two coupled degree-2 extrapolation traps in the sanity gate:** (1) early-
+  discharge classes' quadratic means dive out-of-support (SCIM −1277 @6m) →
+  added `class_support` (per-class/measure last window ≥20 % observed); the
+  figure blanks each line past its support (+[0,100] clip for ceiling overshoot);
+  (2) `order_by_discharge` sorted on the raw 6m value → mislabeled the best
+  early-discharge recoverer as worst → now ranks by clipped SCIM at the latest
+  *universally-supported* timepoint, giving a clean severe→full ordering.
+  Overview gains the phenotype surface (`fig_phenotype_curves` support-truncated
+  stacked panels w/ conditioned-prognosis hover + `fig_phenotype_demographics`,
+  reusing `_ais_distribution_bars`); bilingual (`chart_phenotype_*`,
+  `phenotype_caption`, `pheno_measure_*`); `.ov-section-note` CSS.  Tracked
+  identifier-free `phenotype_metrics.json` (raw class_means, no NaN tokens) +
+  git-ignored `phenotypes/phenotypes.joblib`; production artifacts untouched.
+  Lint clean; dashboard boots 200; phenotype surface renders both langs.  Part 2
+  (patient-level phenotype prognosis) deferred to the backlog.
 * **s31** — G2 value-of-information.  Per (outcome, L) the landmark trainer now
   also fits 10 **single-add heads** (admission + exactly one `L_<measure>`, 31
   feats) on the same eligible cohort/split, each with its own marginal conformal
@@ -639,7 +698,7 @@ One line per session; full detail is in Git history (`git log`, diffs).
 
 ## 8. Feature backlog (default-work pool)
 
-Propose from here unless the user redirects.  **Items F1–F25 + G1 + G2 are
+Propose from here unless the user redirects.  **Items F1–F25 + G1–G3 are
 shipped** — see §7 for the session each landed in, and Git history for
 implementation detail.  The user steers toward *insightful* (clinical/
 scientific) features over infra/maintenance — lead with the **G-series**.
@@ -665,17 +724,25 @@ Shipped ledger (terse, by feature number):
   best measure to obtain per patient.  Methods VOI scorecard heatmap + Patient
   VOI bars/readout.  See §3 for the contract and §7 for the session.  Fully
   shipped.
+* **G3 observed-trajectory phenotyping** (s32, Part 1): multivariate growth
+  mixture model (`data/phenotypes.py` + `models/phenotypes.py`) over observed
+  SCIM+motor early-recovery trajectories → K=5 phenotypes; Overview cohort
+  surface (`fig_phenotype_curves` support-truncated + `fig_phenotype_demographics`).
+  See §3 for the contract (incl. the support-truncation / ordering extrapolation
+  traps) and §7 for the session.  Part 2 (patient-level phenotype prognosis via
+  `predict_proba`) deferred.
 
 **F23 (shipped s26): data-quality / clinical-consistency report** — see §7 and
 `data/quality.py`; durable data facts it surfaced live in §0b/§1, and the
 regenerated `models/dataquality_summary.json` holds the per-rule scorecard.
 
 **Ready candidates (pick the next unless redirected; lead with G-series):**
-* **G3 observed-trajectory phenotyping** — *what:* cluster patients by their
-  *observed* early-recovery trajectory (contrast §3 archetypes, which cluster
-  *predicted* curves) and surface phenotype-conditioned prognosis.  *why:*
-  data-driven recovery shapes independent of model bias.  *effort:* L.  *files:*
-  new model module + overview/patient surface.  *data dep:* longitudinal frame.
+* **G3 part 2 — patient-level phenotype prognosis** — *what:* assign an
+  individual (partially observed) to a phenotype via `predict_proba` and surface
+  the phenotype-conditioned outcome distribution on the Patient tab.  *why:*
+  turns the cohort phenotypes into a per-patient prognosis cue.  *effort:* M.
+  *files:* `compute.py` helper + patient surface/figure.  *data dep:* the
+  git-ignored `phenotypes.joblib` bundle (GMMParams + window).
 * **G4 AIS-conversion modeling** — *what:* model AIS-grade *conversion* (Δ from
   admission to discharge, or across landmarks) as its own outcome, not just the
   absolute discharge grade.  *why:* conversion is the clinically salient

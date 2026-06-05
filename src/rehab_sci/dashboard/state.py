@@ -105,5 +105,12 @@ LANDMARK_BUNDLE: dict | None = (
     joblib.load(_landmark_bundle_path) if _landmark_bundle_path.exists() else None
 )
 
+# G3 observed-trajectory phenotyping (growth mixture model). `phenotype_metrics.json`
+# (tracked, identifier-free) records the fit; `phenotypes/phenotypes.joblib` (gitignored)
+# carries class-mean curves + per-episode assignments driving the Overview phenotype surface.
+# Both absent until `python -m rehab_sci.models.phenotypes`; the panel degrades gracefully.
+_pheno_path = MODELS_DIR / "phenotypes" / "phenotypes.joblib"
+PHENOTYPE_DATA: dict | None = joblib.load(_pheno_path) if _pheno_path.exists() else None
+
 PATIENT_OPTIONS = list_patient_options(EP)
 PATIENT_OPTIONS_BY_ID = {p.id_number: p for p in PATIENT_OPTIONS}

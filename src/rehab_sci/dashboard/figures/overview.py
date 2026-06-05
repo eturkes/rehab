@@ -5,6 +5,7 @@ from __future__ import annotations
 import numpy as np
 import pandas as pd
 import plotly.graph_objects as go
+from plotly.subplots import make_subplots
 
 from rehab_sci.dashboard.figures._common import _hex_to_rgba
 from rehab_sci.dashboard.i18n import col_label, level_label, t
@@ -374,34 +375,21 @@ def fig_archetype_curves(
     return fig
 
 
-def fig_archetype_demographics(
-    summaries: list[dict],
-    schema: Schema,
-    lang: str,
-) -> go.Figure:
-    """Stacked bar chart showing AIS grade distribution per archetype."""
-    names = ARCHETYPE_NAMES_JA if lang == "ja" else ARCHETYPE_NAMES_EN
-    arch_labels = [f"{names[s['id']]}" for s in summaries]
-
+def _ais_distribution_bars(summaries: list[dict], group_labels: list[str], lang: str) -> go.Figure:
+    """Stacked AIS-grade-distribution bar chart shared by archetype + phenotype demographics."""
     ais_grades = ["A", "B", "C", "D", "E"]
     fig = go.Figure()
-
     for grade in ais_grades:
         vals = [s["ais_distribution"].get(grade, 0.0) * 100 for s in summaries]
         fig.add_trace(
             go.Bar(
-                x=arch_labels,
+                x=group_labels,
                 y=vals,
                 name=f"AIS {grade}",
                 marker_color=PALETTE_AIS.get(grade, PALETTE_CATEGORICAL[0]),
-                hovertemplate=(
-                    "<b>%{x}</b><br>"
-                    + f"AIS {grade}: " + "%{y:.1f}%"
-                    + "<extra></extra>"
-                ),
+                hovertemplate="<b>%{x}</b><br>" + f"AIS {grade}: " + "%{y:.1f}%" + "<extra></extra>",
             )
         )
-
     fig.update_layout(
         barmode="stack",
         height=320,
@@ -410,3 +398,111 @@ def fig_archetype_demographics(
         margin=dict(l=50, r=20, t=20, b=44),
     )
     return fig
+
+
+def fig_archetype_demographics(
+    summaries: list[dict],
+    schema: Schema,
+    lang: str,
+) -> go.Figure:
+    """Stacked bar chart showing AIS grade distribution per archetype."""
+    names = ARCHETYPE_NAMES_JA if lang == "ja" else ARCHETYPE_NAMES_EN
+    return _ais_distribution_bars(summaries, [names[s["id"]] for s in summaries], lang)
+
+
+# ----------------------------------------------------------------------------------------
+# Observed-trajectory phenotypes (G3) — growth-mixture-model recovery curves.  A distinct
+# palette signals these are discovered from *observed* trajectories, vs the predicted-curve
+# archetypes above.
+# ----------------------------------------------------------------------------------------
+
+PALETTE_PHENOTYPE = [
+    "#5b3a82",  # violet
+    "#1f7a8c",  # teal
+    "#c46a1b",  # amber
+    "#3f7d3a",  # leaf green
+    "#8c2f4a",  # wine
+]
+
+PHENOTYPE_NAMES_JA = ["表現型 1", "表現型 2", "表現型 3", "表現型 4", "表現型 5"]
+PHENOTYPE_NAMES_EN = ["Phenotype 1", "Phenotype 2", "Phenotype 3", "Phenotype 4", "Phenotype 5"]
+
+
+def fig_phenotype_curves(
+    class_means,
+    window: list[str],
+    summaries: list[dict],
+    measure_labels: list[str],
+    schema: Schema,
+    lang: str,
+    class_support=None,
+) -> go.Figure:
+    """Observed-trajectory phenotype mean curves, one stacked panel per measure (SCIM, motor).
+
+    ``class_means`` is array-like ``(K, M, T)`` (fitted growth-mixture class means); each
+    phenotype is one colored line per panel.  The hover carries the phenotype-conditioned
+    prognosis (median discharge SCIM, mean LOS) so the cohort view doubles as a prognosis cue.
+
+    ``class_support`` (optional ``(K, M)`` int array) gives each phenotype/measure's last
+    observed-support window index; values past it are blanked so a line is only drawn over the
+    range where that phenotype is actually observed (the polynomial mean extrapolates beyond).
+    """
+    cm = np.clip(np.asarray(class_means, dtype=float), 0.0, 100.0)
+    K, M, _T = cm.shape
+    if class_support is not None:
+        sup = np.asarray(class_support, dtype=int)
+        for k in range(K):
+            for m in range(M):
+                last = int(sup[k, m])
+                if last + 1 < _T:
+                    cm[k, m, last + 1:] = np.nan
+    x_disp = [level_label(schema, "time_name", tp, lang) for tp in window]
+    names = PHENOTYPE_NAMES_JA if lang == "ja" else PHENOTYPE_NAMES_EN
+    fig = make_subplots(
+        rows=M, cols=1, shared_xaxes=True, vertical_spacing=0.10, subplot_titles=measure_labels
+    )
+    age_lbl = "平均年齢" if lang == "ja" else "Mean age"
+    scim_lbl = "退院時SCIM(中央値)" if lang == "ja" else "Discharge SCIM (med)"
+    los_lbl = "在院日数(平均)" if lang == "ja" else "LOS (mean d)"
+    for k in range(K):
+        color = PALETTE_PHENOTYPE[k % len(PALETTE_PHENOTYPE)]
+        s = summaries[k] if k < len(summaries) else {"n": 0}
+        label = f"{names[k]} (n={s.get('n', 0)})"
+        cd = [s.get("mean_age") or 0, s.get("median_discharge_scim") or 0, s.get("mean_los") or 0]
+        for m in range(M):
+            fig.add_trace(
+                go.Scatter(
+                    x=x_disp,
+                    y=cm[k, m],
+                    mode="lines+markers",
+                    line=dict(color=color, width=3),
+                    marker=dict(size=6, color=color),
+                    name=label,
+                    legendgroup=label,
+                    showlegend=(m == 0),
+                    customdata=np.tile(cd, (len(x_disp), 1)),
+                    hovertemplate=(
+                        f"<b>{label}</b> · %{{x}}<br>"
+                        + measure_labels[m] + ": %{y:.1f}<br>"
+                        + f"{age_lbl}: %{{customdata[0]:.0f}}<br>"
+                        + f"{scim_lbl}: %{{customdata[1]:.0f}}<br>"
+                        + f"{los_lbl}: %{{customdata[2]:.0f}}<extra></extra>"
+                    ),
+                ),
+                row=m + 1,
+                col=1,
+            )
+    fig.update_yaxes(range=[0, 105])
+    fig.update_xaxes(tickangle=-45, row=M, col=1)
+    fig.update_layout(
+        height=240 * M,
+        legend=dict(orientation="h", yanchor="bottom", y=1.04, xanchor="right", x=1),
+        margin=dict(l=50, r=20, t=54, b=70),
+    )
+    return fig
+
+
+def fig_phenotype_demographics(summaries: list[dict], schema: Schema, lang: str) -> go.Figure:
+    """Stacked AIS-grade distribution per observed-trajectory phenotype."""
+    names = PHENOTYPE_NAMES_JA if lang == "ja" else PHENOTYPE_NAMES_EN
+    return _ais_distribution_bars(summaries, [names[s["id"]] for s in summaries], lang)
