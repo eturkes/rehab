@@ -35,11 +35,11 @@ superseded, duplicated elsewhere, or has gone stale.
 * This file — agent-facing scratchpad.  Read before planning; update after each
   session; prune duplication per the inclusion rule above.
 * **Default-work pool: §8 backlog.**  F1–F25 + G1 (s29/s30) + G2 (s31) + G3
-  observed-trajectory phenotyping (s32/s33) + G4 AIS-grade conversion (s34 model+metrics,
-  s35 dashboard surfaces across Methods/Patient/Simulator) fully shipped (see §7).  **Open:
-  F26 test harness · F27 dep refresh — or propose a new insightful G-series feature.**  The user
-  steers toward *insightful* (clinical/scientific) features over infra/maintenance — propose those
-  (G-series) first unless redirected.
+  observed-trajectory phenotyping (s32/s33) + G4 AIS-grade conversion (s34/s35) fully shipped
+  (see §7).  **G6 AIS multi-state recovery — Part 1 shipped (s36: `models/multistate.py` model +
+  metrics); Part 2 (dashboard surfaces) is the immediate next work — backlog tasks 5–8.**  Other
+  open: F26 test harness · F27 dep refresh.  The user steers toward *insightful* (clinical/
+  scientific) features over infra/maintenance — propose those (G-series) first unless redirected.
 
 ## 0b. Lessons & mistakes (append; prune when superseded)
 
@@ -494,6 +494,40 @@ superseded, duplicated elsewhere, or has gone stale.
   than a transition *from* an imputed grade (stricter than the production AIS head, by design).
   The Simulator leaves blanks as NaN (no imputation), so its prompt is natural.
 
+* **AIS multi-state recovery (`models/multistate.py`, G6)** — models the AIS-grade *trajectory*
+  across the dense early-recovery grid (`0day`..`6m`, the G3 window), the complement to G4's
+  admission→discharge *endpoint*.  Two layers (user-chosen design A).  **(1) Population multi-state
+  Markov** — a time-inhomogeneous discrete-time Markov chain over the 5 AIS states (A=1..E=5).
+  Per grid step `k`, the empirical transition matrix `P_k` is estimated from the **pairwise-complete**
+  episodes (observed grade at *both* `WINDOW[k]` and `WINDOW[k+1]`; MAR within the observed-at-both
+  subset); a row with zero observed departures **falls back to identity** (assume stable) so the
+  chain conserves mass.  Forward-multiplying from an admission-grade point mass yields, **stratified
+  by admission grade**: state-occupancy curves `π_k`, first-passage **conversion-to-≥X** curves
+  (states ≥X made *absorbing* ⇒ curves monotone non-decreasing; labels `improve`=≥adm+1, `ge_C`,
+  `ge_D`), median day to first improvement (0.5-crossing), and expected days per state (trapezoid;
+  **`np.trapezoid`**, not the numpy-1 `np.trapz`, which is removed under numpy 2).  **CRUX —
+  apparent regressions are real, not a bug:** the empirical chain faithfully reproduces the
+  bidirectional transitions in the data (B→A, D→C, E→D — AIS re-assessment / inter-rater noise), so
+  occupancy curves carry some backward mass; surface it honestly (the Methods per-step counts expose
+  the small-n cells that drive it — e.g. the B→≥C 0.5-crossing at 72h rides on n≈44).  **(2)
+  Covariate improve-by-6m head** — one LightGBM *binary* head, P(≥1-grade improvement anywhere in
+  the window) on the room-to-improve cohort (admission A–D, ≥`MIN_WINDOW_OBS`=2 in-window AIS obs;
+  n=690, ~49 % pos).  No `class_weight` (near-balanced ⇒ calibrated), grouped-CV OOF → metrics +
+  global Platt; refit on full cohort reusing the calibrator; descriptive in-sample SHAP drivers
+  (admission grade + LEMS/TotalMotor/UEMS + age).  AUC ≈0.90, Brier ≈0.12 (base 0.25);
+  **per-grade calibration holds despite a single global Platt** (mean pred tracks obs at every
+  grade).  **Clinical finding — the improve base rate is non-monotone in admission grade: B highest
+  (~85 %), C ~74 %, A ~64 %, D lowest (~15 %)** because "improvement" for a D admission means
+  reaching **E** (full-normal — a high bar); the UI must frame D's `improve` head as P(D→E), not
+  generic recovery.  Binary plumbing (typed X, params, OOF, Platt `_apply_platt`, calibration curve,
+  SHAP) is **reused verbatim from `conversion.py`**; `_apply_platt` is mirrored in `compute.py` so
+  the dashboard never imports this module (it pulls shap via `train.py`).  Diagnostic + inference
+  layer like landmark/conversion/temporal: tracked identifier-free `models/multistate_metrics.json`
+  + git-ignored `models/multistate/bundle.joblib`; **production `train.py` artifacts untouched
+  (byte-repro verified)**.  Bundle shape documented inline at the top of `multistate.py`.  **Part 1
+  shipped (s36): model + tracked metrics.  Dashboard surfaces (Methods cohort-dynamics + Patient
+  personalized + Simulator hypothetical) PENDING — resume at backlog tasks 5–8.**
+
 ## 4. Dashboard conventions
 
 * **Module layout** (`src/rehab_sci/dashboard/`) — `MAP.md` is the authoritative
@@ -601,6 +635,7 @@ uv run python -m rehab_sci.models.temporal       # out-of-time temporal validati
 uv run python -m rehab_sci.models.landmark       # landmark (dynamic) prediction — value of observation (G1)
 uv run python -m rehab_sci.models.phenotypes     # observed-trajectory phenotyping — growth mixture model (G3); ~5 min
 uv run python -m rehab_sci.models.conversion     # AIS-grade conversion modeling (G4); ~15 s
+uv run python -m rehab_sci.models.multistate     # AIS multi-state recovery — transition Markov + improve head (G6); ~5 s
 uv run python -m rehab_sci.dashboard.app         # serve at :8050
 pkill -f 'rehab_sci.dashboard.app'               # stop stale dashboard
 uv cache prune                                   # reclaim uv cache space
@@ -624,6 +659,18 @@ bgcmd 'exit()'; rm -rf "$BGCMDDIR"               # stop + clean
 
 One line per session; full detail is in Git history (`git log`, diffs).
 
+* **s36** — G6 AIS multi-state recovery, **Part 1** (model + tracked metrics; user chose approach A
+  empirical Markov + covariate head · Methods+Patient+Simulator surfaces).  New
+  `models/multistate.py`: a time-inhomogeneous discrete-time Markov chain over AIS A–E on the
+  0day–6m grid (pairwise-complete `P_k`, identity-fallback for empty rows, absorbing-above
+  first-passage) → per-admission-grade occupancy / conversion-to-≥X / median-day-to-improve /
+  sojourn; plus a binary improve-by-6m head (A–D, n=690, AUC ≈0.90, Platt-calibrated, SHAP
+  drivers).  Reuses `conversion.py` binary plumbing.  Tracked `multistate_metrics.json` +
+  git-ignored bundle; production byte-repro verified (empty `training_metrics.json` diff).
+  Validated: occupancy mass-conserving, conversion monotone, transitions row-stochastic, per-grade
+  calibration holds.  Surfaced the non-monotone improve base rate (B>C>A>>D, D="reach E") and the
+  faithful apparent-regression caveat.  Lint + F-gate clean; MAP regenerated.  **Dashboard surfaces
+  (compute inference + figures + 3 tabs + bilingual + CSS) PENDING — resume at backlog tasks 5–8.**
 * **s35** — G4 AIS-grade conversion, **Part 2** (dashboard surfaces across Methods + Patient +
   Simulator).  Pure `compute.predict_conversion` (inline `_apply_platt` mirror; admission-grade
   gating; real-grade override on the Patient card) + `state.CONVERSION`/`CONVERSION_BUNDLE`
@@ -855,6 +902,14 @@ Shipped ledger (terse, by feature number):
   Methods/Patient/Simulator surfaces (`conv_*` strings, `.conv-*` CSS).  See §3 for the model
   + dashboard contract (incl. the binary-vs-magnitude non-comparability CRUX and the patient
   real-grade gating invariant) and §7.  Fully shipped.
+* **G6 AIS multi-state recovery** (s36, Part 1): `models/multistate.py` — population multi-state
+  Markov (per-admission-grade state-occupancy / first-passage conversion-to-≥X / median-day-to-
+  improve / sojourn on the 0day–6m grid) + a binary improve-by-6m covariate head with SHAP
+  drivers.  Complement to G4 (trajectory *between*, not the admission→discharge endpoint).  See §3
+  for the model contract (pairwise-complete/identity-fallback estimation, absorbing-above monotone
+  first-passage, the faithful apparent-regression caveat, the non-monotone improve base rate) and
+  §7.  **Part 2 (dashboard: Methods cohort-dynamics + Patient personalized + Simulator hypothetical)
+  PENDING — backlog tasks 5–8.**
 
 **F23 (shipped s26): data-quality / clinical-consistency report** — see §7 and
 `data/quality.py`; durable data facts it surfaced live in §0b/§1, and the

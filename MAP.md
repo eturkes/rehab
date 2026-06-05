@@ -3,7 +3,7 @@
 Regenerate after structural changes: `uv run python scripts/gen_map.py`.
 Line numbers are 1-indexed — slice with `Read(path, offset, limit)` instead of
 reading whole files.  Sources: src/rehab_sci, scripts.
-Index: 46 files, 12842 source lines.
+Index: 47 files, 13299 source lines.
 
 ## scripts
 
@@ -530,6 +530,33 @@ Landmark (dynamic) prediction — sharpen the discharge prognosis as early recov
 - L278 `_eval_cell(spec, X, y_t, y_raw, y_codes, groups, cat_cols, tr, cal, te)` — Eval + persist one head on matrix ``X`` for ``spec`` (dispatches by task).
 - L295 `_run_outcome(spec, af, lm_blocks, max_oi)` — Fit every landmark (paired baseline + landmark model) for one outcome.
 - L371 `main()`
+
+### multistate.py (457 lines)
+AIS multi-state recovery modeling (G6) — neurological-grade *dynamics* over earl…
+- L88 `ROOT` (const)
+- L89 `OUT` (const)
+- L91 `ADM_COL` (const)
+- L94 `STATES` (const)
+- L95 `WINDOW` (const)
+- L96 `WINDOW_DAYS` (const)
+- L102 `CONV_THRESHOLDS` (const)
+- L103 `THRESH_LABEL` (const)
+- L106 `IMPROVE_ADM_GRADES` (const)
+- L107 `MIN_WINDOW_OBS` (const)
+- L112 `_ais_grid(long)` — Wide AIS-grade grid: index=KeyRecordNumber, columns=WINDOW slots, values=AIS ord…
+- L125 `_transition_matrices(grid)` — Empirical per-step transition probability + count matrices on the WINDOW grid.
+- L153 `_occupancy(probs, pi0)` — Forward-propagate an initial distribution over the grid -> (K, S) occupancy (row…
+- L162 `_absorbing_above(probs, thresh)` — Copy of the per-step matrices with states >= ``thresh`` made absorbing (row -> i…
+- L176 `_conversion_curve(probs, g0, thresh)` — First-passage P(reached grade >= ``thresh`` by slot k) from admission grade ``g0…
+- L187 `_median_day_to_event(curve)` — Interpolated day at which a first-passage curve first crosses 0.5 (None if it ne…
+- L201 `_expected_days_in_state(occ)` — Trapezoidal expected days spent in each state over the window, given an occupanc…
+- L207 `_population_dynamics(grid)` — Assemble per-admission-grade occupancy / conversion / sojourn from the empirical…
+- L260 `_landscape(grid, ep)` — Descriptive within-window AIS dynamics summary (improve/stable/decline by admiss…
+- L295 `_improve_cohort(ep, grid)` — Episodes admitted A-D with a real IDNumber and >= MIN_WINDOW_OBS in-window AIS o…
+- L306 `_run_improve_head(ep, grid, af)` — Fit + score the binary 'improves >=1 grade within the window' head; return (metr…
+- L354 `_curves_to_lists(conv)` — JSON-able conversion curves keyed by AIS letter -> label -> list.
+- L362 `_by_letter(d)`
+- L368 `main()`
 
 ### outcomes.py (109 lines)
 Outcome registry — the source of truth for what `train.py` predicts.
