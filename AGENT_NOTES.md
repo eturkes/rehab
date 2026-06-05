@@ -36,9 +36,10 @@ superseded, duplicated elsewhere, or has gone stale.
   session; prune duplication per the inclusion rule above.
 * **Default-work pool: §8 backlog.**  F1–F25 + G1 (s29/s30) + G2 (s31) + G3
   observed-trajectory phenotyping (s32 part 1 cohort surface, s33 part 2 patient
-  surface) fully shipped (see §7).  Open: G4 AIS conversion · F26 test harness ·
-  F27 dep refresh.  The user steers toward *insightful* (clinical/scientific)
-  features over infra/maintenance — propose those (G-series) first unless
+  surface) fully shipped (see §7).  **In progress: G4 AIS conversion — part 1 (model + metrics)
+  shipped s34; part 2 (dashboard surfaces) is the next work, backlog tasks 4–7.**  Open after
+  that: F26 test harness · F27 dep refresh.  The user steers toward *insightful*
+  (clinical/scientific) features over infra/maintenance — propose those (G-series) first unless
   redirected.
 
 ## 0b. Lessons & mistakes (append; prune when superseded)
@@ -120,6 +121,14 @@ superseded, duplicated elsewhere, or has gone stale.
   never returns NA — so detect those by testing the cleaned value against the
   level set's `display` set, NOT by looking for NaN.  Pattern lives in
   `data/quality.py`.
+* **`class_weight="balanced"` trades probability calibration for recall — never surface its
+  raw class probabilities as calibrated.**  G4's magnitude head (balanced, for the imbalanced
+  improvement-size classes) emits *inflated* minority-class probs; for an event it shares with a
+  calibrated, unweighted binary head the two disagree (adm A: binary P(≥C)=0.51 vs magnitude
+  P(≥+2)=0.76).  Rule: for a near-balanced target omit weighting and Platt/isotonic-calibrate;
+  for an imbalanced one that needs weighting, surface the *APS set / argmax class*, not the raw
+  probability.  (Also: `shap.TreeExplainer(lgbm_binary).shap_values(X)` now returns a *list of
+  ndarray* — take `[-1]` for the positive class; the 3-D `(n,p,2)` form takes `[:,:,-1]`.)
 * **The admission-feature count is 30, not 32 — docs had drifted; cite "the
   admission features" without a number.**  `af.feature_cols` (== `len(
   ADMISSION_FEATURES)`) is **30**: 2 demographics + 9 injury/admin + 15
@@ -430,6 +439,41 @@ superseded, duplicated elsewhere, or has gone stale.
   byte-for-byte for an in-cohort episode (verified diff 0.0).**  The surface also generalizes to
   pickable episodes outside the fit cohort (fresh `predict_proba`, no stored row).
 
+* **AIS-grade conversion (`models/conversion.py`, G4)** — models the admission→discharge AIS
+  *transition* (not the absolute discharge grade `y_discharge_ais`).  Three heads, each on its
+  at-risk cohort with **admission grade kept as a feature** (conversion is admission-gated:
+  ceiling at AIS D, no room at E): **clinical endpoint panel** — two *calibrated binary*
+  probabilities, `motor_incomplete` (motor-complete A/B → motor-incomplete discharge ≥C) and
+  `ambulatory` (non-ambulatory A–C → ambulatory-capable ≥D); plus an **ordinal magnitude** head —
+  multiclass over improvement size `{0, +1, ≥+2}` (`MAG_CAP=2`) on the room-to-improve cohort
+  (A–D), deterioration (~1.5 %) folding into class 0.  **Methodology (small cohorts, few heads):**
+  grouped 5-fold CV by IDNumber → **out-of-fold (OOF) predictions** drive every reported metric,
+  the Platt (sigmoid) calibrator, AND the APS q (a **cross-conformal** pool of per-fold
+  nonconformity scores — the valid small-n analogue of production's single split-conformal fold);
+  final heads **refit on the full cohort** reusing the OOF calibrator / APS q (conservative,
+  mirroring `landmark.py`).  SHAP drivers are **descriptive in-sample** global importances (rank
+  drivers, not an OOS claim).  Diagnostic + inference layer like `landmark`/`temporal`: writes
+  tracked identifier-free `models/conversion_metrics.json` + git-ignored
+  `models/conversion/bundle.joblib` (auto-ignored by `models/*/`); **production `train.py`
+  artifacts untouched (byte-repro verified)**.  Bundle: `endpoints[key]={clf, calibrator (1-feat
+  LogisticRegression on the LightGBM logit), adm_grades, discharge_min, feature_cols, base_rate}`,
+  `magnitude={clf, aps_q_hat, class_codes, mag_cap, adm_grades, feature_cols}`; `_apply_platt`
+  (logit→`calibrator.predict_proba`) is **mirrored in compute.py** so the dashboard never imports
+  `models.conversion` (which pulls shap via `train.py`).  **CRUX — the two head families are NOT
+  numerically comparable:** binary heads use *no* `class_weight` (near-balanced → calibrated
+  probabilities), the magnitude head uses `class_weight="balanced"` (imbalanced) so its class
+  probs are *uncalibrated and inflated* for the minority improvement classes; for an overlapping
+  event they disagree (adm A: binary P(≥C)=0.51 vs magnitude P(≥+2)=0.76).  So the UI must surface
+  the **binary heads as the calibrated conversion probabilities** and the **magnitude head as its
+  APS set / most-likely class** (not as a competing probability).  Inference **requires `AIS_ord`
+  present** (cohort membership is otherwise undefined) and gates by it: an endpoint applies only if
+  admission grade ∈ its `adm_grades`; magnitude only for A–D.  Findings: `ambulatory` AUC ≈0.87
+  (admission features predict ambulatory conversion well); `motor_incomplete` AUC ≈0.62 (admission
+  data poorly predicts complete→incomplete — a real clinical reality, an insightful contrast, not
+  a bug); magnitude κ_quadratic ≈0.49, APS conservative (~99 %, set ≈2.4, as documented for
+  discrete K).  **Status: model + tracked metrics shipped (s34); dashboard surfaces
+  (compute/figures/Methods+Patient+Simulator) PENDING — resume at backlog tasks 4–7.**
+
 ## 4. Dashboard conventions
 
 * **Module layout** (`src/rehab_sci/dashboard/`) — `MAP.md` is the authoritative
@@ -536,6 +580,7 @@ uv run python -m rehab_sci.data.quality          # data-quality / clinical-consi
 uv run python -m rehab_sci.models.temporal       # out-of-time temporal validation (F24)
 uv run python -m rehab_sci.models.landmark       # landmark (dynamic) prediction — value of observation (G1)
 uv run python -m rehab_sci.models.phenotypes     # observed-trajectory phenotyping — growth mixture model (G3); ~5 min
+uv run python -m rehab_sci.models.conversion     # AIS-grade conversion modeling (G4); ~15 s
 uv run python -m rehab_sci.dashboard.app         # serve at :8050
 pkill -f 'rehab_sci.dashboard.app'               # stop stale dashboard
 uv cache prune                                   # reclaim uv cache space
@@ -559,6 +604,19 @@ bgcmd 'exit()'; rm -rf "$BGCMDDIR"               # stop + clean
 
 One line per session; full detail is in Git history (`git log`, diffs).
 
+* **s34** — G4 AIS-grade conversion modeling, **Part 1** (model + tracked metrics; user chose
+  panel+magnitude · diagnostic module · Methods+Patient+Simulator surfaces).  New
+  `models/conversion.py`: two *calibrated binary* endpoints (`motor_incomplete` A/B→≥C,
+  `ambulatory` A–C→≥D) + an *ordinal magnitude* head `{0,+1,≥+2}` on A–D, each on its at-risk
+  admission cohort.  Grouped 5-fold OOF drives metrics + Platt calibration + cross-conformal APS
+  q; final heads refit on full cohort; descriptive in-sample SHAP drivers.  Diagnostic layer:
+  tracked `conversion_metrics.json` + git-ignored `conversion/bundle.joblib`; production
+  byte-repro verified (empty `training_metrics.json` diff).  Validated bundle inference +
+  applicability gating on one episode per grade.  Findings: ambulatory AUC ≈0.87,
+  motor_incomplete AUC ≈0.62 (real clinical contrast), magnitude κ ≈0.49.  Documented the
+  binary-calibrated vs magnitude-balanced non-comparability (§3 CRUX, §0b lesson).  **Dashboard
+  surfaces (compute inference + figures + 3 tabs + bilingual strings + CSS) PENDING — resume at
+  backlog tasks 4–7.**  Lint + F-gate clean; MAP.md regenerated.
 * **s33** — G3 observed-trajectory phenotyping, **Part 2** (patient-level phenotype
   prognosis; user chose readout+overlay with an interactive observation-cutoff).
   Pure `compute.predict_phenotype_membership` / `phenotype_cutoff_options` (single-
@@ -763,11 +821,27 @@ Shipped ledger (terse, by feature number):
 regenerated `models/dataquality_summary.json` holds the per-rule scorecard.
 
 **Ready candidates (pick the next unless redirected; lead with G-series):**
-* **G4 AIS-conversion modeling** — *what:* model AIS-grade *conversion* (Δ from
-  admission to discharge, or across landmarks) as its own outcome, not just the
-  absolute discharge grade.  *why:* conversion is the clinically salient
-  endpoint.  *effort:* M.  *files:* new outcome/model + Methods.  *data dep:*
-  `AIS_ord` at admission + discharge (present).
+* **G4 AIS-conversion modeling — PART 2 (dashboard surfaces): the next work.**  Part 1 (model +
+  tracked metrics) shipped s34 — see the §3 contract and the s34 session note.  Part 2 wires the
+  *diagnostic bundle* into the dashboard across **Methods + Patient + Simulator** (the surfaces
+  the user approved).  Concrete resume plan = backlog **tasks 4–7**:
+  - **(task 4) compute.py** — pure `predict_conversion(X_row)`: load `CONVERSION`/`CONVERSION_BUNDLE`
+    in `state.py` (mirror the `LANDMARK`/`LANDMARK_BUNDLE` block); per-endpoint calibrated prob
+    (inline `_apply_platt` = logit→`calibrator.predict_proba`, do **not** import `models.conversion`
+    — it pulls shap) gated by admission grade; magnitude class-probs + APS set (reuse
+    `_aps_prediction_set` already imported in compute).  Requires `AIS_ord` present.
+  - **(task 5) figures + layout** — Methods: cohort base-rate table by admission grade + delta
+    dist (from `conversion_metrics.json` `landscape`), reliability curve(s) (`calibration` vs
+    `calibration_raw`), SHAP driver bars (`shap_top`), magnitude confusion/APS.  Patient/Simulator:
+    per-row endpoint probability gauge/bars + magnitude APS-set readout.  Put per-tab figs in
+    `figures/{methods,patient,simulator}.py` + `__all__`; use registered palettes/`PALETTE_AIS`.
+  - **(task 6) tabs + bilingual `conv_*` ui_strings (ja/en) + `.conv-*` CSS** — respect the
+    `lang-store` State-vs-Input race note in §4.
+  - **(task 7) verify** (MAP regen, ruff + `--select F`, dashboard boots 200 + conversion callbacks
+    in `/_dash-dependencies`, both langs) + finalize docs (mark G4 fully shipped) + commit.
+  **UI-framing invariant (see §3 CRUX):** surface the *binary* heads as calibrated conversion
+  probabilities and the *magnitude* head as its APS set / most-likely class — never as competing
+  numbers.  *data dep:* `models/conversion/bundle.joblib` (regenerate via the §6 command if absent).
 * **F26 invariant test harness** — narrow pytest enforcing §1 data + model
   invariants + a smoke test; skip-if-CSV-absent.  M.  files: `tests/`, pyproject.
 * **F27 dependency refresh** — minor/patch bumps + raise the `shap<0.52` cap;

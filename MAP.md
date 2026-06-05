@@ -3,7 +3,7 @@
 Regenerate after structural changes: `uv run python scripts/gen_map.py`.
 Line numbers are 1-indexed — slice with `Read(path, offset, limit)` instead of
 reading whole files.  Sources: src/rehab_sci, scripts.
-Index: 45 files, 11767 source lines.
+Index: 46 files, 12207 source lines.
 
 ## scripts
 
@@ -459,6 +459,35 @@ Split-conformal & APS prediction-set helpers (Mondrian per-AIS / per-paralysis).
 - L111 `_aps_scores(proba, y_true)` — APS nonconformity scores for conformal classification sets.
 - L130 `_aps_prediction_set(proba_row, q_hat)` — Class indices in the APS prediction set for one sample.
 - L143 `_aps_test_metrics(proba, y_true, q_arr, X)` — Coverage and avg set size on test set using per-row Mondrian APS q.
+
+### conversion.py (440 lines)
+AIS-grade conversion modeling (G4) — predict the admission->discharge AIS *trans…
+- L75 `ROOT` (const)
+- L76 `OUT` (const)
+- L78 `ALPHA` (const)
+- L79 `N_SPLITS` (const)
+- L80 `N_CAL_BINS` (const)
+- L82 `ADM_COL` (const)
+- L83 `DIS_COL` (const)
+- L87 `ENDPOINTS` (const)
+- L93 `MAG_CAP` (const)
+- L94 `MAG_ADM_GRADES` (const)
+- L99 `_typed_X(used, af)` — Admission feature matrix with the schema's categorical / numeric dtypes applied.
+- L111 `_cohort(ep, adm_grades)` — Episodes admitted at one of ``adm_grades`` with a discharge AIS and a real IDNum…
+- L120 `_params_binary()` — Binary conversion params — no ``class_weight`` (endpoints are near-balanced; wei…
+- L139 `_fit_binary(params, X_tr, y_tr, X_val, y_val, cat_cols)`
+- L150 `_refit(params, X, y, cat_cols, best_iter)` — Refit a classifier on the full cohort at a fixed iteration count (no eval split)…
+- L161 `_logit(p)`
+- L166 `_fit_platt(prob, y)` — Fit a 1-feature logistic recalibration over the LightGBM logit (Platt scaling).
+- L176 `_apply_platt(cal, prob)`
+- L182 `_oof_binary(X, y, groups, cat_cols)` — Grouped-CV out-of-fold positive-class probabilities + median best-iteration.
+- L201 `_oof_multiclass(X, y_codes, groups, cat_cols, n_classes)` — Grouped-CV out-of-fold class-probability matrix + median best-iteration.
+- L224 `_calibration_curve(prob, y, n_bins)` — Reliability curve over quantile bins (avoids empty bins on small cohorts).
+- L239 `_shap_top(model, X, top_n)` — Descriptive global driver ranking: top features by mean |SHAP| on the full cohor…
+- L256 `_run_endpoint(spec, ep, af)` — Fit + score one binary conversion endpoint; return (metrics, persisted-model).
+- L303 `_run_magnitude(ep, af)` — Fit + score the ordinal improvement-magnitude head; return (metrics, persisted-m…
+- L357 `_landscape(ep)` — Descriptive conversion landscape over every episode with both admission + discha…
+- L381 `main()`
 
 ### landmark.py (458 lines)
 Landmark (dynamic) prediction — sharpen the discharge prognosis as early recover…
