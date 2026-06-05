@@ -321,3 +321,115 @@ def landmark_readout(result: dict, spec: OutcomeSpec, lang: str) -> html.Div:
             className="lm-readout-line lm-readout-delta",
         ))
     return html.Div(lines, className="lm-readout")
+
+
+# ---------- value-of-information (G2) ----------
+def _voi_label(measure: str, lang: str) -> str:
+    return t(SCHEMA, f"lm_measure_{measure.lower()}", lang)
+
+
+def fig_voi_patient(voi: dict, spec: OutcomeSpec, lang: str) -> go.Figure:
+    """Per-patient value-of-information bars (see compute.landmark_voi).
+
+    One horizontal bar per measure = the PI half-width reduction (regression) / APS-set shrink
+    (AIS) that observing it buys over the admission-only baseline, sorted most-valuable first.
+    Teal = not yet observed (what to measure next); grey = already observed (value realised).
+    Bar text shows the resulting point estimate; hover carries the value used and the new PI.
+    """
+    measures = voi.get("measures") or []
+    if not measures:
+        return go.Figure()
+    labels = [_voi_label(m["measure"], lang) for m in measures]
+    accent, grey = PALETTE_CATEGORICAL[0], "#9aa0a6"
+    colors = [accent if m["which"] == "prescriptive" else grey for m in measures]
+    obs_word = t(SCHEMA, "voi_realized", lang)
+    presc_word = t(SCHEMA, "voi_to_obtain", lang)
+    val_word = t(SCHEMA, "voi_value_used", lang)
+
+    def _v(x: float | None) -> str:
+        return "–" if x is None else f"{x:.0f}"
+
+    if voi["task"] == "regression":
+        x = [m["d_halfwidth"] for m in measures]
+        unit = t(SCHEMA, spec.unit_key, lang) if spec.unit_key else ""
+        x_title = t(SCHEMA, "voi_axis_pi", lang) + (f" ({unit})" if unit else "")
+        texts = [f"{m['pred']:.0f}" for m in measures]
+        pred_word = "予測中央値" if lang == "ja" else "Predicted median"
+        htexts = [
+            f"{(presc_word if m['which'] == 'prescriptive' else obs_word)}<br>"
+            f"{val_word}: {_v(m['value'])}<br>"
+            f"{pred_word}: {m['pred']:.0f} (PI {m['lo']:.0f}–{m['hi']:.0f}, ±{m['halfwidth']:.0f})"
+            for m in measures
+        ]
+    else:
+        x = [m["d_setsize"] for m in measures]
+        x_title = t(SCHEMA, "voi_axis_aps", lang)
+        texts = [f"AIS {m['pred_class']}" for m in measures]
+        pred_word = t(SCHEMA, "sim_predicted_class_label", lang)
+        htexts = [
+            f"{(presc_word if m['which'] == 'prescriptive' else obs_word)}<br>"
+            f"{val_word}: {_v(m['value'])}<br>"
+            f"{pred_word}: AIS {m['pred_class']} ({m['pred_prob']:.0%})<br>"
+            f"APS {{{', '.join('AIS ' + c for c in m['aps_set'])}}} (Δ {m['d_setsize']:+d})"
+            for m in measures
+        ]
+
+    fig = go.Figure()
+    fig.add_trace(go.Bar(
+        y=labels, x=x, orientation="h", marker=dict(color=colors),
+        text=texts, textposition="outside", textfont=dict(size=10),
+        hovertext=htexts, hovertemplate="%{hovertext}<extra></extra>", showlegend=False,
+    ))
+    for nm, c in ((presc_word, accent), (obs_word, grey)):
+        fig.add_trace(go.Bar(
+            y=[None], x=[None], orientation="h", marker=dict(color=c), name=nm,
+        ))
+    fig.update_layout(
+        height=34 * len(measures) + 70, barmode="overlay",
+        margin=dict(l=8, r=40, t=26, b=40),
+        xaxis=dict(title=x_title, zeroline=True, zerolinecolor=INK["200"]),
+        yaxis=dict(autorange="reversed", tickfont=dict(size=11)),
+        legend=dict(orientation="h", x=0, y=1.04, xanchor="left", yanchor="bottom", font=dict(size=10)),
+    )
+    return fig
+
+
+def voi_readout(voi: dict, spec: OutcomeSpec, lang: str) -> html.Div:
+    """One/two-line prescription: the most valuable next measure to obtain (+ best already-observed)."""
+    measures = voi.get("measures") or []
+    base = voi["baseline"]
+    presc = [m for m in measures if m["which"] == "prescriptive"]
+    obs = [m for m in measures if m["which"] == "observed"]
+    lines: list = []
+    if voi["task"] == "regression":
+        base_hw = (base["hi"] - base["lo"]) / 2.0
+        if presc and presc[0]["d_halfwidth"] > 0.05:
+            top = presc[0]
+            lines.append(html.Div(
+                f"{t(SCHEMA, 'voi_next_best', lang)}: {_voi_label(top['measure'], lang)} — "
+                f"±{base_hw:.0f} → ±{top['halfwidth']:.0f} "
+                f"({t(SCHEMA, 'voi_point', lang)} {base['pred']:.0f} → {top['pred']:.0f})",
+                className="lm-readout-line lm-readout-delta",
+            ))
+        else:
+            key = "voi_all_observed" if not presc else "voi_none_prescriptive"
+            lines.append(html.Div(t(SCHEMA, key, lang), className="lm-readout-line"))
+        best = max(obs, key=lambda m: m["d_halfwidth"], default=None)
+        if best is not None and best["d_halfwidth"] > 0.05:
+            lines.append(html.Div(
+                f"{t(SCHEMA, 'voi_top_realized', lang)}: {_voi_label(best['measure'], lang)} (−±{best['d_halfwidth']:.0f})",
+                className="lm-readout-line",
+            ))
+    else:
+        base_size = len(base["aps_set"])
+        if presc and presc[0]["d_setsize"] > 0:
+            top = presc[0]
+            lines.append(html.Div(
+                f"{t(SCHEMA, 'voi_next_best', lang)}: {_voi_label(top['measure'], lang)} — "
+                f"APS {base_size} → {top['set_size']}",
+                className="lm-readout-line lm-readout-delta",
+            ))
+        else:
+            key = "voi_all_observed" if not presc else "voi_none_prescriptive"
+            lines.append(html.Div(t(SCHEMA, key, lang), className="lm-readout-line"))
+    return html.Div(lines, className="lm-readout")

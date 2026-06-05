@@ -415,3 +415,60 @@ def fig_landmark_value(lm_outcome: dict, landmark_days: dict, lang: str) -> go.F
                     font=dict(size=10)),
     )
     return fig
+
+
+def fig_voi_scorecard(lm_outcome: dict, lang: str, measure_labels: dict) -> go.Figure | None:
+    """Value-of-information scorecard: per-measure × per-landmark uncertainty reduction (G2).
+
+    Each cell is the improvement a *single* observed measure buys over the admission-only baseline
+    on the same still-admitted cohort: PI half-width reduction (regression) or APS-set shrink
+    (AIS), both from each single-add head's own marginal conformal calibration.  Rows are ordered
+    by mean improvement (most valuable measure on top); teal = tightening, red = (noise) widening.
+    ``lm_outcome`` is one entry of ``landmark_metrics.json['outcomes']``; ``measure_labels`` maps
+    each raw measure name to its localized label.
+    """
+    by_lm = (lm_outcome or {}).get("by_landmark") or {}
+    if not by_lm:
+        return None
+    task = lm_outcome.get("task")
+    lms = list(by_lm)  # chronological (trainer insertion order)
+    measures: list[str] | None = next((list(by_lm[L]["single"]) for L in lms if by_lm[L].get("single")), None)
+    if not measures:
+        return None
+
+    if task == "regression":
+        u_key, cbar = "pi_halfwidth_raw", ("PI半値幅の縮小" if lang == "ja" else "PI half-width\nreduction")
+        tfmt = ".1f"
+    else:
+        u_key, cbar = "aps_avg_set_size", ("APS集合の縮小" if lang == "ja" else "APS set\nshrink")
+        tfmt = ".2f"
+
+    def _delta(cell: dict, m: str) -> float | None:
+        s = (cell.get("single") or {}).get(m)
+        return None if s is None else cell["baseline"][u_key] - s[u_key]
+
+    z = [[_delta(by_lm[L], m) for L in lms] for m in measures]
+    means = [
+        float(np.nanmean([v for v in row if v is not None])) if any(v is not None for v in row) else -1e9
+        for row in z
+    ]
+    order = list(np.argsort(means)[::-1])
+    measures = [measures[i] for i in order]
+    z = [z[i] for i in order]
+    ylabels = [measure_labels.get(m, m) for m in measures]
+
+    x_lbl = "観測ランドマーク時点" if lang == "ja" else "Landmark (time observed)"
+    fig = go.Figure(go.Heatmap(
+        z=z, x=lms, y=ylabels, zmid=0,
+        colorscale=[[0.0, "#c0504d"], [0.5, "#f3f4f6"], [1.0, "#117a8b"]],
+        texttemplate="%{z:" + tfmt + "}", textfont=dict(size=10),
+        hovertemplate="%{y} · %{x}<br>Δ=%{z:" + tfmt + "}<extra></extra>",
+        colorbar=dict(title=dict(text=cbar, font=dict(size=10)), thickness=12),
+    ))
+    fig.update_layout(
+        height=40 * len(measures) + 90,
+        margin=dict(l=8, r=8, t=10, b=40),
+        xaxis=dict(title=x_lbl, side="bottom"),
+        yaxis=dict(autorange="reversed", tickfont=dict(size=11)),
+    )
+    return fig

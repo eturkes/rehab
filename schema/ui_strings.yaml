@@ -407,6 +407,45 @@ lm_measure_lighttouchtotal:
 lm_measure_pinpricktotal:
   ja: "痛覚合計 (PP)"
   en: "Pin-prick total"
+voi_card_subheading:
+  ja: "次に測るべき指標 (情報価値)"
+  en: "What to measure next (value of information)"
+voi_card_intro:
+  ja: "各初期指標を1つ観測した場合に、退院時予測の不確実性 (PI) がどれだけ縮むかを比較する。テール色=未観測 (取得候補)、灰色=観測済み。"
+  en: "Compares how much obtaining each single early measure would shrink the discharge prediction's uncertainty (PI). Teal = not yet observed (candidate), grey = already observed."
+voi_realized:
+  ja: "観測済み (実現価値)"
+  en: "Observed (realised)"
+voi_to_obtain:
+  ja: "未観測 (取得候補)"
+  en: "Not yet observed (candidate)"
+voi_value_used:
+  ja: "使用値"
+  en: "Value used"
+voi_axis_pi:
+  ja: "PI半値幅の縮小"
+  en: "PI half-width reduction"
+voi_axis_aps:
+  ja: "APS集合の縮小"
+  en: "APS set shrink"
+voi_next_best:
+  ja: "次に測るべき指標"
+  en: "Next best to obtain"
+voi_point:
+  ja: "中央値"
+  en: "median"
+voi_top_realized:
+  ja: "最も効いた観測"
+  en: "Most informative observed"
+voi_none_prescriptive:
+  ja: "未観測の指標で区間を有意に縮めるものはありません。"
+  en: "No unobserved measure would meaningfully tighten the interval."
+voi_all_observed:
+  ja: "この時点で初期指標はすべて観測済み。下は各観測単独の実現価値。"
+  en: "All early measures already observed at this landmark; bars show each observation's realised value."
+voi_methods_def:
+  ja: "各セルは、その指標を1つだけ観測した場合に基準 (入院時のみ) からどれだけ不確実性が縮むかを示す (回帰=PI半値幅の縮小、AIS=APS集合の縮小)。各指標は専用ヘッドの周辺コンフォーマルで較正し、行は平均改善量で降順に並ぶ。"
+  en: "Each cell is the uncertainty reduction a single observed measure buys over the admission-only baseline (regression = PI half-width reduction; AIS = APS set shrink), each calibrated by its own single-add head's marginal conformal; rows are ordered by mean improvement."
 methods_per_outcome_heading:
   ja: "アウトカム別性能"
   en: "Per-outcome performance"

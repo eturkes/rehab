@@ -19,6 +19,7 @@ from rehab_sci.dashboard.figures.methods import (
     fig_pred_vs_observed,
     fig_residual_hist,
     fig_temporal_drift,
+    fig_voi_scorecard,
 )
 from rehab_sci.dashboard.figures.overview import (
     ARCHETYPE_NAMES_EN,
@@ -74,4 +75,5 @@ __all__ = [
     "fig_sim_trajectory",
     "fig_subgroup_box",
     "fig_temporal_drift",
+    "fig_voi_scorecard",
 ]

@@ -35,12 +35,11 @@ superseded, duplicated elsewhere, or has gone stale.
 * This file — agent-facing scratchpad.  Read before planning; update after each
   session; prune duplication per the inclusion rule above.
 * **Default-work pool: §8 backlog.**  F1–F25 shipped + G1 landmark (dynamic)
-  prediction fully shipped (training + Methods curve s29; interactive simulator +
-  patient surfaces s30; see §7).  Open: G2 value-of-information · G3
-  observed-trajectory phenotyping · G4 AIS conversion · F26 test harness · F27
-  dep refresh.  The user steers toward *insightful* (clinical/scientific)
-  features over infra/maintenance — propose those (G-series) first unless
-  redirected.
+  prediction (s29/s30) + G2 value-of-information (s31) fully shipped (see §7).
+  Open: G3 observed-trajectory phenotyping · G4 AIS conversion · F26 test
+  harness · F27 dep refresh.  The user steers toward *insightful* (clinical/
+  scientific) features over infra/maintenance — propose those (G-series) first
+  unless redirected.
 
 ## 0b. Lessons & mistakes (append; prune when superseded)
 
@@ -351,6 +350,37 @@ superseded, duplicated elsewhere, or has gone stale.
   without importing the training module.  Persisting both heads keeps the live
   baseline-vs-landmark comparison method-matched (same cohort/split/conformal);
   p10/p90 quantile heads are **not** persisted (the live PI is conformal-only).
+* **Value-of-information (`models/landmark.py` + `compute.landmark_voi`, G2)** —
+  extends G1: per (outcome, L) the trainer additionally fits the 10 **single-add
+  heads** — admission features **plus exactly one** `L_<measure>` (31 features),
+  each on the *same* eligible cohort/split as the paired baseline, each with its
+  **own** marginal conformal q (regression) / APS q_hat (multiclass).  This makes
+  "how much does measure m alone sharpen the prognosis at L" a literal,
+  measure-specific quantity instead of an attribution.  Metrics land under
+  `outcomes[key]["by_landmark"][L]["single"][measure]`; the fitted heads under
+  the bundle's matching `["single"]` dict (same head shape as the landmark head,
+  31 feats).  The bundle also persists `lm_value_summary[L][measure] = {median,
+  q25, q75, n}` over the still-admitted eligible cohort, so the dashboard can
+  impute an unobserved measure at its cohort median.  `compute.landmark_voi(
+  outcome_key, landmark, X_base, observed)` ranks the measures for one patient:
+  each is scored at the patient's **real** value when present (`which="observed"`,
+  the gain is realized) else at the cohort median (`which="prescriptive"`, the
+  gain is hypothetical — what obtaining it *would* buy); regression ranks by
+  PI-halfwidth reduction vs baseline (`d_halfwidth`), multiclass by APS-set
+  shrink (`d_setsize`).  **Crux invariant:** because conformal q is *marginal*
+  per (outcome, L), within a landmark the PI half-width of a single-add head is a
+  per-**measure** constant, *not* per-patient — for identity-transform outcomes
+  (SCIM/AIS) `d_halfwidth` is patient-independent and only the point estimate
+  personalizes; the lone exception is **log1p LOS**, whose back-transformed
+  half-width is patient-specific (the q is constant in log-space but `expm1`
+  scales it by the prediction).  So the Patient VOI bars rank by a population
+  quantity for SCIM/AIS and a genuinely personal one for LOS — by design, not a
+  bug.  Two surfaces (user chose both): **Methods** `fig_voi_scorecard` =
+  measure×landmark heatmap of baseline−single PI-halfwidth (or APS set-size)
+  improvement, rows ordered by mean gain; **Patient** `fig_voi_patient` +
+  `voi_readout` = per-patient horizontal bars (teal = prescriptive / still
+  obtainable, grey = already observed) with a "next best to obtain" + "most
+  informative observed" readout.
 
 ## 4. Dashboard conventions
 
@@ -480,6 +510,21 @@ bgcmd 'exit()'; rm -rf "$BGCMDDIR"               # stop + clean
 
 One line per session; full detail is in Git history (`git log`, diffs).
 
+* **s31** — G2 value-of-information.  Per (outcome, L) the landmark trainer now
+  also fits 10 **single-add heads** (admission + exactly one `L_<measure>`, 31
+  feats) on the same eligible cohort/split, each with its own marginal conformal
+  q / APS q_hat; metrics under `by_landmark[L]["single"][measure]`, heads in the
+  bundle's `["single"]`, plus `lm_value_summary[L][measure]={median,q25,q75,n}`
+  for median-imputing unobserved measures.  Pure `compute.landmark_voi` ranks a
+  patient's measures by PI-halfwidth (regression) / APS-set (multiclass)
+  reduction, scoring each at its real value (observed/realized) or cohort median
+  (prescriptive/hypothetical).  **Both surfaces:** Methods `fig_voi_scorecard`
+  (measure×landmark improvement heatmap) and Patient `fig_voi_patient` +
+  `voi_readout` ("next best to obtain" / "most informative observed").  Bilingual
+  (`voi_*` + reuse `lm_measure_*`).  Production byte-repro preserved
+  (`landmark_metrics.json` + git-ignored bundle only); lint clean; dashboard
+  boots 200; VOI surfaces smoke-tested (regression + multiclass).  Documented the
+  marginal-conformal ⇒ per-measure-not-per-patient half-width invariant in §3.
 * **s30** — G1 landmark (dynamic) prediction, part 2 (interactive surfaces; user
   chose "both surfaces").  Re-persisted `landmark/bundle.joblib` with **paired
   baseline+landmark heads** per (outcome, L) cell (dropped unused p10/p90; added
@@ -594,7 +639,7 @@ One line per session; full detail is in Git history (`git log`, diffs).
 
 ## 8. Feature backlog (default-work pool)
 
-Propose from here unless the user redirects.  **Items F1–F25 + G1 (part 1) are
+Propose from here unless the user redirects.  **Items F1–F25 + G1 + G2 are
 shipped** — see §7 for the session each landed in, and Git history for
 implementation detail.  The user steers toward *insightful* (clinical/
 scientific) features over infra/maintenance — lead with the **G-series**.
@@ -615,17 +660,17 @@ Shipped ledger (terse, by feature number):
   value-of-observation curve + paired-head bundle driving the live
   baseline-vs-observation cards.  See §3 for the contract and §7 for the
   sessions.  Fully shipped.
+* **G2 value-of-information** (s31): single-add landmark heads (one per measure,
+  own conformal q) + `compute.landmark_voi` + `lm_value_summary`; ranks the next
+  best measure to obtain per patient.  Methods VOI scorecard heatmap + Patient
+  VOI bars/readout.  See §3 for the contract and §7 for the session.  Fully
+  shipped.
 
 **F23 (shipped s26): data-quality / clinical-consistency report** — see §7 and
 `data/quality.py`; durable data facts it surfaced live in §0b/§1, and the
 regenerated `models/dataquality_summary.json` holds the per-rule scorecard.
 
 **Ready candidates (pick the next unless redirected; lead with G-series):**
-* **G2 value-of-information** — *what:* per patient, rank which *next*
-  observation (which measure × which next landmark) most tightens the PI /
-  reduces expected loss.  *why:* prescribes what to measure next, not just what
-  observing helps on average.  *effort:* M–L.  *files:* landmark bundle + new
-  compute helper + patient/Methods surface.  *data dep:* landmark bundle.
 * **G3 observed-trajectory phenotyping** — *what:* cluster patients by their
   *observed* early-recovery trajectory (contrast §3 archetypes, which cluster
   *predicted* curves) and surface phenotype-conditioned prognosis.  *why:*

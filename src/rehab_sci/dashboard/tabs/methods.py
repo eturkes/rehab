@@ -262,6 +262,19 @@ def _landmark_block(lang: str) -> html.Div | None:
         fig = fg.fig_landmark_value(info, days, lang)
         if fig is not None:
             card.append(dcc.Graph(figure=fig, config={"displayModeBar": False}))
+        # G2 — per-measure value-of-information scorecard (which single observation sharpens most).
+        meas_keys: set[str] = set()
+        for cell in by.values():
+            meas_keys |= set((cell.get("single") or {}).keys())
+        if meas_keys:
+            measure_labels = {m: t(SCHEMA, f"lm_measure_{m.lower()}", lang) for m in meas_keys}
+            voi_fig = fg.fig_voi_scorecard(info, lang, measure_labels)
+            if voi_fig is not None:
+                card.append(html.P(
+                    t(SCHEMA, "voi_methods_def", lang),
+                    style={"fontSize": "12px", "color": INK["600"], "marginTop": "8px"},
+                ))
+                card.append(dcc.Graph(figure=voi_fig, config={"displayModeBar": False}))
         children.append(html.Div(className="methods-perf-card", children=card))
     children.append(html.P(
         ("各ランドマークの予測区間は周辺split-conformal (α=0.2)。検証時点数が少ないためカバレッジは80%前後で変動する。"

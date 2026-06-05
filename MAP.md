@@ -3,7 +3,7 @@
 Regenerate after structural changes: `uv run python scripts/gen_map.py`.
 Line numbers are 1-indexed — slice with `Read(path, offset, limit)` instead of
 reading whole files.  Sources: src/rehab_sci, scripts.
-Index: 43 files, 10134 source lines.
+Index: 43 files, 10471 source lines.
 
 ## scripts
 
@@ -62,7 +62,7 @@ Rehabilitation Analytics & Prediction Suite — bilingual Dash app.
 - L105 `update_chrome(lang)` [callback]
 - L123 `update_tab(tab, lang, ref_data)` [callback]
 
-### compute.py (392 lines)
+### compute.py (462 lines)
 Pure computation helpers for model inference, conformal PI, and SHAP.
 - L26 `resolve_group_q(q_by_group, marginal, X)` — Resolve Mondrian q for a single-row input.
 - L49 `resolve_conformal_q(fspec, X)`
@@ -82,9 +82,10 @@ Pure computation helpers for model inference, conformal PI, and SHAP.
 - L273 `_landmark_input(X_base, observed, feature_cols)` — Build a one-row model input over ``feature_cols`` from base features + observed …
 - L296 `_predict_landmark_head(head, X, task, transform, cmin, cmax)`
 - L323 `predict_landmark(outcome_key, landmark, X_base, observed)` — Paired admission-only baseline vs landmark prediction for one outcome at landmar…
-- L350 `_episode_timepoint_oidx(key_record)` — Episode rows restricted to the landmark measures, plus the timepoint order-index…
-- L360 `landmark_observed_for_episode(key_record, landmark)` — Real LOCF observed block for one episode: last non-null value of each landmark m…
-- L379 `episode_landmark_eligibility(key_record)` — Per-landmark still-admitted eligibility: True when the episode has a tracked obs…
+- L350 `landmark_voi(outcome_key, landmark, X_base, observed)` — Per-measure value-of-information for one patient at landmark ``L`` (G2).
+- L420 `_episode_timepoint_oidx(key_record)` — Episode rows restricted to the landmark measures, plus the timepoint order-index…
+- L430 `landmark_observed_for_episode(key_record, landmark)` — Real LOCF observed block for one episode: last non-null value of each landmark m…
+- L449 `episode_landmark_eligibility(key_record)` — Per-landmark still-admitted eligibility: True when the episode has a tracked obs…
 
 ### i18n.py (38 lines)
 Bilingual translation helpers used by every dashboard component.
@@ -94,7 +95,7 @@ Bilingual translation helpers used by every dashboard component.
 - L25 `all_levels_in_order(schema, level_key, lang)` — Return (display, ja-or-en label) pairs in their YAML declaration order.
 - L36 `level_key_for_column(schema, raw)`
 
-### layout.py (323 lines)
+### layout.py (435 lines)
 Shared layout components: topbar, cards, sliders, prediction figures.
 - L20 `topbar(lang)`
 - L48 `kpi_card(label, value, sub)`
@@ -107,6 +108,9 @@ Shared layout components: topbar, cards, sliders, prediction figures.
 - L188 `fig_class_probabilities(proba, class_labels, spec, lang, conformal_set)`
 - L224 `fig_landmark_compare(result, spec, lang, landmark_label)` — Paired admission-only vs landmark prediction for one outcome (see compute.predic…
 - L292 `landmark_readout(result, spec, lang)` — Two-line baseline→landmark summary shared by the simulator and patient dynamic c…
+- L327 `_voi_label(measure, lang)`
+- L331 `fig_voi_patient(voi, spec, lang)` — Per-patient value-of-information bars (see compute.landmark_voi).
+- L397 `voi_readout(voi, spec, lang)` — One/two-line prescription: the most valuable next measure to obtain (+ best alre…
 
 ### reliability.py (141 lines)
 Input reliability + out-of-distribution assessment for the simulator.
@@ -154,7 +158,7 @@ Plotly theme + palettes used everywhere on the dashboard.
 
 ## src/rehab_sci/dashboard/figures
 
-### __init__.py (77 lines)
+### __init__.py (79 lines)
 Plotly figure factories, split by dashboard tab.
 - (no top-level symbols)
 
@@ -170,7 +174,7 @@ Plotly figures for the Insight engine tab — SHAP importance, subgroups, depend
 - L155 `fig_interaction_heatmap(metrics, schema, lang, *, top_n)` — Upper-triangle heatmap of top feature-pair interactions by mean |SHAP|.
 - L222 `fig_interaction_dependence(shap_pack, X_test, feat_x, feat_y, schema, lang, *, class_idx)` — Scatter of feature-X value vs SHAP interaction(X,Y), colored by feature-Y value.
 
-### methods.py (417 lines)
+### methods.py (474 lines)
 Plotly figures for the Methods tab — calibration and performance visualizations.
 - L12 `fig_pred_vs_observed(shap_pack, schema, lang, *, clip_min, clip_max, axis_label)`
 - L79 `fig_residual_hist(shap_pack, schema, lang, *, axis_label)`
@@ -179,6 +183,7 @@ Plotly figures for the Methods tab — calibration and performance visualization
 - L225 `fig_dataquality_overview(summary, lang)` — Stacked bar of finding counts per category, split by severity.
 - L269 `fig_temporal_drift(t_outcome, lang)` — Out-of-time drift across rolling-origin test years (F24).
 - L345 `fig_landmark_value(lm_outcome, landmark_days, lang)` — Value of observation: discharge-outcome accuracy + PI sharpening vs landmark tim…
+- L420 `fig_voi_scorecard(lm_outcome, lang, measure_labels)` — Value-of-information scorecard: per-measure × per-landmark uncertainty reduction…
 
 ### overview.py (412 lines)
 Plotly figures for the Overview tab — cohort demographics, injury, recovery curv…
@@ -226,15 +231,15 @@ Insight engine tab — SHAP importance, subgroups, dependence, interactions.
 - L256 `update_int_feat_options(outcome_key, lang)` [callback]
 - L279 `update_interaction_dependence(feat_x, feat_y, outcome_key, class_val, lang)` [callback]
 
-### methods.py (367 lines)
+### methods.py (380 lines)
 Methods tab — model documentation + per-outcome performance visualizations.
 - L21 `_perf_block_regression(spec, info, lang)`
 - L83 `_perf_block_multiclass(spec, info, lang)`
 - L152 `_perf_block_trajectory(lang)`
 - L179 `_temporal_block(lang)` — F24 — out-of-time rolling-origin drift, one card per outcome.
 - L229 `_landmark_block(lang)` — G1 — landmark (dynamic) prediction: value-of-observation curve, one card per out…
-- L278 `_dataquality_block(lang)`
-- L326 `render_methods(lang)`
+- L291 `_dataquality_block(lang)`
+- L339 `render_methods(lang)`
 
 ### overview.py (257 lines)
 Overview tab — cohort KPIs, demographic charts, archetype curves with interactiv…
@@ -243,25 +248,25 @@ Overview tab — cohort KPIs, demographic charts, archetype curves with interact
 - L102 `_filtered_archetype_summaries(ep_f)` — Rebuild per-archetype summaries on the filtered episode subset.
 - L140 `update_overview_content(ais, para, age_range, arch, lang)` [callback]
 
-### patient.py (750 lines)
+### patient.py (770 lines)
 Patient explorer tab — real-patient predictions, similarity, PDF report.
-- L64 `_patient_picker_options(lang)`
-- L87 `_episode_options_for_patient(id_number, lang)`
-- L97 `_meta_strip(meta, lang)`
-- L150 `_isncsci_table(long_df, key_record, lang)`
-- L193 `_landmark_obs_note(observed, landmark, lang)` — One-line summary of the real early-recovery scores feeding the landmark predicti…
-- L208 `_patient_landmark_card(lang)` — Real-data dynamic-prediction card: at a chosen landmark the patient's own observ…
-- L237 `render_patient(lang)`
-- L344 `_patient_regression(bundle, X, key_record, lang)`
-- L400 `_patient_multiclass(bundle, X, key_record, lang)`
-- L442 `_build_similarity_section(key_record, bundle, X, lang)`
-- L531 `_compute_patient_tab(key_record, strata, outcome_key, lang)`
-- L598 `update_patient_picker(id_number, lang)` [callback]
-- L607 `reset_episode_on_patient_change(id_number, current)` [callback]
-- L631 `update_patient_tab(key_record, strata, outcome_key, lang)` [callback]
-- L641 `update_patient_landmark_options(key_record)` [callback] — Offer only the landmarks this episode is still-admitted-eligible for; default to…
-- L659 `update_patient_landmark(landmark, key_record, outcome_key, lang)` [callback]
-- L685 `download_report(n_clicks, key_record, id_number, strata, lang)` [callback]
+- L67 `_patient_picker_options(lang)`
+- L90 `_episode_options_for_patient(id_number, lang)`
+- L100 `_meta_strip(meta, lang)`
+- L153 `_isncsci_table(long_df, key_record, lang)`
+- L196 `_landmark_obs_note(observed, landmark, lang)` — One-line summary of the real early-recovery scores feeding the landmark predicti…
+- L211 `_patient_landmark_card(lang)` — Real-data dynamic-prediction card: at a chosen landmark the patient's own observ…
+- L245 `render_patient(lang)`
+- L352 `_patient_regression(bundle, X, key_record, lang)`
+- L408 `_patient_multiclass(bundle, X, key_record, lang)`
+- L450 `_build_similarity_section(key_record, bundle, X, lang)`
+- L539 `_compute_patient_tab(key_record, strata, outcome_key, lang)`
+- L606 `update_patient_picker(id_number, lang)` [callback]
+- L615 `reset_episode_on_patient_change(id_number, current)` [callback]
+- L639 `update_patient_tab(key_record, strata, outcome_key, lang)` [callback]
+- L649 `update_patient_landmark_options(key_record)` [callback] — Offer only the landmarks this episode is still-admitted-eligible for; default to…
+- L669 `update_patient_landmark(landmark, key_record, outcome_key, lang)` [callback]
+- L705 `download_report(n_clicks, key_record, id_number, strata, lang)` [callback]
 
 ### simulator.py (554 lines)
 Simulator tab — hypothetical patient prediction + What-if counterfactual.
@@ -408,25 +413,26 @@ Split-conformal & APS prediction-set helpers (Mondrian per-AIS / per-paralysis).
 - L130 `_aps_prediction_set(proba_row, q_hat)` — Class indices in the APS prediction set for one sample.
 - L143 `_aps_test_metrics(proba, y_true, q_arr, X)` — Coverage and avg set size on test set using per-row Mondrian APS q.
 
-### landmark.py (395 lines)
+### landmark.py (458 lines)
 Landmark (dynamic) prediction — sharpen the discharge prognosis as early recover…
-- L63 `ROOT` (const)
-- L64 `OUT` (const)
-- L66 `ALPHA` (const)
-- L69 `LANDMARKS` (const)
-- L70 `LANDMARK_DAYS` (const)
-- L74 `LANDMARK_COLS` (const)
-- L86 `LM_PREFIX` (const)
-- L89 `TIMEPOINT_ORDER` (const)
-- L96 `MIN_COHORT` (const)
-- L101 `_latest_intermediate_oidx(long)` — Per-episode index of the latest intermediate timepoint carrying any tracked obse…
-- L116 `_locf_block(long, landmark)` — LOCF landmark block: last non-null value at or before ``landmark`` per episode.
-- L135 `_prep_landmark(af, target_col, eligible, lm_block)` — Build paired (X_base, X_landmark) matrices + target/groups for one (outcome, lan…
-- L171 `_refit_all(params, X, y, cat_cols, best_iter, *, clf)`
-- L180 `_eval_regression(X, y_t, y_raw, cat_cols, tr, cal, te, transform, clip_min, clip_max, *, persist)` — Fit a regression head on the train fold, conformalise on the calibration fold, s…
-- L221 `_eval_multiclass(X, y_codes, groups, cat_cols, class_codes, tr, cal, te, *, persist)` — Fit the AIS multiclass head, calibrate APS sets on the calibration fold, score o…
-- L271 `_run_outcome(spec, af, lm_blocks, max_oi)` — Fit every landmark (paired baseline + landmark model) for one outcome.
-- L335 `main()`
+- L70 `ROOT` (const)
+- L71 `OUT` (const)
+- L73 `ALPHA` (const)
+- L76 `LANDMARKS` (const)
+- L77 `LANDMARK_DAYS` (const)
+- L81 `LANDMARK_COLS` (const)
+- L93 `LM_PREFIX` (const)
+- L96 `TIMEPOINT_ORDER` (const)
+- L103 `MIN_COHORT` (const)
+- L108 `_latest_intermediate_oidx(long)` — Per-episode index of the latest intermediate timepoint carrying any tracked obse…
+- L123 `_locf_block(long, landmark)` — LOCF landmark block: last non-null value at or before ``landmark`` per episode.
+- L142 `_prep_landmark(af, target_col, eligible, lm_block)` — Build paired (X_base, X_landmark) matrices + target/groups for one (outcome, lan…
+- L178 `_refit_all(params, X, y, cat_cols, best_iter, *, clf)`
+- L187 `_eval_regression(X, y_t, y_raw, cat_cols, tr, cal, te, transform, clip_min, clip_max, *, persist)` — Fit a regression head on the train fold, conformalise on the calibration fold, s…
+- L228 `_eval_multiclass(X, y_codes, groups, cat_cols, class_codes, tr, cal, te, *, persist)` — Fit the AIS multiclass head, calibrate APS sets on the calibration fold, score o…
+- L278 `_eval_cell(spec, X, y_t, y_raw, y_codes, groups, cat_cols, tr, cal, te)` — Eval + persist one head on matrix ``X`` for ``spec`` (dispatches by task).
+- L295 `_run_outcome(spec, af, lm_blocks, max_oi)` — Fit every landmark (paired baseline + landmark model) for one outcome.
+- L371 `main()`
 
 ### outcomes.py (109 lines)
 Outcome registry — the source of truth for what `train.py` predicts.

@@ -347,6 +347,76 @@ def predict_landmark(
     return out
 
 
+def landmark_voi(
+    outcome_key: str, landmark: str, X_base: pd.DataFrame, observed: dict,
+) -> dict | None:
+    """Per-measure value-of-information for one patient at landmark ``L`` (G2).
+
+    Runs the admission-only baseline head and every single-add head (admission + exactly one
+    ``L_<measure>``).  Each measure is scored at the patient's REAL value when present in
+    ``observed`` (``which="observed"`` — value realised), else at the eligible-cohort median from
+    the bundle's ``lm_value_summary`` (``which="prescriptive"`` — value if obtained).  Because
+    every single-add head carries its own marginal conformal ``q`` / APS set, the PI tightening (or
+    APS-set shrink) a measure buys over the *same* baseline is well-defined and measure-specific.
+
+    Returns ``{"task", "landmark", "baseline", "measures": [...]}`` sorted by that tightening
+    (largest first), or ``None`` when the bundle / cell / single-add heads are absent.
+    """
+    b = LANDMARK_BUNDLE
+    if b is None:
+        return None
+    oc = b["outcomes"].get(outcome_key)
+    if oc is None:
+        return None
+    cell = oc["by_landmark"].get(landmark)
+    if cell is None or not cell.get("single"):
+        return None
+    task, transform = oc["task"], oc["transform"]
+    cmin, cmax = oc.get("clip_min"), oc.get("clip_max")
+    value_summary = (b.get("lm_value_summary") or {}).get(landmark, {})
+
+    base_head = cell["baseline"]
+    base_pred = _predict_landmark_head(
+        base_head, _landmark_input(X_base, {}, base_head["feature_cols"]),
+        task, transform, cmin, cmax,
+    )
+
+    measures: list[dict] = []
+    for meas, head in cell["single"].items():
+        obs_val = observed.get(meas)
+        if obs_val is not None and not (isinstance(obs_val, float) and np.isnan(obs_val)):
+            val: float | None = float(obs_val)
+            which = "observed"
+        else:
+            vs = value_summary.get(meas)
+            val = float(vs["median"]) if vs else None
+            which = "prescriptive"
+        X = _landmark_input(X_base, {meas: val} if val is not None else {}, head["feature_cols"])
+        pred = _predict_landmark_head(head, X, task, transform, cmin, cmax)
+        entry: dict = {"measure": meas, "which": which, "value": val}
+        if task == "regression":
+            base_hw = (base_pred["hi"] - base_pred["lo"]) / 2.0
+            hw = (pred["hi"] - pred["lo"]) / 2.0
+            entry.update({
+                "pred": pred["pred"], "lo": pred["lo"], "hi": pred["hi"], "halfwidth": hw,
+                "d_halfwidth": base_hw - hw,            # > 0 = PI tightening over baseline
+                "d_point": pred["pred"] - base_pred["pred"],
+            })
+        else:
+            base_size = len(base_pred["aps_set"])
+            entry.update({
+                "pred_class": pred["pred_class"], "pred_prob": pred["pred_prob"],
+                "aps_set": pred["aps_set"], "set_size": len(pred["aps_set"]),
+                "d_setsize": base_size - len(pred["aps_set"]),   # > 0 = APS set shrinks
+                "changed_class": pred["pred_class"] != base_pred["pred_class"],
+            })
+        measures.append(entry)
+
+    rank_key = "d_halfwidth" if task == "regression" else "d_setsize"
+    measures.sort(key=lambda e: e[rank_key], reverse=True)
+    return {"task": task, "landmark": landmark, "baseline": base_pred, "measures": measures}
+
+
 def _episode_timepoint_oidx(key_record: int) -> tuple[pd.DataFrame, dict[str, int]]:
     """Episode rows restricted to the landmark measures, plus the timepoint order-index map."""
     b = LANDMARK_BUNDLE

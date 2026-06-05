@@ -6,6 +6,13 @@ measures (SCIM total + subscales, AIS grade, motor / sensory totals).  As ``L`` 
 more of the patient's *actual* early recovery is observed, point accuracy rises and the
 conformal prediction interval narrows — the "value of observation" curve.
 
+Beyond the full-block landmark head, each landmark also fits one **single-add head per measure**
+(admission features + exactly that one ``L_<measure>``), each with its own marginal conformal q /
+APS set.  These power the value-of-information surfaces (G2): because every measure has its own
+calibrated interval over the *same* baseline + split, they can be ranked by the PI tightening each
+single observation buys — prescribing *what to measure next* for a given patient, not just that
+observation helps on average.
+
 This is a **diagnostic + inference layer, like** :mod:`rehab_sci.models.temporal`: it writes
 its own tracked ``models/landmark_metrics.json`` and a ``models/landmark/bundle.joblib`` and
 **never touches** :mod:`rehab_sci.models.train`'s production artifacts, so the byte-repro of
@@ -268,6 +275,23 @@ def _eval_multiclass(
 
 # ----------------------------- per-outcome driver ----------------------------
 
+def _eval_cell(spec: OutcomeSpec, X: pd.DataFrame, y_t, y_raw, y_codes, groups, cat_cols,
+               tr: np.ndarray, cal: np.ndarray, te: np.ndarray) -> tuple[dict, dict | None]:
+    """Eval + persist one head on matrix ``X`` for ``spec`` (dispatches by task).
+
+    Shared by the admission baseline, the full landmark block, and every single-add head so all
+    three are fit / conformalised identically (same split, same persist contract).
+    """
+    if spec.task == "regression":
+        return _eval_regression(X, y_t, y_raw, cat_cols, tr, cal, te,
+                                spec.transform, spec.clip_min, spec.clip_max, persist=True)
+    m, models = _eval_multiclass(X, y_codes, groups, cat_cols, spec.class_codes,
+                                 tr, cal, te, persist=True)
+    if models is not None:
+        models["class_labels"] = list(spec.class_labels)
+    return m, models
+
+
 def _run_outcome(spec: OutcomeSpec, af: AnalysisFrame, lm_blocks: dict[str, pd.DataFrame],
                  max_oi: pd.Series) -> tuple[dict, dict]:
     """Fit every landmark (paired baseline + landmark model) for one outcome.
@@ -297,26 +321,36 @@ def _run_outcome(spec: OutcomeSpec, af: AnalysisFrame, lm_blocks: dict[str, pd.D
 
         if spec.task == "regression":
             y_t = _apply_transform(y_raw, spec.transform)
-            base_m, base_models = _eval_regression(X_base, y_t, y_raw, cat_cols, tr, cal, te,
-                                                   spec.transform, spec.clip_min, spec.clip_max, persist=True)
-            lm_m, lm_models = _eval_regression(X_lm, y_t, y_raw, cat_cols, tr, cal, te,
-                                               spec.transform, spec.clip_min, spec.clip_max, persist=True)
+            y_codes = None
+        else:
+            y_t = None
+            y_codes = np.array([code_to_idx[int(v)] for v in y_raw.astype(int)])
+
+        # Admission-only baseline, full-observation-block landmark, and one single-add head per
+        # measure (admission + exactly that L_<measure>).  The single-add heads each carry their
+        # OWN conformal q / APS set, so the value-of-information surfaces can rank measures by the
+        # PI tightening each buys over the *same* baseline + split (G2).
+        base_m, base_models = _eval_cell(spec, X_base, y_t, y_raw, y_codes, groups, cat_cols, tr, cal, te)
+        lm_m, lm_models = _eval_cell(spec, X_lm, y_t, y_raw, y_codes, groups, cat_cols, tr, cal, te)
+        base_cols = list(X_base.columns)
+        single_metrics: dict[str, dict] = {}
+        single_models: dict[str, dict] = {}
+        for meas in LANDMARK_COLS:
+            sm, smodels = _eval_cell(spec, X_lm[[*base_cols, LM_PREFIX + meas]],
+                                     y_t, y_raw, y_codes, groups, cat_cols, tr, cal, te)
+            single_metrics[meas] = sm
+            single_models[meas] = smodels
+
+        if spec.task == "regression":
             print(f"   [{spec.key}/{lm}]  n={n} test={len(te)}  "
                   f"R² {base_m['r2']:.3f}→{lm_m['r2']:.3f}  "
                   f"PIhw {base_m['pi_halfwidth_raw']:.1f}→{lm_m['pi_halfwidth_raw']:.1f}  "
-                  f"cov {lm_m['coverage_80']:.0%}")
+                  f"cov {lm_m['coverage_80']:.0%}  (+{len(single_metrics)} single-add)")
         else:
-            y_codes = np.array([code_to_idx[int(v)] for v in y_raw.astype(int)])
-            base_m, base_models = _eval_multiclass(X_base, y_codes, groups, cat_cols, spec.class_codes,
-                                                   tr, cal, te, persist=True)
-            lm_m, lm_models = _eval_multiclass(X_lm, y_codes, groups, cat_cols, spec.class_codes,
-                                               tr, cal, te, persist=True)
-            base_models["class_labels"] = list(spec.class_labels)
-            lm_models["class_labels"] = list(spec.class_labels)
             print(f"   [{spec.key}/{lm}]  n={n} test={len(te)}  "
                   f"κ {base_m['kappa_quadratic']:.3f}→{lm_m['kappa_quadratic']:.3f}  "
                   f"APSset {base_m['aps_avg_set_size']:.2f}→{lm_m['aps_avg_set_size']:.2f}  "
-                  f"cov {lm_m['aps_coverage_80']:.0%}")
+                  f"cov {lm_m['aps_coverage_80']:.0%}  (+{len(single_metrics)} single-add)")
 
         metrics_by_lm[lm] = {
             "n_eligible": n,
@@ -324,9 +358,11 @@ def _run_outcome(spec: OutcomeSpec, af: AnalysisFrame, lm_blocks: dict[str, pd.D
             "n_test_patients": n_test_pat,
             "baseline": base_m,
             "landmark": lm_m,
+            "single": single_metrics,
         }
-        # Paired heads so the dashboard can contrast admission-only vs landmark per patient.
-        models_by_lm[lm] = {"baseline": base_models, "landmark": lm_models}
+        # Paired heads (admission-only vs full block) + per-measure single-add heads so the
+        # dashboard can contrast baseline vs landmark and rank each measure's value per patient.
+        models_by_lm[lm] = {"baseline": base_models, "landmark": lm_models, "single": single_models}
     return metrics_by_lm, models_by_lm
 
 
@@ -344,6 +380,28 @@ def main() -> None:
     max_oi = _latest_intermediate_oidx(long)
     lm_blocks = {lm: _locf_block(long, lm) for lm in LANDMARKS}
 
+    # Per-landmark reference distribution of each measure over the still-admitted eligible cohort
+    # (outcome-independent).  Used at inference to impute a not-yet-observed measure when ranking
+    # value-of-information per patient (G2).
+    value_summary: dict[str, dict] = {}
+    for lm in LANDMARKS:
+        eligible_idx = max_oi[max_oi >= _OIDX[lm]].index
+        blk = lm_blocks[lm].reindex(eligible_idx)
+        per: dict[str, dict] = {}
+        for meas in LANDMARK_COLS:
+            col = LM_PREFIX + meas
+            if col not in blk.columns:
+                continue
+            s = pd.to_numeric(blk[col], errors="coerce").dropna()
+            if len(s):
+                per[meas] = {
+                    "median": float(s.median()),
+                    "q25": float(s.quantile(0.25)),
+                    "q75": float(s.quantile(0.75)),
+                    "n": len(s),
+                }
+        value_summary[lm] = per
+
     all_metrics: dict[str, dict] = {}
     all_models: dict[str, dict] = {}
     for spec in OUTCOMES:
@@ -358,12 +416,16 @@ def main() -> None:
 
     lm_dir = OUT / "landmark"
     lm_dir.mkdir(parents=True, exist_ok=True)
-    # Bundle shape (consumed by dashboard/compute.py::predict_landmark):
+    # Bundle shape (consumed by dashboard/compute.py::predict_landmark / landmark_voi):
     #   outcomes[key] = {task, transform, clip_min, clip_max, by_landmark}
-    #   by_landmark[L] = {"baseline": head, "landmark": head}   # L present only if not skipped
+    #   by_landmark[L] = {"baseline": head, "landmark": head, "single": {measure: head}}
+    #                     # L present only if not skipped (eligible n >= MIN_COHORT)
     #   head (regression)  = {median, conformal_q, feature_cols}
     #   head (multiclass)  = {clf, aps_q_hat, class_codes, class_labels, feature_cols}
-    # baseline.feature_cols == feature_cols_base; landmark.feature_cols == base + L_<measure>.
+    #   baseline.feature_cols == feature_cols_base (30); landmark == base + all 10 L_<measure>;
+    #   single[m].feature_cols == base + the one L_<measure> (each measure has its own conformal q).
+    # lm_value_summary[L][measure] = {median, q25, q75, n} over the still-admitted eligible cohort,
+    #   for imputing a not-yet-observed measure when ranking value-of-information per patient (G2).
     bundle = {
         "landmarks": list(LANDMARKS),
         "landmark_days": LANDMARK_DAYS,
@@ -373,6 +435,7 @@ def main() -> None:
         "feature_cols_base": list(af.feature_cols),
         "numeric_cols": list(af.numeric_cols),
         "categorical_cols": list(af.categorical_cols),
+        "lm_value_summary": value_summary,
         "outcomes": all_models,
     }
     joblib.dump(bundle, lm_dir / "bundle.joblib")

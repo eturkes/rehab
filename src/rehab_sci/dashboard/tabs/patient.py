@@ -20,6 +20,7 @@ from rehab_sci.dashboard.compute import (
     get_observed_for_outcome,
     inv_transform_scalar,
     landmark_observed_for_episode,
+    landmark_voi,
     predict_landmark,
     predict_trajectory,
     resolve_aps_q,
@@ -38,7 +39,9 @@ from rehab_sci.dashboard.layout import (
     fig_class_probabilities,
     fig_landmark_compare,
     fig_shap_local,
+    fig_voi_patient,
     landmark_readout,
+    voi_readout,
 )
 from rehab_sci.dashboard.report import generate_patient_report
 from rehab_sci.dashboard.state import (
@@ -228,6 +231,11 @@ def _patient_landmark_card(lang: str) -> html.Div | None:
             html.Div(id="patient-lm-note", className="lm-obs-note"),
             dcc.Graph(id="patient-lm-graph", config={"displayModeBar": False}),
             html.Div(id="patient-lm-readout"),
+            html.Hr(className="voi-divider"),
+            html.Div(t(SCHEMA, "voi_card_subheading", lang), className="voi-subheading"),
+            html.Div(t(SCHEMA, "voi_card_intro", lang), className="lm-card-intro"),
+            dcc.Graph(id="patient-voi-graph", config={"displayModeBar": False}),
+            html.Div(id="patient-voi-readout"),
             html.Div(t(SCHEMA, "lm_caption", lang), className="sim-caveat"),
         ]),
     )
@@ -651,25 +659,37 @@ def update_patient_landmark_options(key_record):
     Output("patient-lm-graph", "figure"),
     Output("patient-lm-readout", "children"),
     Output("patient-lm-note", "children"),
+    Output("patient-voi-graph", "figure"),
+    Output("patient-voi-readout", "children"),
     Input("patient-lm-landmark", "value"),
     Input("patient-episode-radio", "value"),
     Input("patient-outcome", "value"),
     Input("lang-store", "data"),
 )
 def update_patient_landmark(landmark, key_record, outcome_key, lang):
+    empty = go.Figure()
     if not landmark or key_record is None:
-        return go.Figure(), html.Div(t(SCHEMA, "lm_select_prompt", lang), className="lm-prompt"), ""
+        msg = html.Div(t(SCHEMA, "lm_select_prompt", lang), className="lm-prompt")
+        return empty, msg, "", empty, ""
     key_record = int(key_record)
     if not episode_has_admission(key_record):
-        return go.Figure(), html.Div(t(SCHEMA, "lm_not_modeled", lang), className="lm-prompt"), ""
+        msg = html.Div(t(SCHEMA, "lm_not_modeled", lang), className="lm-prompt")
+        return empty, msg, "", empty, ""
     x_base = episode_row_for_model(key_record)
     observed = landmark_observed_for_episode(key_record, landmark)
-    result = predict_landmark(outcome_key or DEFAULT_OUTCOME, landmark, x_base, observed)
+    okey = outcome_key or DEFAULT_OUTCOME
+    result = predict_landmark(okey, landmark, x_base, observed)
     note = _landmark_obs_note(observed, landmark, lang)
     if result is None:
-        return go.Figure(), html.Div(t(SCHEMA, "lm_not_modeled", lang), className="lm-prompt"), note
+        msg = html.Div(t(SCHEMA, "lm_not_modeled", lang), className="lm-prompt")
+        return empty, msg, note, empty, ""
     spec = (OUTCOME_BUNDLES.get(outcome_key) or SCIM_TOTAL_BUNDLE)["spec"]
-    return fig_landmark_compare(result, spec, lang, landmark), landmark_readout(result, spec, lang), note
+    cmp_fig = fig_landmark_compare(result, spec, lang, landmark)
+    cmp_read = landmark_readout(result, spec, lang)
+    voi = landmark_voi(okey, landmark, x_base, observed)
+    if voi is None:
+        return cmp_fig, cmp_read, note, empty, ""
+    return cmp_fig, cmp_read, note, fig_voi_patient(voi, spec, lang), voi_readout(voi, spec, lang)
 
 
 # ---------- PDF report callback ----------

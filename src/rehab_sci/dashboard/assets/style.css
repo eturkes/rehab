@@ -735,3 +735,5 @@ input[type="number"]:focus, input[type="text"]:focus, select:focus {
 .lm-readout-line { font-size: 13.5px; color: var(--ink-900); font-variant-numeric: tabular-nums; }
 .lm-readout-delta { color: var(--ink-700); }
 .lm-prompt { font-size: 12.5px; color: var(--ink-500); padding: 18px 0; text-align: center; }
+.voi-divider { border: none; border-top: 1px solid var(--ink-100); margin: 16px 0 12px; }
+.voi-subheading { font-size: 13.5px; font-weight: 600; color: var(--ink-900); margin-bottom: 4px; }
