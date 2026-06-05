@@ -8,6 +8,11 @@ import plotly.graph_objects as go
 
 from rehab_sci.constants import AIS_ORD_TO_LETTER
 from rehab_sci.dashboard.figures._common import _hex_to_rgba
+from rehab_sci.dashboard.figures.overview import (
+    PALETTE_PHENOTYPE,
+    PHENOTYPE_NAMES_EN,
+    PHENOTYPE_NAMES_JA,
+)
 from rehab_sci.dashboard.i18n import level_label, t
 from rehab_sci.dashboard.theme import PALETTE_AIS, PALETTE_CATEGORICAL, PALETTE_PARA
 from rehab_sci.data.episodes import PATIENT_TIMELINE, cohort_percentile_bands, patient_timeline
@@ -504,5 +509,62 @@ def fig_neighbor_ais_distribution(
             font=dict(size=12, color="#a3354e"),
             xanchor="right",
         )] if obs_text else []),
+    )
+    return fig
+
+
+def fig_phenotype_membership(
+    membership: list[float],
+    summaries: list[dict],
+    schema: Schema,
+    lang: str,
+) -> go.Figure:
+    """Soft phenotype membership for one patient — horizontal bars over the K phenotypes
+    (ordered 0 = lowest recovery), each annotated with its conditioned cohort prognosis.
+
+    ``membership`` is the posterior from :func:`compute.predict_phenotype_membership`;
+    ``summaries`` is the per-phenotype summary list carried in the phenotype bundle.
+    """
+    names = PHENOTYPE_NAMES_JA if lang == "ja" else PHENOTYPE_NAMES_EN
+    K = len(membership)
+    pct = [w * 100 for w in membership]
+    labels = [names[k] for k in range(K)]
+    colors = [PALETTE_PHENOTYPE[k % len(PALETTE_PHENOTYPE)] for k in range(K)]
+    nan = float("nan")
+    cd = np.array([
+        [
+            (summaries[k].get("median_discharge_scim") if summaries[k].get("median_discharge_scim") is not None else nan),
+            (summaries[k].get("mean_los") if summaries[k].get("mean_los") is not None else nan),
+            summaries[k].get("n", 0),
+        ]
+        for k in range(K)
+    ])
+    scim_lbl = "退院時SCIM(中央値)" if lang == "ja" else "Discharge SCIM (med)"
+    los_lbl = "在院日数(平均)" if lang == "ja" else "LOS (mean d)"
+    memb_lbl = "メンバーシップ" if lang == "ja" else "Membership"
+    fig = go.Figure(
+        go.Bar(
+            x=pct,
+            y=labels,
+            orientation="h",
+            marker=dict(color=colors),
+            text=[f"{p:.0f}%" for p in pct],
+            textposition="outside",
+            cliponaxis=False,
+            customdata=cd,
+            hovertemplate=(
+                "<b>%{y}</b> (n=%{customdata[2]})<br>"
+                + f"{memb_lbl}: " + "%{x:.1f}%<br>"
+                + f"{scim_lbl}: " + "%{customdata[0]:.0f}<br>"
+                + f"{los_lbl}: " + "%{customdata[1]:.0f}<extra></extra>"
+            ),
+        )
+    )
+    fig.update_layout(
+        height=60 + 36 * K,
+        xaxis=dict(title=("割合 (%)" if lang == "ja" else "Membership (%)"), range=[0, 108]),
+        yaxis=dict(autorange="reversed"),
+        margin=dict(l=10, r=20, t=10, b=40),
+        showlegend=False,
     )
     return fig

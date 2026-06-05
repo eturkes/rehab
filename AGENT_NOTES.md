@@ -34,12 +34,12 @@ superseded, duplicated elsewhere, or has gone stale.
   CLAUDE.md, wrap to a clean boundary at ≥80 % for a manual `/compact`.
 * This file — agent-facing scratchpad.  Read before planning; update after each
   session; prune duplication per the inclusion rule above.
-* **Default-work pool: §8 backlog.**  F1–F25 shipped + G1 landmark (dynamic)
-  prediction (s29/s30) + G2 value-of-information (s31) fully shipped (see §7).
-  Open: G3 observed-trajectory phenotyping · G4 AIS conversion · F26 test
-  harness · F27 dep refresh.  The user steers toward *insightful* (clinical/
-  scientific) features over infra/maintenance — propose those (G-series) first
-  unless redirected.
+* **Default-work pool: §8 backlog.**  F1–F25 + G1 (s29/s30) + G2 (s31) + G3
+  observed-trajectory phenotyping (s32 part 1 cohort surface, s33 part 2 patient
+  surface) fully shipped (see §7).  Open: G4 AIS conversion · F26 test harness ·
+  F27 dep refresh.  The user steers toward *insightful* (clinical/scientific)
+  features over infra/maintenance — propose those (G-series) first unless
+  redirected.
 
 ## 0b. Lessons & mistakes (append; prune when superseded)
 
@@ -413,10 +413,22 @@ superseded, duplicated elsewhere, or has gone stale.
   git-ignored `models/phenotypes/phenotypes.joblib` (GMMParams + per-episode hard assignments +
   posterior + class_means + class_support + summaries) for the dashboard / part-2 patient surface.
   Diagnostic/inference module, NOT a production training step — never touches `train.py` artifacts.
-  Part 1 (this session): model + **Overview** cohort surface (`fig_phenotype_curves` truncated
-  per-measure stacked panels with conditioned-prognosis hover + `fig_phenotype_demographics` AIS
-  bars, reusing the archetype `_ais_distribution_bars` helper).  Part 2 (deferred): patient-level
-  phenotype prognosis via `predict_proba` on a partially-observed individual.
+  Part 1 (s32): model + **Overview** cohort surface (`fig_phenotype_curves` truncated per-measure
+  stacked panels with conditioned-prognosis hover + `fig_phenotype_demographics` AIS bars, reusing
+  the archetype `_ais_distribution_bars` helper).  **Part 2 (s33, shipped): patient-level phenotype
+  prognosis** — pure `compute.predict_phenotype_membership(key_record, cutoff)` rebuilds the
+  one-episode `GMMData` from `LONG` over the observed (SCIM, motor) cells on/before an
+  observation-cutoff and applies `predict_proba`, returning soft membership + the
+  membership-weighted conditioned-outcome mix (renormalized per-stat over the per-phenotype
+  `summaries`).  `compute.phenotype_cutoff_options` gates the interactive cutoff dropdown
+  (window timepoints where cumulative observed cells reach ≥2, new-obs only; last entry = full
+  window).  Patient-tab card: `fig_phenotype_membership` bar + the `fig_phenotype_curves` overlay
+  (new optional `patient_obs` arg draws the patient's own points over the support-truncated
+  phenotype means) + a conditioned-prognosis readout.  **Invariant: per-individual responsibilities
+  are independent and the full-window cutoff equals an episode's latest observation (= the exact
+  set used at fit time), so full-window membership reproduces the bundle's stored `posterior` row
+  byte-for-byte for an in-cohort episode (verified diff 0.0).**  The surface also generalizes to
+  pickable episodes outside the fit cohort (fresh `predict_proba`, no stored row).
 
 ## 4. Dashboard conventions
 
@@ -547,6 +559,18 @@ bgcmd 'exit()'; rm -rf "$BGCMDDIR"               # stop + clean
 
 One line per session; full detail is in Git history (`git log`, diffs).
 
+* **s33** — G3 observed-trajectory phenotyping, **Part 2** (patient-level phenotype
+  prognosis; user chose readout+overlay with an interactive observation-cutoff).
+  Pure `compute.predict_phenotype_membership` / `phenotype_cutoff_options` (single-
+  episode `GMMData` rebuild → `predict_proba` soft membership + membership-weighted
+  conditioned-outcome mix); new `fig_phenotype_membership` bar + a `patient_obs`
+  overlay arg on `fig_phenotype_curves` (draws the patient's own points over the
+  support-truncated phenotype means); eligibility-gated cutoff dropdown + two
+  callbacks on the Patient tab.  Bilingual `pheno_*` strings + `.pheno-*` CSS.
+  Verified: full-window membership reproduces the stored posterior (diff 0.0) and
+  sharpens as the cutoff advances (entropy 1.01→0.00); lint + F-gate clean;
+  dashboard boots 200 with the 4 phenotype callbacks registered; Overview call
+  backward-compatible.  No retrain — production + phenotype artifacts untouched.
 * **s32** — G3 observed-trajectory phenotyping, **Part 1** (user fork: GMM with
   random effects · multivariate SCIM+motor · model+cohort surface).  New
   `data/phenotypes.py` (multivariate growth mixture model — mixture of linear
@@ -728,21 +752,17 @@ Shipped ledger (terse, by feature number):
   mixture model (`data/phenotypes.py` + `models/phenotypes.py`) over observed
   SCIM+motor early-recovery trajectories → K=5 phenotypes; Overview cohort
   surface (`fig_phenotype_curves` support-truncated + `fig_phenotype_demographics`).
-  See §3 for the contract (incl. the support-truncation / ordering extrapolation
-  traps) and §7 for the session.  Part 2 (patient-level phenotype prognosis via
-  `predict_proba`) deferred.
+  Part 2 (s33): patient-level phenotype prognosis — `compute.predict_phenotype_membership`
+  + interactive observation-cutoff + membership bar / curve overlay / conditioned-outcome
+  readout on the Patient tab.  See §3 for the contract (incl. the support-truncation /
+  ordering extrapolation traps + the reproduce-stored-posterior invariant) and §7.  Fully
+  shipped.
 
 **F23 (shipped s26): data-quality / clinical-consistency report** — see §7 and
 `data/quality.py`; durable data facts it surfaced live in §0b/§1, and the
 regenerated `models/dataquality_summary.json` holds the per-rule scorecard.
 
 **Ready candidates (pick the next unless redirected; lead with G-series):**
-* **G3 part 2 — patient-level phenotype prognosis** — *what:* assign an
-  individual (partially observed) to a phenotype via `predict_proba` and surface
-  the phenotype-conditioned outcome distribution on the Patient tab.  *why:*
-  turns the cohort phenotypes into a per-patient prognosis cue.  *effort:* M.
-  *files:* `compute.py` helper + patient surface/figure.  *data dep:* the
-  git-ignored `phenotypes.joblib` bundle (GMMParams + window).
 * **G4 AIS-conversion modeling** — *what:* model AIS-grade *conversion* (Δ from
   admission to discharge, or across landmarks) as its own outcome, not just the
   absolute discharge grade.  *why:* conversion is the clinically salient

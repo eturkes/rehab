@@ -436,6 +436,7 @@ def fig_phenotype_curves(
     schema: Schema,
     lang: str,
     class_support=None,
+    patient_obs=None,
 ) -> go.Figure:
     """Observed-trajectory phenotype mean curves, one stacked panel per measure (SCIM, motor).
 
@@ -446,6 +447,10 @@ def fig_phenotype_curves(
     ``class_support`` (optional ``(K, M)`` int array) gives each phenotype/measure's last
     observed-support window index; values past it are blanked so a line is only drawn over the
     range where that phenotype is actually observed (the polynomial mean extrapolates beyond).
+
+    ``patient_obs`` (optional ``dict[int, list[(timepoint_slot, value)]]`` keyed by measure
+    index) overlays one episode's *own* observed points on each panel — the patient-tab view
+    that shows which phenotype the individual's actual trajectory resembles.
     """
     cm = np.clip(np.asarray(class_means, dtype=float), 0.0, 100.0)
     K, M, _T = cm.shape
@@ -487,6 +492,33 @@ def fig_phenotype_curves(
                         + f"{age_lbl}: %{{customdata[0]:.0f}}<br>"
                         + f"{scim_lbl}: %{{customdata[1]:.0f}}<br>"
                         + f"{los_lbl}: %{{customdata[2]:.0f}}<extra></extra>"
+                    ),
+                ),
+                row=m + 1,
+                col=1,
+            )
+    if patient_obs:
+        pat_label = t(schema, "pheno_patient_label", lang)
+        for m in range(M):
+            pts = patient_obs.get(m) or []
+            if not pts:
+                continue
+            xs = [level_label(schema, "time_name", tp, lang) for tp, _ in pts]
+            ys = [v for _, v in pts]
+            fig.add_trace(
+                go.Scatter(
+                    x=xs,
+                    y=ys,
+                    mode="lines+markers",
+                    line=dict(color=INK["900"], width=2, dash="dot"),
+                    marker=dict(size=10, color=INK["900"], symbol="diamond",
+                                line=dict(color="white", width=1.5)),
+                    name=pat_label,
+                    legendgroup="_patient",
+                    showlegend=(m == 0),
+                    hovertemplate=(
+                        f"<b>{pat_label}</b> · %{{x}}<br>"
+                        + measure_labels[m] + ": %{y:.0f}<extra></extra>"
                     ),
                 ),
                 row=m + 1,

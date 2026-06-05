@@ -21,7 +21,9 @@ from rehab_sci.dashboard.compute import (
     inv_transform_scalar,
     landmark_observed_for_episode,
     landmark_voi,
+    phenotype_cutoff_options,
     predict_landmark,
+    predict_phenotype_membership,
     predict_trajectory,
     resolve_aps_q,
     resolve_conformal_q,
@@ -32,6 +34,8 @@ from rehab_sci.dashboard.figures import (
     ARCHETYPE_NAMES_EN,
     ARCHETYPE_NAMES_JA,
     PALETTE_ARCHETYPE,
+    PHENOTYPE_NAMES_EN,
+    PHENOTYPE_NAMES_JA,
 )
 from rehab_sci.dashboard.i18n import level_label, t
 from rehab_sci.dashboard.layout import (
@@ -54,6 +58,7 @@ from rehab_sci.dashboard.state import (
     OUTCOME_BUNDLES,
     PATIENT_OPTIONS,
     PATIENT_OPTIONS_BY_ID,
+    PHENOTYPE_DATA,
     SCHEMA,
     SCIM_TOTAL_BUNDLE,
 )
@@ -241,6 +246,78 @@ def _patient_landmark_card(lang: str) -> html.Div | None:
     )
 
 
+# ---------- observed-trajectory phenotype (G3 part 2) ----------
+_PHENO_MEASURE_LABELS = {"SCIM_total": "pheno_measure_scim", "TotalMotor": "pheno_measure_motor"}
+
+
+def _phenotype_readout(res: dict, lang: str) -> html.Div:
+    """Dominant phenotype + membership-weighted conditioned prognosis for one patient."""
+    names = PHENOTYPE_NAMES_JA if lang == "ja" else PHENOTYPE_NAMES_EN
+    dom = res["dominant"]
+    dom_pct = res["membership"][dom] * 100
+
+    def _stat(label: str, val) -> html.Div:
+        txt = "–" if val is None else f"{val:.0f}"
+        return html.Div(className="pheno-stat", children=[
+            html.Span(label, className="pheno-stat-label"),
+            html.Span(txt, className="pheno-stat-value"),
+        ])
+
+    ais_sorted = sorted(res["ais_mix"].items(), key=lambda kv: kv[1], reverse=True)
+    ais_txt = " · ".join(f"{g} {v * 100:.0f}%" for g, v in ais_sorted if v >= 0.01) or "–"
+    cutoff_lbl = level_label(SCHEMA, "time_name", res["cutoff"], lang)
+    return html.Div(className="pheno-readout", children=[
+        html.Div(className="pheno-dominant", children=[
+            html.Span(t(SCHEMA, "pheno_dominant_label", lang) + ": ", className="pheno-stat-label"),
+            html.Span(f"{names[dom]} ({dom_pct:.0f}%)", className="pheno-dominant-value"),
+        ]),
+        html.Div(t(SCHEMA, "pheno_cond_heading", lang), className="pheno-cond-heading"),
+        html.Div(className="pheno-stat-row", children=[
+            _stat(t(SCHEMA, "pheno_cond_scim", lang), res["exp_discharge_scim"]),
+            _stat(t(SCHEMA, "pheno_cond_los", lang), res["exp_los"]),
+            html.Div(className="pheno-stat", children=[
+                html.Span(t(SCHEMA, "pheno_cond_ais", lang), className="pheno-stat-label"),
+                html.Span(ais_txt, className="pheno-stat-value"),
+            ]),
+        ]),
+        html.Div(
+            t(SCHEMA, "pheno_obs_count", lang).format(n=res["n_obs"], cutoff=cutoff_lbl),
+            className="pheno-obs-count",
+        ),
+    ])
+
+
+def _patient_phenotype_card(lang: str) -> html.Div | None:
+    """Observed-trajectory phenotype card: the patient's own early SCIM/motor curve is matched
+    to the cohort recovery phenotypes; membership + conditioned prognosis sharpen as the
+    observation cutoff advances.  Omitted entirely when the phenotype bundle is absent."""
+    if PHENOTYPE_DATA is None:
+        return None
+    return chart_card(
+        t(SCHEMA, "pheno_card_heading", lang),
+        html.Div([
+            html.Div(t(SCHEMA, "pheno_card_intro", lang), className="lm-card-intro"),
+            html.Div(
+                className="lm-landmark-select",
+                children=[
+                    html.Label(t(SCHEMA, "pheno_cutoff_select", lang)),
+                    dcc.Dropdown(
+                        id="patient-pheno-cutoff", options=[], value=None,
+                        placeholder=t(SCHEMA, "pheno_select_prompt", lang),
+                        clearable=False, searchable=False,
+                    ),
+                ],
+            ),
+            html.Div(id="patient-pheno-readout"),
+            html.Div(t(SCHEMA, "pheno_membership_title", lang), className="pheno-subtitle"),
+            dcc.Graph(id="patient-pheno-membership", config={"displayModeBar": False}),
+            html.Div(t(SCHEMA, "pheno_overlay_title", lang), className="pheno-subtitle"),
+            dcc.Graph(id="patient-pheno-graph", config={"displayModeBar": False}),
+            html.Div(t(SCHEMA, "pheno_caption", lang), className="sim-caveat"),
+        ]),
+    )
+
+
 # ---------- layout ----------
 def render_patient(lang: str) -> html.Div:
     default_pid = PATIENT_OPTIONS[0].id_number if PATIENT_OPTIONS else None
@@ -337,6 +414,9 @@ def render_patient(lang: str) -> html.Div:
     lm_card = _patient_landmark_card(lang)
     if lm_card is not None:
         content_children.append(lm_card)
+    pheno_card = _patient_phenotype_card(lang)
+    if pheno_card is not None:
+        content_children.append(pheno_card)
     content_children.append(similarity_card)
 
     return html.Div(
@@ -690,6 +770,50 @@ def update_patient_landmark(landmark, key_record, outcome_key, lang):
     if voi is None:
         return cmp_fig, cmp_read, note, empty, ""
     return cmp_fig, cmp_read, note, fig_voi_patient(voi, spec, lang), voi_readout(voi, spec, lang)
+
+
+# ---------- observed-trajectory phenotype callbacks ----------
+@callback(
+    Output("patient-pheno-cutoff", "options"),
+    Output("patient-pheno-cutoff", "value"),
+    Input("patient-episode-radio", "value"),
+    Input("lang-store", "data"),
+)
+def update_patient_phenotype_options(key_record, lang):
+    """Offer each observation-cutoff this episode is eligible for; default to the full window."""
+    if PHENOTYPE_DATA is None or key_record is None:
+        return [], None
+    cuts = phenotype_cutoff_options(int(key_record))
+    opts = [{"label": level_label(SCHEMA, "time_name", tp, lang), "value": tp} for tp in cuts]
+    return opts, (cuts[-1] if cuts else None)
+
+
+@callback(
+    Output("patient-pheno-membership", "figure"),
+    Output("patient-pheno-graph", "figure"),
+    Output("patient-pheno-readout", "children"),
+    Input("patient-pheno-cutoff", "value"),
+    Input("patient-episode-radio", "value"),
+    Input("lang-store", "data"),
+)
+def update_patient_phenotype(cutoff, key_record, lang):
+    empty = go.Figure()
+    if PHENOTYPE_DATA is None or not cutoff or key_record is None:
+        return empty, empty, html.Div(t(SCHEMA, "pheno_ineligible", lang), className="lm-prompt")
+    res = predict_phenotype_membership(int(key_record), cutoff)
+    if res is None:
+        return empty, empty, html.Div(t(SCHEMA, "pheno_ineligible", lang), className="lm-prompt")
+    summaries = PHENOTYPE_DATA["summaries"]
+    measures = PHENOTYPE_DATA["measures"]
+    measure_labels = [t(SCHEMA, _PHENO_MEASURE_LABELS[m], lang) for m in measures]
+    patient_obs = {i: res["observed"].get(m, []) for i, m in enumerate(measures)}
+    membership_fig = fg.fig_phenotype_membership(res["membership"], summaries, SCHEMA, lang)
+    overlay_fig = fg.fig_phenotype_curves(
+        PHENOTYPE_DATA["class_means"], list(PHENOTYPE_DATA["window"]), summaries,
+        measure_labels, SCHEMA, lang,
+        class_support=PHENOTYPE_DATA["class_support"], patient_obs=patient_obs,
+    )
+    return membership_fig, overlay_fig, _phenotype_readout(res, lang)
 
 
 # ---------- PDF report callback ----------

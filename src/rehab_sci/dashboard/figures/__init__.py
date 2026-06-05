@@ -45,6 +45,7 @@ from rehab_sci.dashboard.figures.patient import (
     fig_neighbor_outcomes,
     fig_patient_prediction,
     fig_patient_scim_timeline,
+    fig_phenotype_membership,
 )
 from rehab_sci.dashboard.figures.simulator import (
     fig_sim_trajectory,
@@ -78,6 +79,7 @@ __all__ = [
     "fig_patient_scim_timeline",
     "fig_phenotype_curves",
     "fig_phenotype_demographics",
+    "fig_phenotype_membership",
     "fig_pred_vs_observed",
     "fig_recovery_curves",
     "fig_residual_hist",

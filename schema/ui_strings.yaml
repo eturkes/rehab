@@ -549,6 +549,52 @@ pheno_measure_scim:
 pheno_measure_motor:
   ja: "総運動スコア"
   en: "Total motor score"
+# --- G3 part 2: patient-level phenotype prognosis ---
+pheno_card_heading:
+  ja: "回復表現型メンバーシップ (実測軌道)"
+  en: "Recovery phenotype membership (observed trajectory)"
+pheno_card_intro:
+  ja: "この患者の実測 SCIM・運動スコア軌道がどの回復表現型に当てはまるかを、成長混合モデルの事後確率で示す。観察時点を進めると、軌道が蓄積するにつれてメンバーシップが鋭くなる。"
+  en: "Where this patient's own observed SCIM + motor trajectory places them among the recovery phenotypes, via the growth-mixture posterior. Advance the observation cutoff to watch membership sharpen as the trajectory accrues."
+pheno_cutoff_select:
+  ja: "観察時点 (までの実測を使用)"
+  en: "Observation cutoff (use data through)"
+pheno_select_prompt:
+  ja: "観察時点を選択"
+  en: "Select an observation cutoff"
+pheno_ineligible:
+  ja: "この症例は早期回復期 (0日〜6か月) の実測 SCIM・運動スコアが少なく、表現型を割り当てられない。"
+  en: "This episode has too few observed early-recovery (0 d–6 mo) SCIM / motor points to assign a phenotype."
+pheno_patient_label:
+  ja: "この患者 (実測)"
+  en: "This patient (observed)"
+pheno_membership_title:
+  ja: "表現型メンバーシップ"
+  en: "Phenotype membership"
+pheno_overlay_title:
+  ja: "実測軌道と表現型平均曲線"
+  en: "Observed trajectory vs phenotype mean curves"
+pheno_dominant_label:
+  ja: "最も一致する表現型"
+  en: "Best-matching phenotype"
+pheno_cond_heading:
+  ja: "表現型条件付き予後 (メンバーシップ加重)"
+  en: "Phenotype-conditioned prognosis (membership-weighted)"
+pheno_cond_scim:
+  ja: "退院時SCIM (中央値)"
+  en: "Discharge SCIM (median)"
+pheno_cond_los:
+  ja: "在院日数 (平均, 日)"
+  en: "LOS (mean, days)"
+pheno_cond_ais:
+  ja: "退院時AIS分布"
+  en: "Discharge AIS mix"
+pheno_obs_count:
+  ja: "{cutoff} までの実測 {n} 点を使用"
+  en: "Using {n} observed point(s) through {cutoff}"
+pheno_caption:
+  ja: "メンバーシップは実測軌道のみから計算され、予測モデルや退院時の値には依存しない。条件付き予後は各表現型のコホート要約をメンバーシップで加重した参考値であり、個別の予測区間ではない。"
+  en: "Membership is computed from the observed trajectory alone — independent of any prediction model or discharge values. The conditioned prognosis is a membership-weighted blend of each phenotype's cohort summary (a reference cue, not an individual prediction interval)."
 
 # --- overview filters (F22) ---
 overview_filter_ais:

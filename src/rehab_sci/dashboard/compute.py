@@ -15,10 +15,18 @@ from rehab_sci.dashboard.state import (
     LANDMARK_BUNDLE,
     LONG,
     OUTCOME_BUNDLES,
+    PHENOTYPE_DATA,
     SIM_DEFAULTS,
     TRAJECTORY_BUNDLE,
 )
 from rehab_sci.data.episodes import episode_admission_features
+from rehab_sci.data.phenotypes import (
+    MEASURES,
+    WINDOW,
+    WINDOW_DAYS,
+    build_gmm_data,
+    predict_proba,
+)
 from rehab_sci.models.outcomes import OUTCOMES, OutcomeSpec
 
 
@@ -460,3 +468,105 @@ def episode_landmark_eligibility(key_record: int) -> dict[str, bool]:
     reached = sub.loc[has_obs, "_oi"]
     max_oi = int(reached.max()) if not reached.empty else -1
     return {lm: (max_oi >= oidx[lm]) for lm in landmarks}
+
+
+# ---------- observed-trajectory phenotype prognosis (G3 part 2) ----------
+def _phenotype_episode_obs(key_record: int) -> dict[str, list[tuple[str, float]]]:
+    """This episode's observed ``(timepoint, value)`` pairs within the phenotyping window,
+    per measure, in chronological window order (empty list for an unobserved measure)."""
+    order = {tp: i for i, tp in enumerate(WINDOW)}
+    sub = LONG[(LONG["KeyRecordNumber"] == key_record) & (LONG["TIME_Name"].isin(WINDOW))]
+    out: dict[str, list[tuple[str, float]]] = {}
+    for m in MEASURES:
+        if m not in sub.columns:
+            out[m] = []
+            continue
+        rows = sub[["TIME_Name", m]].dropna(subset=[m])
+        pairs = [(str(tp), float(v)) for tp, v in zip(rows["TIME_Name"], rows[m], strict=True)]
+        out[m] = sorted(pairs, key=lambda pv: order.get(pv[0], 99))
+    return out
+
+
+def phenotype_cutoff_options(key_record: int, min_cells: int = 2) -> list[str]:
+    """Window timepoints (chronological) eligible as observation-cutoffs for phenotype
+    membership: each timepoint at which a *new* observation appears once the episode has
+    accumulated at least ``min_cells`` observed SCIM/motor cells.  Membership changes only
+    when an observation is added, so redundant cutoffs are skipped; the final entry is the
+    full observed window.  Empty when the phenotype model is unavailable or the episode is
+    too sparsely observed to define a trajectory."""
+    if PHENOTYPE_DATA is None:
+        return []
+    per_tp: dict[str, int] = {}
+    for pairs in _phenotype_episode_obs(key_record).values():
+        for tp, _ in pairs:
+            per_tp[tp] = per_tp.get(tp, 0) + 1
+    cutoffs: list[str] = []
+    cum = 0
+    for tp in WINDOW:
+        if tp not in per_tp:
+            continue
+        cum += per_tp[tp]
+        if cum >= min_cells:
+            cutoffs.append(tp)
+    return cutoffs
+
+
+def predict_phenotype_membership(key_record: int, cutoff: str) -> dict | None:
+    """Soft phenotype membership for one episode using only observations on/before ``cutoff``,
+    plus the membership-weighted conditioned-outcome mix.
+
+    Builds the single-individual growth-mixture design from the observed (SCIM, motor) cells up
+    to ``cutoff`` and applies the fitted model's E-step (``predict_proba``).  Because the
+    per-individual responsibilities are independent, the full-window membership reproduces the
+    bundle's stored posterior for an in-cohort episode.  The conditioned-outcome mix is the
+    membership-weighted blend of the per-phenotype cohort summaries (renormalized over the
+    phenotypes that carry each statistic).  Returns ``None`` when the model is unavailable or no
+    cell is observed up to ``cutoff``."""
+    if PHENOTYPE_DATA is None:
+        return None
+    params = PHENOTYPE_DATA["params"]
+    summaries = PHENOTYPE_DATA["summaries"]
+    K = int(PHENOTYPE_DATA["k"])
+    cutoff_day = WINDOW_DAYS[cutoff]
+    win_upto = [tp for tp in WINDOW if WINDOW_DAYS[tp] <= cutoff_day]
+    sub = LONG[(LONG["KeyRecordNumber"] == key_record) & (LONG["TIME_Name"].isin(win_upto))]
+    data = build_gmm_data(sub, [int(key_record)], PHENOTYPE_DATA["degree"])
+    if data.N == 0:
+        return None
+    membership = predict_proba(data, params)[0]  # (K,)
+
+    def _wmean(field: str) -> float | None:
+        num = den = 0.0
+        for k in range(K):
+            v = summaries[k].get(field)
+            if v is not None:
+                num += membership[k] * v
+                den += membership[k]
+        return (num / den) if den > 0 else None
+
+    grades = ["A", "B", "C", "D", "E"]
+    ais_num = dict.fromkeys(grades, 0.0)
+    ais_den = 0.0
+    for k in range(K):
+        dist = summaries[k].get("ais_distribution") or {}
+        if dist:
+            for g in grades:
+                ais_num[g] += membership[k] * dist.get(g, 0.0)
+            ais_den += membership[k]
+    ais_mix = {g: (ais_num[g] / ais_den if ais_den > 0 else 0.0) for g in grades}
+
+    obs_upto = {
+        m: [(tp, v) for tp, v in pairs if WINDOW_DAYS[tp] <= cutoff_day]
+        for m, pairs in _phenotype_episode_obs(key_record).items()
+    }
+    return {
+        "membership": [float(x) for x in membership],
+        "dominant": int(np.argmax(membership)),
+        "exp_discharge_scim": _wmean("median_discharge_scim"),
+        "exp_los": _wmean("mean_los"),
+        "ais_mix": ais_mix,
+        "observed": obs_upto,
+        "cutoff": cutoff,
+        "n_obs": sum(len(v) for v in obs_upto.values()),
+        "k": K,
+    }
