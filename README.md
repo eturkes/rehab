@@ -243,9 +243,14 @@ production prep / conformal / APS helpers (marginal calibration), it records per
 outcome and landmark the point accuracy and the prediction-interval half-width /
 APS set size for both models.  Results land in the tracked
 `models/landmark_metrics.json` (curves) and `models/landmark/bundle.joblib`
-(per-landmark models, git-ignored); the Methods tab plots each outcome's
-value-of-observation curve.  It is a diagnostic + inference layer — no artifact
-the production pipeline writes is modified.  Finding: for SCIM the gain grows
+(paired baseline + landmark heads per outcome × landmark, git-ignored).  Three
+surfaces consume it: the **Methods** tab plots each outcome's
+value-of-observation curve; the **Simulator** offers a what-if card (pick a
+landmark, type hypothetical early-recovery scores, watch the interval tighten);
+and the **Patient** tab makes it concrete — at any landmark the patient is still
+admitted for, their own observed scores sharpen the admission-only prognosis
+live.  It is a diagnostic + inference layer — no artifact the production pipeline
+writes is modified.  Finding: for SCIM the gain grows
 from ΔR² ≈ +0.04 (72 h) to **+0.30 (3 m)** while the interval half-width nearly
 halves; AIS quadratic-κ climbs to ≈0.88; LOS stays hard but still improves.
 
@@ -272,12 +277,19 @@ Tabs:
    conformal half-width is fixed and will not itself widen as input
    grows sparser.  *Fill cohort defaults* / *Clear all* buttons toggle
    between a representative patient and a blank form.
+   **Dynamic prediction (G1):** a landmark card lets you pick an
+   observation time (72 h … 3 m) and type hypothetical early-recovery
+   scores, then watch the admission-only interval sharpen against the
+   landmark prediction — the value-of-observation curve, made live.
 3. **Patient explorer** — pick a real patient by IDNumber and see
    their observed SCIM-III trajectory (total + subscales) against
    cohort 10–90 / 25–75 percentile bands stratified by paralysis ±
    AIS; a longitudinal ISNCSCI / AIS table; the model's predicted
    discharge SCIM with 80 % PI, observed value (if recorded), and
    the local SHAP contributions for this episode.
+   **Dynamic prediction (G1):** for any landmark this episode is still
+   admitted for, the patient's own observed early-recovery scores
+   refine the admission-only prognosis, shown side by side.
 4. **Insight engine** — global SHAP importance; per-feature subgroup
    box plot with effect-size annotation; SHAP dependence plot.
 5. **Methods** — model card with population, target, training protocol,

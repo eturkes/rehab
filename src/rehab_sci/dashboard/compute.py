@@ -12,6 +12,8 @@ from rehab_sci.constants import AIS_ORD_TO_LETTER
 from rehab_sci.dashboard.state import (
     EP,
     FEATURE_SPEC,
+    LANDMARK_BUNDLE,
+    LONG,
     OUTCOME_BUNDLES,
     SIM_DEFAULTS,
     TRAJECTORY_BUNDLE,
@@ -261,3 +263,130 @@ def get_observed_for_outcome(key_record: int, spec: OutcomeSpec) -> float | None
         return None
     v = row.iloc[0][spec.target_col]
     return None if pd.isna(v) else float(v)
+
+
+# ---------- landmark (dynamic) prediction ----------
+# Sharpen a discharge prognosis once early-recovery scores are observed by landmark L.
+# Compares the admission-only baseline head against the landmark head (admission + observed
+# block) on the marginal-conformal interval — the same paired contrast as the Methods curve.
+
+def _landmark_input(X_base: pd.DataFrame, observed: dict, feature_cols: list[str]) -> pd.DataFrame:
+    """Build a one-row model input over ``feature_cols`` from base features + observed block.
+
+    A column named ``<lm_prefix><measure>`` is filled from ``observed[measure]`` (NaN when
+    absent); every other column is taken from ``X_base``.  Re-casts categoricals so LightGBM
+    realigns category levels by value (matching the production inference path).
+    """
+    b = LANDMARK_BUNDLE
+    prefix = b["lm_prefix"]
+    cat_cols = set(b["categorical_cols"])
+    base_row = X_base.iloc[0].to_dict() if len(X_base) else {}
+    row: dict[str, object] = {}
+    for c in feature_cols:
+        row[c] = observed.get(c[len(prefix):]) if c.startswith(prefix) else base_row.get(c)
+    X = pd.DataFrame([{c: row.get(c) for c in feature_cols}])
+    for c in feature_cols:
+        if c in cat_cols:
+            X[c] = X[c].astype("category")
+        else:
+            X[c] = pd.to_numeric(X[c], errors="coerce")
+    return X
+
+
+def _predict_landmark_head(
+    head: dict, X: pd.DataFrame, task: str,
+    transform: str | None, cmin: float | None, cmax: float | None,
+) -> dict:
+    if task == "regression":
+        pred_t = float(head["median"].predict(X)[0])
+        q = float(head["conformal_q"])
+        return {
+            "task": "regression",
+            "pred": clip_scalar(inv_transform_scalar(pred_t, transform), cmin, cmax),
+            "lo": clip_scalar(inv_transform_scalar(pred_t - q, transform), cmin, cmax),
+            "hi": clip_scalar(inv_transform_scalar(pred_t + q, transform), cmin, cmax),
+        }
+    class_labels = list(head["class_labels"])
+    proba = np.asarray(head["clf"].predict_proba(X)[0], dtype=float)
+    pred_idx = int(np.argmax(proba))
+    aps_idx = aps_prediction_set(proba, float(head["aps_q_hat"]))
+    return {
+        "task": "multiclass",
+        "pred_class": class_labels[pred_idx],
+        "pred_prob": float(proba[pred_idx]),
+        "proba": proba.tolist(),
+        "class_labels": class_labels,
+        "aps_set": [class_labels[i] for i in aps_idx],
+    }
+
+
+def predict_landmark(
+    outcome_key: str, landmark: str, X_base: pd.DataFrame, observed: dict,
+) -> dict | None:
+    """Paired admission-only baseline vs landmark prediction for one outcome at landmark ``L``.
+
+    Returns ``{"task", "baseline": {...}, "landmark": {...}}`` or ``None`` when the bundle is
+    absent or this (outcome, landmark) cell was not modelled (too few eligible episodes).
+    """
+    b = LANDMARK_BUNDLE
+    if b is None:
+        return None
+    oc = b["outcomes"].get(outcome_key)
+    if oc is None:
+        return None
+    cell = oc["by_landmark"].get(landmark)
+    if cell is None:
+        return None
+    out = {"task": oc["task"]}
+    for which in ("baseline", "landmark"):
+        head = cell[which]
+        X = _landmark_input(X_base, observed, head["feature_cols"])
+        out[which] = _predict_landmark_head(
+            head, X, oc["task"], oc["transform"], oc.get("clip_min"), oc.get("clip_max"),
+        )
+    return out
+
+
+def _episode_timepoint_oidx(key_record: int) -> tuple[pd.DataFrame, dict[str, int]]:
+    """Episode rows restricted to the landmark measures, plus the timepoint order-index map."""
+    b = LANDMARK_BUNDLE
+    oidx = {tp: i for i, tp in enumerate(b["timepoint_order"])}
+    measures = [m for m in b["landmark_cols"] if m in LONG.columns]
+    sub = LONG[LONG["KeyRecordNumber"] == key_record][["TIME_Name", *measures]].copy()
+    sub["_oi"] = sub["TIME_Name"].map(oidx)
+    return sub.dropna(subset=["_oi"]), oidx
+
+
+def landmark_observed_for_episode(key_record: int, landmark: str) -> dict[str, float]:
+    """Real LOCF observed block for one episode: last non-null value of each landmark measure
+    at an intermediate timepoint on or before ``landmark`` (mirrors training-time construction)."""
+    if LANDMARK_BUNDLE is None:
+        return {}
+    sub, oidx = _episode_timepoint_oidx(key_record)
+    cutoff = oidx.get(landmark)
+    if cutoff is None or sub.empty:
+        return {}
+    sub = sub[sub["_oi"] <= cutoff].sort_values("_oi")
+    observed: dict[str, float] = {}
+    for col in LANDMARK_BUNDLE["landmark_cols"]:
+        if col in sub.columns:
+            nn = sub[col].dropna()
+            if not nn.empty:
+                observed[col] = float(nn.iloc[-1])
+    return observed
+
+
+def episode_landmark_eligibility(key_record: int) -> dict[str, bool]:
+    """Per-landmark still-admitted eligibility: True when the episode has a tracked observation
+    at an intermediate timepoint at or after L (its latest intermediate obs reaches L)."""
+    if LANDMARK_BUNDLE is None:
+        return {}
+    landmarks = LANDMARK_BUNDLE["landmarks"]
+    sub, oidx = _episode_timepoint_oidx(key_record)
+    measures = [m for m in LANDMARK_BUNDLE["landmark_cols"] if m in sub.columns]
+    if sub.empty or not measures:
+        return {lm: False for lm in landmarks}
+    has_obs = sub[measures].notna().any(axis=1)
+    reached = sub.loc[has_obs, "_oi"]
+    max_oi = int(reached.max()) if not reached.empty else -1
+    return {lm: (max_oi >= oidx[lm]) for lm in landmarks}

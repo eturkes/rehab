@@ -34,12 +34,13 @@ superseded, duplicated elsewhere, or has gone stale.
   CLAUDE.md, wrap to a clean boundary at ≥80 % for a manual `/compact`.
 * This file — agent-facing scratchpad.  Read before planning; update after each
   session; prune duplication per the inclusion rule above.
-* **Default-work pool: §8 backlog.**  F1–F25 shipped + G1 landmark prediction
-  (training + Methods curve) shipped s29 (see §7).  Open: G1-pt2 interactive
-  simulator landmark selector · G2 value-of-information · G3 observed-trajectory
-  phenotyping · G4 AIS conversion · F26 test harness · F27 dep refresh.  The user
-  steers toward *insightful* (clinical/scientific) features over infra/maintenance
-  — propose those (G-series) first unless redirected.
+* **Default-work pool: §8 backlog.**  F1–F25 shipped + G1 landmark (dynamic)
+  prediction fully shipped (training + Methods curve s29; interactive simulator +
+  patient surfaces s30; see §7).  Open: G2 value-of-information · G3
+  observed-trajectory phenotyping · G4 AIS conversion · F26 test harness · F27
+  dep refresh.  The user steers toward *insightful* (clinical/scientific)
+  features over infra/maintenance — propose those (G-series) first unless
+  redirected.
 
 ## 0b. Lessons & mistakes (append; prune when superseded)
 
@@ -340,7 +341,16 @@ superseded, duplicated elsewhere, or has gone stale.
   whose eligible n is too small.  Findings: SCIM-total ΔR² climbs ≈+0.04 (72h)
   → +0.30 (3m) with PI half-width roughly halving (≈23→13 pts); AIS κ rises
   toward ≈0.88; LOS stays hard but improves (R²≈0.15→0.37).  Bundle shape and
-  metrics keys are documented inline at the top of `landmark.py`.
+  metrics keys are documented inline at the top of `landmark.py`.  For the
+  interactive surfaces the bundle persists **both heads per (outcome, L) cell** —
+  the admission-only baseline and the landmark head — under
+  `outcomes[key]["by_landmark"][L] = {"baseline", "landmark"}` (regression head
+  `{median, conformal_q, feature_cols}`, multiclass `{clf, aps_q_hat,
+  class_codes, class_labels, feature_cols}`; baseline `feature_cols`=30, landmark
+  =40), plus `timepoint_order` so the dashboard reconstructs real-patient LOCF
+  without importing the training module.  Persisting both heads keeps the live
+  baseline-vs-landmark comparison method-matched (same cohort/split/conformal);
+  p10/p90 quantile heads are **not** persisted (the live PI is conformal-only).
 
 ## 4. Dashboard conventions
 
@@ -349,14 +359,19 @@ superseded, duplicated elsewhere, or has gone stale.
   - `state.py` holds all startup globals, loaded once; depends only on theme +
     data/model layers (no other dashboard module imports it transitively).
   - `compute.py` is pure (model inference, conformal-q, APS, SHAP, row-prep) —
-    **no Dash/Plotly**.
+    **no Dash/Plotly**.  Landmark inference lives here too: `predict_landmark`
+    (paired baseline+landmark heads from `LANDMARK_BUNDLE`),
+    `landmark_observed_for_episode` (real LOCF block on the still-admitted risk
+    set), `episode_landmark_eligibility` (per-L still-admitted gate).
   - `reliability.py` is pure (no Dash) — `assess_input(X, bundle, feature_spec)`
     returns importance-weighted completeness + OOD (range violations /
     atypicality from `feature_spec['ranges']` q05–q95) for the simulator's
     partial-input badge; gain importances cached per outcome key.
   - `layout.py` owns the shared *prediction* figures (`fig_shap_local`,
-    `fig_prediction_interval`, `fig_class_probabilities`) — these are **not** in
-    the figures package.
+    `fig_prediction_interval`, `fig_class_probabilities`) plus the landmark
+    baseline-vs-observation comparison (`fig_landmark_compare` + the
+    `landmark_readout` text block, shared by the simulator and patient dynamic
+    cards) — these are **not** in the figures package.
   - `figures/` is a **package** split by tab (`overview`, `insights`, `patient`,
     `methods`, `simulator`) plus `_common` (`_hex_to_rgba`).  Every public name +
     `ARCHETYPE_NAMES_*` / `PALETTE_ARCHETYPE` is re-exported via
@@ -396,9 +411,19 @@ superseded, duplicated elsewhere, or has gone stale.
   produce NaN IDs.  `dropna(subset=[outcome,"IDNumber"])` then cast
   `float64 → int64`.
 * **Stale dashboard process** — `kill <PID>` stops only the `uv run` wrapper;
-  the Python child keeps serving old code.  Use
-  `pkill -f 'rehab_sci.dashboard.app'`.  Shell may report exit 144 (signal 16)
-  spuriously — verify with `pgrep -af`.
+  the Python child keeps serving old code.  Root cause of the exit-144 (signal
+  16) report: `pkill -f 'rehab_sci.dashboard.app'` **self-matches the calling
+  shell** (the pattern string is in its own argv), so the shell is signalled
+  too.  Two consequences you must design around: (1) it still kills the
+  dashboard, so it is fine as the *last* statement of a cleanup-only command —
+  but (2) **never put it before anything you need to run after** (e.g. a launch),
+  or the shell dies at signal 16 before reaching it (empty logs, nothing
+  listening — looks like a boot failure but is not).  Prefer: launch with the
+  Bash tool's background mode (no pkill), poll readiness in a *separate* command
+  that contains no matching literal (curl only), and stop by port —
+  `fuser -k 8050/tcp` — which never self-matches.  Verified boot = `curl -s -o
+  /dev/null -w '%{http_code}' http://127.0.0.1:8050/` → 200 plus
+  `/_dash-dependencies` for the callback graph.
 * **pandas fragmentation warning** when adding many columns serially — batch via
   `pd.concat([df, new_cols_df], axis=1)`.  Loader already does this.
 * **`@dataclass(frozen=True)` + dict fields** breaks under `@lru_cache` on
@@ -455,6 +480,19 @@ bgcmd 'exit()'; rm -rf "$BGCMDDIR"               # stop + clean
 
 One line per session; full detail is in Git history (`git log`, diffs).
 
+* **s30** — G1 landmark (dynamic) prediction, part 2 (interactive surfaces; user
+  chose "both surfaces").  Re-persisted `landmark/bundle.joblib` with **paired
+  baseline+landmark heads** per (outcome, L) cell (dropped unused p10/p90; added
+  `timepoint_order`); `landmark_metrics.json` byte-identical, production
+  artifacts untouched.  Pure inference helpers in `compute.py`
+  (`predict_landmark`, `landmark_observed_for_episode`,
+  `episode_landmark_eligibility`); shared `fig_landmark_compare` +
+  `landmark_readout` in `layout.py`.  **Simulator** gains a hypothetical card
+  (landmark dropdown + 10 observed-score inputs); **patient** gains a real-data
+  card (eligibility-gated dropdown → the patient's own LOCF observations sharpen
+  the admission-only prognosis).  Bilingual (reuses `lm_*` keys); `.lm-*` CSS.
+  Lint clean; dashboard boots 200; both surfaces smoke-tested (SCIM PI half-width
+  ±26→±14 at 3m for ep 1).
 * **s29** — G1 landmark (dynamic) prediction, part 1 (training + Methods curve).
   New `models/landmark.py`: per landmark L∈{72h,2w,4w,6w,2m,3m}, refits each
   discharge outcome on admission features + a LOCF block of 10 early-recovery
@@ -468,7 +506,7 @@ One line per session; full detail is in Git history (`git log`, diffs).
   +0.04→+0.30 (72h→3m), PI half-width ~halves; AIS κ→≈0.88; LOS improves
   (R²≈0.15→0.37).  Also corrected the long-standing "32 admission features"
   doc-drift to the actual 30 (see §0b).  Lint clean; dashboard boots 200.
-  Deferred: G1-pt2 interactive simulator landmark selector (bundle ready).
+  G1-pt2 (interactive simulator + patient surfaces) shipped in s30.
 * **s28** — F25 partial-input prediction.  Simulator opens **blank**; numeric
   sliders → clearable `dcc.Input(number)`; blanks pass through as NaN
   (`collect_sim_inputs` no longer imputes `SIM_DEFAULTS`).  New pure
@@ -572,25 +610,17 @@ Shipped ledger (terse, by feature number):
   clinical-consistency report · F24 temporal (out-of-time) validation ·
   F25 partial-input prediction (clearable inputs + reliability/OOD badge).
 * (F11/F12/F15/F17/F19/F21 were never opened — numbering gaps only.)
-* **G1 landmark (dynamic) prediction — part 1** (training + Methods curve,
-  s29): `models/landmark.py` + value-of-observation curve.  See §3 for the
-  contract and §7 for the session.  Part 2 (interactive simulator selector)
-  remains open below.
+* **G1 landmark (dynamic) prediction** (s29 training + Methods curve; s30
+  interactive simulator + patient surfaces): `models/landmark.py` +
+  value-of-observation curve + paired-head bundle driving the live
+  baseline-vs-observation cards.  See §3 for the contract and §7 for the
+  sessions.  Fully shipped.
 
 **F23 (shipped s26): data-quality / clinical-consistency report** — see §7 and
 `data/quality.py`; durable data facts it surfaced live in §0b/§1, and the
 regenerated `models/dataquality_summary.json` holds the per-rule scorecard.
 
 **Ready candidates (pick the next unless redirected; lead with G-series):**
-* **G1-pt2 interactive simulator landmark selector** — *what:* simulator gains a
-  landmark dropdown (72h…3m) + the 10 `LANDMARK_COLS` observed-score inputs;
-  builds an `L_`-prefixed row from `LANDMARK_BUNDLE`, predicts with the landmark
-  model + marginal conformal q, and shows the updated/tightened PI beside the
-  admission-only baseline (the curve, made live per-patient).  *why:* turns the
-  static value-of-observation finding into a bedside "what does observing X by
-  week W buy me".  *effort:* M.  *files:* `dashboard/compute.py` (pure landmark
-  inference helper), `tabs/simulator.py`, `ui_strings.yaml` (`state.py` already
-  loads `LANDMARK_BUNDLE`).  *data dep:* the persisted bundle — no retrain.
 * **G2 value-of-information** — *what:* per patient, rank which *next*
   observation (which measure × which next landmark) most tightens the PI /
   reduces expected loss.  *why:* prescribes what to measure next, not just what

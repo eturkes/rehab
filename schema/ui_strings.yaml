@@ -335,6 +335,78 @@ sim_class_probabilities:
 sim_predicted_class_label:
   ja: "予測クラス"
   en: "Predicted class"
+lm_card_heading:
+  ja: "動的予測 (観測の価値)"
+  en: "Dynamic prediction (value of observation)"
+lm_card_intro:
+  ja: "初期回復スコアを観測すると、退院時予測がどれだけ精緻化するかを示す。"
+  en: "See how the discharge prediction sharpens once early-recovery scores are observed."
+lm_landmark_select:
+  ja: "ランドマーク時点"
+  en: "Landmark (observation time)"
+lm_observed_inputs_heading:
+  ja: "観測済みスコア (任意・空欄可)"
+  en: "Observed scores (optional — leave blank if unknown)"
+lm_admission_only:
+  ja: "入院時のみ"
+  en: "Admission only"
+lm_with_obs:
+  ja: "{L} までの観測"
+  en: "Observed by {L}"
+lm_pi_halfwidth:
+  ja: "PI半値幅"
+  en: "PI half-width"
+lm_observed_measures:
+  ja: "観測された指標"
+  en: "Observed measures"
+lm_aps_set:
+  ja: "APS 予測集合"
+  en: "APS prediction set"
+lm_none:
+  ja: "なし"
+  en: "none"
+lm_no_obs_note:
+  ja: "{L} までに観測スコアなし — 入院時のみと同等。"
+  en: "No scores observed by {L} — equivalent to admission-only."
+lm_not_modeled:
+  ja: "このランドマークはこのアウトカムでは学習されていません (対象症例数が下限未満)。"
+  en: "Not modelled for this outcome at this landmark (eligible cohort below the minimum)."
+lm_select_prompt:
+  ja: "ランドマーク時点を選択してください。"
+  en: "Select a landmark time to begin."
+lm_caption:
+  ja: "区間は周辺コンフォーマル (本番の Mondrian/分位点ユニオンとは別)。基準とランドマークは同一リスク集合・同一分割で学習し、観測の正味価値を分離する。"
+  en: "Intervals are marginal-conformal (distinct from the production Mondrian / quantile-union PI). Baseline and landmark are fit on the same risk set and split, isolating the net value of observation."
+lm_measure_scim_total:
+  ja: "SCIM 合計"
+  en: "SCIM total"
+lm_measure_scim_self_care:
+  ja: "SCIM セルフケア"
+  en: "SCIM self-care"
+lm_measure_scim_respiration_sphincter:
+  ja: "SCIM 呼吸・括約筋"
+  en: "SCIM respiration / sphincter"
+lm_measure_scim_mobility:
+  ja: "SCIM 移動"
+  en: "SCIM mobility"
+lm_measure_ais_ord:
+  ja: "AIS グレード (1=A … 5=E)"
+  en: "AIS grade (1=A … 5=E)"
+lm_measure_uems:
+  ja: "上肢運動スコア (UEMS)"
+  en: "Upper-extremity motor (UEMS)"
+lm_measure_lems:
+  ja: "下肢運動スコア (LEMS)"
+  en: "Lower-extremity motor (LEMS)"
+lm_measure_totalmotor:
+  ja: "総運動スコア"
+  en: "Total motor"
+lm_measure_lighttouchtotal:
+  ja: "触覚合計 (LT)"
+  en: "Light-touch total"
+lm_measure_pinpricktotal:
+  ja: "痛覚合計 (PP)"
+  en: "Pin-prick total"
 methods_per_outcome_heading:
   ja: "アウトカム別性能"
   en: "Per-outcome performance"

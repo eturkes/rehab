@@ -15,9 +15,12 @@ from rehab_sci.dashboard.compute import (
     clip_scalar,
     compute_ref_predictions,
     episode_has_admission,
+    episode_landmark_eligibility,
     episode_row_for_model,
     get_observed_for_outcome,
     inv_transform_scalar,
+    landmark_observed_for_episode,
+    predict_landmark,
     predict_trajectory,
     resolve_aps_q,
     resolve_conformal_q,
@@ -33,7 +36,9 @@ from rehab_sci.dashboard.i18n import level_label, t
 from rehab_sci.dashboard.layout import (
     chart_card,
     fig_class_probabilities,
+    fig_landmark_compare,
     fig_shap_local,
+    landmark_readout,
 )
 from rehab_sci.dashboard.report import generate_patient_report
 from rehab_sci.dashboard.state import (
@@ -41,6 +46,7 @@ from rehab_sci.dashboard.state import (
     DEFAULT_OUTCOME,
     EP,
     FEATURE_SPEC,
+    LANDMARK_BUNDLE,
     LONG,
     OUTCOME_BUNDLES,
     PATIENT_OPTIONS,
@@ -184,6 +190,49 @@ def _isncsci_table(long_df: pd.DataFrame, key_record: int, lang: str) -> html.Ta
     return html.Table(rows, className="patient-isncsci-table")
 
 
+def _landmark_obs_note(observed: dict, landmark: str, lang: str) -> html.Div:
+    """One-line summary of the real early-recovery scores feeding the landmark prediction."""
+    if not observed:
+        return html.Div(
+            t(SCHEMA, "lm_no_obs_note", lang).format(L=landmark),
+            className="lm-obs-empty",
+        )
+    sep = "、" if lang == "ja" else ", "
+    parts = [f"{t(SCHEMA, f'lm_measure_{m.lower()}', lang)} {v:.0f}" for m, v in observed.items()]
+    return html.Div(
+        f"{t(SCHEMA, 'lm_observed_measures', lang)}: {sep.join(parts)}",
+        className="lm-obs-list",
+    )
+
+
+def _patient_landmark_card(lang: str) -> html.Div | None:
+    """Real-data dynamic-prediction card: at a chosen landmark the patient's own observed scores
+    sharpen the admission-only prognosis.  Omitted entirely when the landmark bundle is absent."""
+    if LANDMARK_BUNDLE is None:
+        return None
+    return chart_card(
+        t(SCHEMA, "lm_card_heading", lang),
+        html.Div([
+            html.Div(t(SCHEMA, "lm_card_intro", lang), className="lm-card-intro"),
+            html.Div(
+                className="lm-landmark-select",
+                children=[
+                    html.Label(t(SCHEMA, "lm_landmark_select", lang)),
+                    dcc.Dropdown(
+                        id="patient-lm-landmark", options=[], value=None,
+                        placeholder=t(SCHEMA, "lm_select_prompt", lang),
+                        clearable=True, searchable=False,
+                    ),
+                ],
+            ),
+            html.Div(id="patient-lm-note", className="lm-obs-note"),
+            dcc.Graph(id="patient-lm-graph", config={"displayModeBar": False}),
+            html.Div(id="patient-lm-readout"),
+            html.Div(t(SCHEMA, "lm_caption", lang), className="sim-caveat"),
+        ]),
+    )
+
+
 # ---------- layout ----------
 def render_patient(lang: str) -> html.Div:
     default_pid = PATIENT_OPTIONS[0].id_number if PATIENT_OPTIONS else None
@@ -273,15 +322,20 @@ def render_patient(lang: str) -> html.Div:
         ]),
     )
 
+    content_children = [
+        timeline_card,
+        html.Div(className="chart-row", children=[isncsci_card, prediction_card]),
+    ]
+    lm_card = _patient_landmark_card(lang)
+    if lm_card is not None:
+        content_children.append(lm_card)
+    content_children.append(similarity_card)
+
     return html.Div(
         className="patient-grid",
         children=[
             picker_card,
-            html.Div(className="patient-content", children=[
-                timeline_card,
-                html.Div(className="chart-row", children=[isncsci_card, prediction_card]),
-                similarity_card,
-            ]),
+            html.Div(className="patient-content", children=content_children),
         ],
     )
 
@@ -576,6 +630,46 @@ def reset_episode_on_patient_change(id_number, current):
 )
 def update_patient_tab(key_record, strata, outcome_key, lang):
     return _compute_patient_tab(key_record, strata, outcome_key, lang)
+
+
+# ---------- landmark (dynamic) prediction callbacks ----------
+@callback(
+    Output("patient-lm-landmark", "options"),
+    Output("patient-lm-landmark", "value"),
+    Input("patient-episode-radio", "value"),
+)
+def update_patient_landmark_options(key_record):
+    """Offer only the landmarks this episode is still-admitted-eligible for; default to the latest."""
+    if LANDMARK_BUNDLE is None or key_record is None:
+        return [], None
+    elig = episode_landmark_eligibility(int(key_record))
+    opts = [{"label": lm, "value": lm} for lm in LANDMARK_BUNDLE["landmarks"] if elig.get(lm)]
+    return opts, (opts[-1]["value"] if opts else None)
+
+
+@callback(
+    Output("patient-lm-graph", "figure"),
+    Output("patient-lm-readout", "children"),
+    Output("patient-lm-note", "children"),
+    Input("patient-lm-landmark", "value"),
+    Input("patient-episode-radio", "value"),
+    Input("patient-outcome", "value"),
+    Input("lang-store", "data"),
+)
+def update_patient_landmark(landmark, key_record, outcome_key, lang):
+    if not landmark or key_record is None:
+        return go.Figure(), html.Div(t(SCHEMA, "lm_select_prompt", lang), className="lm-prompt"), ""
+    key_record = int(key_record)
+    if not episode_has_admission(key_record):
+        return go.Figure(), html.Div(t(SCHEMA, "lm_not_modeled", lang), className="lm-prompt"), ""
+    x_base = episode_row_for_model(key_record)
+    observed = landmark_observed_for_episode(key_record, landmark)
+    result = predict_landmark(outcome_key or DEFAULT_OUTCOME, landmark, x_base, observed)
+    note = _landmark_obs_note(observed, landmark, lang)
+    if result is None:
+        return go.Figure(), html.Div(t(SCHEMA, "lm_not_modeled", lang), className="lm-prompt"), note
+    spec = (OUTCOME_BUNDLES.get(outcome_key) or SCIM_TOTAL_BUNDLE)["spec"]
+    return fig_landmark_compare(result, spec, lang, landmark), landmark_readout(result, spec, lang), note
 
 
 # ---------- PDF report callback ----------

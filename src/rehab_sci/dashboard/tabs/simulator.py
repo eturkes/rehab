@@ -18,6 +18,7 @@ from rehab_sci.dashboard.compute import (
     compute_ref_predictions,
     episode_has_admission,
     inv_transform_scalar,
+    predict_landmark,
     predict_trajectory,
     resolve_aps_q,
     resolve_conformal_q,
@@ -28,8 +29,10 @@ from rehab_sci.dashboard.i18n import col_label, t
 from rehab_sci.dashboard.layout import (
     dropdown_for,
     fig_class_probabilities,
+    fig_landmark_compare,
     fig_prediction_interval,
     fig_shap_local,
+    landmark_readout,
     number_input_for,
 )
 from rehab_sci.dashboard.reliability import assess_input
@@ -37,6 +40,7 @@ from rehab_sci.dashboard.state import (
     DEFAULT_OUTCOME,
     EP,
     FEATURE_SPEC,
+    LANDMARK_BUNDLE,
     OUTCOME_BUNDLES,
     SCHEMA,
     SCIM_TOTAL_BUNDLE,
@@ -146,7 +150,61 @@ def render_simulator(lang: str, ref_data: dict | None = None) -> html.Div:
         ],
     )
 
-    return html.Div([html.Div([input_panel, result_panel], className="sim-grid")])
+    children: list = [html.Div([input_panel, result_panel], className="sim-grid")]
+    lm_card = _landmark_card(lang)
+    if lm_card is not None:
+        children.append(lm_card)
+    return html.Div(children)
+
+
+# ---------- landmark (dynamic) prediction card ----------
+def _lm_obs_input(measure: str, lang: str) -> html.Div:
+    return html.Div(
+        className="lm-obs-field",
+        children=[
+            html.Label(t(SCHEMA, f"lm_measure_{measure.lower()}", lang), className="lm-obs-label"),
+            dcc.Input(
+                id={"type": "lmobs", "col": measure}, type="number", debounce=True,
+                className="lm-obs-input", placeholder="—",
+            ),
+        ],
+    )
+
+
+def _landmark_card(lang: str) -> html.Div | None:
+    """Hypothetical dynamic-prediction card: pick a landmark, enter observed scores, see the
+    admission-only baseline sharpen.  Omitted entirely when the landmark bundle is absent."""
+    if LANDMARK_BUNDLE is None:
+        return None
+    landmarks = LANDMARK_BUNDLE["landmarks"]
+    measures = LANDMARK_BUNDLE["landmark_cols"]
+    return html.Div(
+        className="lm-card",
+        children=[
+            html.H2(t(SCHEMA, "lm_card_heading", lang), className="lm-card-heading"),
+            html.Div(t(SCHEMA, "lm_card_intro", lang), className="lm-card-intro"),
+            html.Div(
+                className="lm-landmark-select",
+                children=[
+                    html.Label(t(SCHEMA, "lm_landmark_select", lang)),
+                    dcc.Dropdown(
+                        id="sim-lm-landmark",
+                        options=[{"label": lm, "value": lm} for lm in landmarks],
+                        value=None, placeholder=t(SCHEMA, "lm_select_prompt", lang),
+                        clearable=True, searchable=False,
+                    ),
+                ],
+            ),
+            html.Div(t(SCHEMA, "lm_observed_inputs_heading", lang), className="sim-section-title"),
+            html.Div(
+                className="lm-obs-grid",
+                children=[_lm_obs_input(m, lang) for m in measures],
+            ),
+            dcc.Graph(id="sim-lm-graph", config={"displayModeBar": False}),
+            html.Div(id="sim-lm-readout"),
+            html.Div(t(SCHEMA, "lm_caption", lang), className="sim-caveat"),
+        ],
+    )
 
 
 # ---------- simulate helpers ----------
@@ -460,3 +518,37 @@ def fill_or_clear(_fill, _clear, num_ids, cat_ids):
             [SIM_DEFAULTS.get(i["col"]) for i in cat_ids],
         )
     return [None] * len(num_ids), [None] * len(cat_ids)
+
+
+# ---------- landmark (dynamic) prediction callback ----------
+@callback(
+    Output("sim-lm-graph", "figure"),
+    Output("sim-lm-readout", "children"),
+    Input("sim-lm-landmark", "value"),
+    Input({"type": "lmobs", "col": dash.ALL}, "value"),
+    Input({"type": "num", "col": dash.ALL}, "value"),
+    Input({"type": "cat", "col": dash.ALL}, "value"),
+    Input("sim-outcome", "value"),
+    Input("lang-store", "data"),
+    State({"type": "lmobs", "col": dash.ALL}, "id"),
+    State({"type": "num", "col": dash.ALL}, "id"),
+    State({"type": "cat", "col": dash.ALL}, "id"),
+)
+def simulate_landmark(landmark, obs_vals, num_vals, cat_vals, outcome_key, lang,
+                      obs_ids, num_ids, cat_ids):
+    if not landmark or not num_ids:
+        return go.Figure(), html.Div(t(SCHEMA, "lm_select_prompt", lang), className="lm-prompt")
+    x_base = collect_sim_inputs(num_vals, num_ids, cat_vals, cat_ids)
+    observed = {
+        ident["col"]: v
+        for ident, v in zip(obs_ids, obs_vals, strict=False)
+        if v is not None and v != ""
+    }
+    result = predict_landmark(outcome_key or DEFAULT_OUTCOME, landmark, x_base, observed)
+    if result is None:
+        return go.Figure(), html.Div(t(SCHEMA, "lm_not_modeled", lang), className="lm-prompt")
+    spec = (OUTCOME_BUNDLES.get(outcome_key) or SCIM_TOTAL_BUNDLE)["spec"]
+    return (
+        fig_landmark_compare(result, spec, lang, landmark),
+        landmark_readout(result, spec, lang),
+    )

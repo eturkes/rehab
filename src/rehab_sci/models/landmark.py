@@ -58,7 +58,6 @@ from rehab_sci.models.train import (
     _inverse_transform,
     _params_lgbm_clf,
     _params_lgbm_reg,
-    _params_quantile,
 )
 
 ROOT = Path(__file__).resolve().parents[3]
@@ -186,8 +185,9 @@ def _eval_regression(
 ) -> tuple[dict, dict | None]:
     """Fit a regression head on the train fold, conformalise on the calibration fold, score on test.
 
-    Returns (metrics, models).  ``models`` (median/p10/p90 refit on the full cohort + marginal
-    conformal q) is built only when ``persist`` is set — the baseline needs metrics only.
+    Returns (metrics, models).  ``models`` (median refit on the full cohort + marginal conformal
+    q) is built only when ``persist`` is set.  Both the admission-only baseline and the landmark
+    head are persisted so the dashboard can show their paired (value-of-observation) comparison.
     """
     med = _fit_reg(_params_lgbm_reg(), X.iloc[tr], y_t[tr], X.iloc[cal], y_t[cal], cat_cols)
     q = _conformal_q(np.abs(y_t[cal] - med.predict(X.iloc[cal])), ALPHA)
@@ -207,12 +207,11 @@ def _eval_regression(
     }
     models = None
     if persist:
-        p10 = _fit_reg(_params_quantile(0.1), X.iloc[tr], y_t[tr], X.iloc[cal], y_t[cal], cat_cols)
-        p90 = _fit_reg(_params_quantile(0.9), X.iloc[tr], y_t[tr], X.iloc[cal], y_t[cal], cat_cols)
+        # Landmark inference uses the marginal-conformal interval directly (no quantile-head
+        # union), so only the median head + its conformal q are persisted — the p10/p90 heads
+        # the production simulator needs are intentionally omitted here.
         models = {
             "median": _refit_all(_params_lgbm_reg(), X, y_t, cat_cols, med.best_iteration_),
-            "p10": _refit_all(_params_quantile(0.1), X, y_t, cat_cols, p10.best_iteration_),
-            "p90": _refit_all(_params_quantile(0.9), X, y_t, cat_cols, p90.best_iteration_),
             "conformal_q": float(q),
             "feature_cols": list(X.columns),
         }
@@ -298,8 +297,8 @@ def _run_outcome(spec: OutcomeSpec, af: AnalysisFrame, lm_blocks: dict[str, pd.D
 
         if spec.task == "regression":
             y_t = _apply_transform(y_raw, spec.transform)
-            base_m, _ = _eval_regression(X_base, y_t, y_raw, cat_cols, tr, cal, te,
-                                         spec.transform, spec.clip_min, spec.clip_max, persist=False)
+            base_m, base_models = _eval_regression(X_base, y_t, y_raw, cat_cols, tr, cal, te,
+                                                   spec.transform, spec.clip_min, spec.clip_max, persist=True)
             lm_m, lm_models = _eval_regression(X_lm, y_t, y_raw, cat_cols, tr, cal, te,
                                                spec.transform, spec.clip_min, spec.clip_max, persist=True)
             print(f"   [{spec.key}/{lm}]  n={n} test={len(te)}  "
@@ -308,10 +307,11 @@ def _run_outcome(spec: OutcomeSpec, af: AnalysisFrame, lm_blocks: dict[str, pd.D
                   f"cov {lm_m['coverage_80']:.0%}")
         else:
             y_codes = np.array([code_to_idx[int(v)] for v in y_raw.astype(int)])
-            base_m, _ = _eval_multiclass(X_base, y_codes, groups, cat_cols, spec.class_codes,
-                                         tr, cal, te, persist=False)
+            base_m, base_models = _eval_multiclass(X_base, y_codes, groups, cat_cols, spec.class_codes,
+                                                   tr, cal, te, persist=True)
             lm_m, lm_models = _eval_multiclass(X_lm, y_codes, groups, cat_cols, spec.class_codes,
                                                tr, cal, te, persist=True)
+            base_models["class_labels"] = list(spec.class_labels)
             lm_models["class_labels"] = list(spec.class_labels)
             print(f"   [{spec.key}/{lm}]  n={n} test={len(te)}  "
                   f"κ {base_m['kappa_quadratic']:.3f}→{lm_m['kappa_quadratic']:.3f}  "
@@ -325,7 +325,8 @@ def _run_outcome(spec: OutcomeSpec, af: AnalysisFrame, lm_blocks: dict[str, pd.D
             "baseline": base_m,
             "landmark": lm_m,
         }
-        models_by_lm[lm] = lm_models
+        # Paired heads so the dashboard can contrast admission-only vs landmark per patient.
+        models_by_lm[lm] = {"baseline": base_models, "landmark": lm_models}
     return metrics_by_lm, models_by_lm
 
 
@@ -357,11 +358,18 @@ def main() -> None:
 
     lm_dir = OUT / "landmark"
     lm_dir.mkdir(parents=True, exist_ok=True)
+    # Bundle shape (consumed by dashboard/compute.py::predict_landmark):
+    #   outcomes[key] = {task, transform, clip_min, clip_max, by_landmark}
+    #   by_landmark[L] = {"baseline": head, "landmark": head}   # L present only if not skipped
+    #   head (regression)  = {median, conformal_q, feature_cols}
+    #   head (multiclass)  = {clf, aps_q_hat, class_codes, class_labels, feature_cols}
+    # baseline.feature_cols == feature_cols_base; landmark.feature_cols == base + L_<measure>.
     bundle = {
         "landmarks": list(LANDMARKS),
         "landmark_days": LANDMARK_DAYS,
         "landmark_cols": list(LANDMARK_COLS),
         "lm_prefix": LM_PREFIX,
+        "timepoint_order": list(TIMEPOINT_ORDER),  # for real-patient LOCF reconstruction at inference
         "feature_cols_base": list(af.feature_cols),
         "numeric_cols": list(af.numeric_cols),
         "categorical_cols": list(af.categorical_cols),

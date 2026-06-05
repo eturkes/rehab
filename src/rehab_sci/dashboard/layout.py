@@ -219,3 +219,105 @@ def fig_class_probabilities(
         xaxis=dict(title=label),
     )
     return fig
+
+
+def fig_landmark_compare(
+    result: dict, spec: OutcomeSpec, lang: str, landmark_label: str,
+) -> go.Figure:
+    """Paired admission-only vs landmark prediction for one outcome (see compute.predict_landmark).
+
+    Regression: two floating prediction-interval bars (baseline below, landmark on top) with a
+    median diamond each.  Multiclass: grouped per-class probability bars for the two heads.
+    """
+    base, lm = result["baseline"], result["landmark"]
+    row_base = t(SCHEMA, "lm_admission_only", lang)
+    row_lm = t(SCHEMA, "lm_with_obs", lang).format(L=landmark_label)
+    accent, accent_dark = PALETTE_CATEGORICAL[0], "#0c5a66"
+    base_fill, base_mark = "rgba(140,140,140,0.20)", "#7a7a7a"
+    med_word = "予測中央値" if lang == "ja" else "Predicted median"
+
+    if result["task"] == "regression":
+        label = t(SCHEMA, spec.display_key, lang)
+        unit = t(SCHEMA, spec.unit_key, lang) if spec.unit_key else ""
+        fig = go.Figure()
+        for row, d, fill, mark, msize in (
+            (row_base, base, base_fill, base_mark, 13),
+            (row_lm, lm, "rgba(17,122,139,0.22)", accent_dark, 15),
+        ):
+            fig.add_trace(go.Bar(
+                x=[d["hi"] - d["lo"]], base=[d["lo"]], y=[row], orientation="h",
+                marker=dict(color=fill, line=dict(width=0)),
+                hovertemplate=f"{d['lo']:.0f}–{d['hi']:.0f} (±{(d['hi'] - d['lo']) / 2:.0f})<extra></extra>",
+                showlegend=False,
+            ))
+            fig.add_trace(go.Scatter(
+                x=[d["pred"]], y=[row], mode="markers",
+                marker=dict(color=mark, size=msize, symbol="diamond"),
+                hovertemplate=f"{med_word}: %{{x:.0f}}<extra></extra>", showlegend=False,
+            ))
+        x_lo = float(spec.clip_min) if spec.clip_min is not None else min(0.0, base["lo"], lm["lo"])
+        x_hi = (float(spec.clip_max) if spec.clip_max is not None
+                else float(max(base["hi"], lm["hi"]) * 1.1 + 1.0))
+        axis_title = f"{label} ({unit})" if unit else label
+        fig.update_layout(
+            height=150, barmode="overlay",
+            margin=dict(l=150, r=20, t=10, b=34),
+            xaxis=dict(range=[x_lo, x_hi], title=axis_title),
+            yaxis=dict(categoryarray=[row_base, row_lm], tickfont=dict(size=12), showgrid=False),
+        )
+        return fig
+
+    class_labels = lm["class_labels"]
+    bar_labels = [f"AIS {c}" for c in class_labels]
+    fig = go.Figure()
+    fig.add_trace(go.Bar(
+        name=row_base, x=bar_labels, y=base["proba"],
+        marker=dict(color=base_mark), hovertemplate="%{x}: %{y:.1%}<extra></extra>",
+    ))
+    fig.add_trace(go.Bar(
+        name=row_lm, x=bar_labels, y=lm["proba"],
+        marker=dict(color=accent), hovertemplate="%{x}: %{y:.1%}<extra></extra>",
+    ))
+    fig.update_layout(
+        height=260, barmode="group",
+        margin=dict(l=60, r=20, t=30, b=44),
+        legend=dict(orientation="h", yanchor="bottom", y=1.0, xanchor="left", x=0),
+        yaxis=dict(range=[0, 1.05], tickformat=".0%",
+                   title=t(SCHEMA, "sim_class_probabilities", lang)),
+        xaxis=dict(title=t(SCHEMA, spec.display_key, lang)),
+    )
+    return fig
+
+
+def landmark_readout(result: dict, spec: OutcomeSpec, lang: str) -> html.Div:
+    """Two-line baseline→landmark summary shared by the simulator and patient dynamic cards."""
+    base, lm = result["baseline"], result["landmark"]
+    lines: list = []
+    if result["task"] == "regression":
+        unit = t(SCHEMA, spec.unit_key, lang) if spec.unit_key else ""
+        u = f" {unit}" if unit else ""
+        pred_word = "予測中央値" if lang == "ja" else "Predicted median"
+        b_hw, l_hw = (base["hi"] - base["lo"]) / 2, (lm["hi"] - lm["lo"]) / 2
+        lines.append(html.Div(
+            f"{pred_word}: {base['pred']:.0f} → {lm['pred']:.0f}{u}",
+            className="lm-readout-line",
+        ))
+        lines.append(html.Div(
+            f"{t(SCHEMA, 'lm_pi_halfwidth', lang)}: ±{b_hw:.0f} → ±{l_hw:.0f}{u} "
+            f"(Δ {l_hw - b_hw:+.0f})",
+            className="lm-readout-line lm-readout-delta",
+        ))
+    else:
+        none_word = t(SCHEMA, "lm_none", lang)
+        b_set = ", ".join(f"AIS {c}" for c in base["aps_set"]) or none_word
+        l_set = ", ".join(f"AIS {c}" for c in lm["aps_set"]) or none_word
+        lines.append(html.Div(
+            f"{t(SCHEMA, 'sim_predicted_class_label', lang)}: "
+            f"AIS {base['pred_class']} → AIS {lm['pred_class']}",
+            className="lm-readout-line",
+        ))
+        lines.append(html.Div(
+            f"{t(SCHEMA, 'lm_aps_set', lang)}: {{{b_set}}} → {{{l_set}}}",
+            className="lm-readout-line lm-readout-delta",
+        ))
+    return html.Div(lines, className="lm-readout")
