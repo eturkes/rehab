@@ -3,7 +3,7 @@
 Regenerate after structural changes: `uv run python scripts/gen_map.py`.
 Line numbers are 1-indexed — slice with `Read(path, offset, limit)` instead of
 reading whole files.  Sources: src/rehab_sci, scripts.
-Index: 46 files, 12207 source lines.
+Index: 46 files, 12842 source lines.
 
 ## scripts
 
@@ -62,33 +62,37 @@ Rehabilitation Analytics & Prediction Suite — bilingual Dash app.
 - L105 `update_chrome(lang)` [callback]
 - L123 `update_tab(tab, lang, ref_data)` [callback]
 
-### compute.py (572 lines)
+### compute.py (669 lines)
 Pure computation helpers for model inference, conformal PI, and SHAP.
-- L34 `resolve_group_q(q_by_group, marginal, X)` — Resolve Mondrian q for a single-row input.
-- L57 `resolve_conformal_q(fspec, X)`
-- L65 `resolve_aps_q(fspec, X)`
-- L74 `predict_trajectory(X)` — Predict SCIM-total at each trajectory timepoint for a single-row input.
-- L111 `aps_prediction_set(proba_row, q_hat)`
-- L124 `inv_transform_scalar(x, transform)`
-- L130 `clip_scalar(x, lo, hi)`
-- L138 `format_value(col, value)`
-- L147 `compute_ref_predictions(X)` — Compute predictions for all outcomes on a single-row X.
-- L186 `collect_sim_inputs(num_vals, num_ids, cat_vals, cat_ids)`
-- L205 `shap_for_row_regression(X, model)`
-- L218 `shap_for_row_class(X, clf, class_idx, n_classes)`
-- L247 `episode_row_for_model(key_record)` — Build a one-row model input from an episode's admission features.
-- L263 `episode_has_admission(key_record)`
-- L268 `get_observed_for_outcome(key_record, spec)`
-- L281 `_landmark_input(X_base, observed, feature_cols)` — Build a one-row model input over ``feature_cols`` from base features + observed …
-- L304 `_predict_landmark_head(head, X, task, transform, cmin, cmax)`
-- L331 `predict_landmark(outcome_key, landmark, X_base, observed)` — Paired admission-only baseline vs landmark prediction for one outcome at landmar…
-- L358 `landmark_voi(outcome_key, landmark, X_base, observed)` — Per-measure value-of-information for one patient at landmark ``L`` (G2).
-- L428 `_episode_timepoint_oidx(key_record)` — Episode rows restricted to the landmark measures, plus the timepoint order-index…
-- L438 `landmark_observed_for_episode(key_record, landmark)` — Real LOCF observed block for one episode: last non-null value of each landmark m…
-- L457 `episode_landmark_eligibility(key_record)` — Per-landmark still-admitted eligibility: True when the episode has a tracked obs…
-- L474 `_phenotype_episode_obs(key_record)` — This episode's observed ``(timepoint, value)`` pairs within the phenotyping wind…
-- L490 `phenotype_cutoff_options(key_record, min_cells)` — Window timepoints (chronological) eligible as observation-cutoffs for phenotype
-- L514 `predict_phenotype_membership(key_record, cutoff)` — Soft phenotype membership for one episode using only observations on/before ``cu…
+- L35 `resolve_group_q(q_by_group, marginal, X)` — Resolve Mondrian q for a single-row input.
+- L58 `resolve_conformal_q(fspec, X)`
+- L66 `resolve_aps_q(fspec, X)`
+- L75 `predict_trajectory(X)` — Predict SCIM-total at each trajectory timepoint for a single-row input.
+- L112 `aps_prediction_set(proba_row, q_hat)`
+- L125 `inv_transform_scalar(x, transform)`
+- L131 `clip_scalar(x, lo, hi)`
+- L139 `format_value(col, value)`
+- L148 `compute_ref_predictions(X)` — Compute predictions for all outcomes on a single-row X.
+- L187 `collect_sim_inputs(num_vals, num_ids, cat_vals, cat_ids)`
+- L206 `shap_for_row_regression(X, model)`
+- L219 `shap_for_row_class(X, clf, class_idx, n_classes)`
+- L248 `episode_row_for_model(key_record)` — Build a one-row model input from an episode's admission features.
+- L264 `episode_has_admission(key_record)`
+- L269 `get_observed_for_outcome(key_record, spec)`
+- L282 `_landmark_input(X_base, observed, feature_cols)` — Build a one-row model input over ``feature_cols`` from base features + observed …
+- L305 `_predict_landmark_head(head, X, task, transform, cmin, cmax)`
+- L332 `predict_landmark(outcome_key, landmark, X_base, observed)` — Paired admission-only baseline vs landmark prediction for one outcome at landmar…
+- L359 `landmark_voi(outcome_key, landmark, X_base, observed)` — Per-measure value-of-information for one patient at landmark ``L`` (G2).
+- L429 `_episode_timepoint_oidx(key_record)` — Episode rows restricted to the landmark measures, plus the timepoint order-index…
+- L439 `landmark_observed_for_episode(key_record, landmark)` — Real LOCF observed block for one episode: last non-null value of each landmark m…
+- L458 `episode_landmark_eligibility(key_record)` — Per-landmark still-admitted eligibility: True when the episode has a tracked obs…
+- L475 `_phenotype_episode_obs(key_record)` — This episode's observed ``(timepoint, value)`` pairs within the phenotyping wind…
+- L491 `phenotype_cutoff_options(key_record, min_cells)` — Window timepoints (chronological) eligible as observation-cutoffs for phenotype
+- L515 `predict_phenotype_membership(key_record, cutoff)` — Soft phenotype membership for one episode using only observations on/before ``cu…
+- L585 `_apply_platt(calibrator, prob)` — Platt (sigmoid) recalibration over the LightGBM logit — mirrors models.conversio…
+- L592 `_conversion_input(X)` — One-row model input over the conversion bundle's feature universe, dtyped like t…
+- L607 `mag_short_label(code, mag_cap)` — Compact, language-neutral label for an ordinal improvement-magnitude class.
+- L616 `predict_conversion(X)` — Admission->discharge AIS conversion for one admission row (see header).
 
 ### i18n.py (38 lines)
 Bilingual translation helpers used by every dashboard component.
@@ -98,7 +102,7 @@ Bilingual translation helpers used by every dashboard component.
 - L25 `all_levels_in_order(schema, level_key, lang)` — Return (display, ja-or-en label) pairs in their YAML declaration order.
 - L36 `level_key_for_column(schema, raw)`
 
-### layout.py (435 lines)
+### layout.py (555 lines)
 Shared layout components: topbar, cards, sliders, prediction figures.
 - L20 `topbar(lang)`
 - L48 `kpi_card(label, value, sub)`
@@ -114,6 +118,10 @@ Shared layout components: topbar, cards, sliders, prediction figures.
 - L327 `_voi_label(measure, lang)`
 - L331 `fig_voi_patient(voi, spec, lang)` — Per-patient value-of-information bars (see compute.landmark_voi).
 - L397 `voi_readout(voi, spec, lang)` — One/two-line prescription: the most valuable next measure to obtain (+ best alre…
+- L439 `_conversion_endpoint_label(key, letter, lang)` — Clinical endpoint name + its discharge threshold, e.g. 'Motor-incomplete (≥C)'.
+- L444 `fig_conversion_endpoints(result, lang)` — Calibrated conversion probabilities for the applicable binary endpoints (see
+- L481 `fig_conversion_magnitude(result, lang)` — Ordinal improvement-magnitude head shown AS its 80% APS set / most-likely class …
+- L515 `conversion_readout(result, lang)` — Text summary of the conversion panel: admission grade, each applicable calibrate…
 
 ### reliability.py (141 lines)
 Input reliability + out-of-distribution assessment for the simulator.
@@ -131,7 +139,7 @@ PDF patient report generator.
 - L137 `_safe(v, na, fmt)`
 - L146 `generate_patient_report(meta, predictions, trajectory_fig, shap_fig, outcome_labels, lang)` — Build a 2-page PDF report for one patient episode.
 
-### state.py (116 lines)
+### state.py (132 lines)
 Startup data loading and global state for the dashboard.
 - L21 `ROOT` (const)
 - L22 `MODELS_DIR` (const)
@@ -148,8 +156,9 @@ Startup data loading and global state for the dashboard.
 - L73 `ARCHETYPE_DATA` (const)
 - L104 `LANDMARK_BUNDLE` (const)
 - L113 `PHENOTYPE_DATA` (const)
-- L115 `PATIENT_OPTIONS` (const)
-- L116 `PATIENT_OPTIONS_BY_ID` (const)
+- L127 `CONVERSION_BUNDLE` (const)
+- L131 `PATIENT_OPTIONS` (const)
+- L132 `PATIENT_OPTIONS_BY_ID` (const)
 
 ### theme.py (104 lines)
 Plotly theme + palettes used everywhere on the dashboard.
@@ -162,7 +171,7 @@ Plotly theme + palettes used everywhere on the dashboard.
 
 ## src/rehab_sci/dashboard/figures
 
-### __init__.py (91 lines)
+### __init__.py (101 lines)
 Plotly figure factories, split by dashboard tab.
 - (no top-level symbols)
 
@@ -178,16 +187,21 @@ Plotly figures for the Insight engine tab — SHAP importance, subgroups, depend
 - L155 `fig_interaction_heatmap(metrics, schema, lang, *, top_n)` — Upper-triangle heatmap of top feature-pair interactions by mean |SHAP|.
 - L222 `fig_interaction_dependence(shap_pack, X_test, feat_x, feat_y, schema, lang, *, class_idx)` — Scatter of feature-X value vs SHAP interaction(X,Y), colored by feature-Y value.
 
-### methods.py (474 lines)
+### methods.py (635 lines)
 Plotly figures for the Methods tab — calibration and performance visualizations.
-- L12 `fig_pred_vs_observed(shap_pack, schema, lang, *, clip_min, clip_max, axis_label)`
-- L79 `fig_residual_hist(shap_pack, schema, lang, *, axis_label)`
-- L120 `fig_confusion_matrix(shap_pack, schema, lang)`
-- L164 `fig_calibration_curve(shap_pack, schema, lang, *, n_bins)`
-- L225 `fig_dataquality_overview(summary, lang)` — Stacked bar of finding counts per category, split by severity.
-- L269 `fig_temporal_drift(t_outcome, lang)` — Out-of-time drift across rolling-origin test years (F24).
-- L345 `fig_landmark_value(lm_outcome, landmark_days, lang)` — Value of observation: discharge-outcome accuracy + PI sharpening vs landmark tim…
-- L420 `fig_voi_scorecard(lm_outcome, lang, measure_labels)` — Value-of-information scorecard: per-measure × per-landmark uncertainty reduction…
+- L13 `fig_pred_vs_observed(shap_pack, schema, lang, *, clip_min, clip_max, axis_label)`
+- L80 `fig_residual_hist(shap_pack, schema, lang, *, axis_label)`
+- L121 `fig_confusion_matrix(shap_pack, schema, lang)`
+- L165 `fig_calibration_curve(shap_pack, schema, lang, *, n_bins)`
+- L226 `fig_dataquality_overview(summary, lang)` — Stacked bar of finding counts per category, split by severity.
+- L270 `fig_temporal_drift(t_outcome, lang)` — Out-of-time drift across rolling-origin test years (F24).
+- L346 `fig_landmark_value(lm_outcome, landmark_days, lang)` — Value of observation: discharge-outcome accuracy + PI sharpening vs landmark tim…
+- L421 `fig_voi_scorecard(lm_outcome, lang, measure_labels)` — Value-of-information scorecard: per-measure × per-landmark uncertainty reduction…
+- L482 `fig_conversion_landscape(conv, lang)` — Descriptive conversion landscape: ≥1-grade AIS improvement rate by admission gra…
+- L513 `fig_conversion_delta(conv, lang)` — Distribution of the AIS grade change (discharge − admission) over the dual-AIS c…
+- L541 `fig_conversion_reliability(em, lang, label)` — Reliability curve for one binary conversion endpoint: Platt-calibrated vs raw Li…
+- L586 `fig_conversion_shap(em, schema, lang, top_n)` — Descriptive in-sample SHAP drivers for one conversion endpoint (mean |SHAP| on t…
+- L608 `fig_conversion_confusion(mag, lang)` — Row-normalized confusion matrix for the ordinal magnitude head over {0, +1, ≥+2}…
 
 ### overview.py (540 lines)
 Plotly figures for the Overview tab — cohort demographics, injury, recovery curv…
@@ -242,15 +256,18 @@ Insight engine tab — SHAP importance, subgroups, dependence, interactions.
 - L256 `update_int_feat_options(outcome_key, lang)` [callback]
 - L279 `update_interaction_dependence(feat_x, feat_y, outcome_key, class_val, lang)` [callback]
 
-### methods.py (380 lines)
+### methods.py (496 lines)
 Methods tab — model documentation + per-outcome performance visualizations.
-- L21 `_perf_block_regression(spec, info, lang)`
-- L83 `_perf_block_multiclass(spec, info, lang)`
-- L152 `_perf_block_trajectory(lang)`
-- L179 `_temporal_block(lang)` — F24 — out-of-time rolling-origin drift, one card per outcome.
-- L229 `_landmark_block(lang)` — G1 — landmark (dynamic) prediction: value-of-observation curve, one card per out…
-- L291 `_dataquality_block(lang)`
-- L339 `render_methods(lang)`
+- L23 `_perf_block_regression(spec, info, lang)`
+- L85 `_perf_block_multiclass(spec, info, lang)`
+- L154 `_perf_block_trajectory(lang)`
+- L181 `_temporal_block(lang)` — F24 — out-of-time rolling-origin drift, one card per outcome.
+- L231 `_landmark_block(lang)` — G1 — landmark (dynamic) prediction: value-of-observation curve, one card per out…
+- L293 `_conversion_endpoint_label(key, discharge_min, lang)`
+- L297 `_conversion_endpoint_card(key, em, lang)` — One binary endpoint: headline metrics + base-rate-by-grade table + reliability/S…
+- L334 `_conversion_block(lang)` — G4 — AIS-grade conversion: descriptive landscape + per-endpoint calibration + ma…
+- L404 `_dataquality_block(lang)`
+- L452 `render_methods(lang)`
 
 ### overview.py (291 lines)
 Overview tab — cohort KPIs, demographic charts, archetype curves with interactiv…
@@ -259,44 +276,48 @@ Overview tab — cohort KPIs, demographic charts, archetype curves with interact
 - L103 `_filtered_archetype_summaries(ep_f)` — Rebuild per-archetype summaries on the filtered episode subset.
 - L141 `update_overview_content(ais, para, age_range, arch, lang)` [callback]
 
-### patient.py (894 lines)
+### patient.py (954 lines)
 Patient explorer tab — real-patient predictions, similarity, PDF report.
-- L72 `_patient_picker_options(lang)`
-- L95 `_episode_options_for_patient(id_number, lang)`
-- L105 `_meta_strip(meta, lang)`
-- L158 `_isncsci_table(long_df, key_record, lang)`
-- L201 `_landmark_obs_note(observed, landmark, lang)` — One-line summary of the real early-recovery scores feeding the landmark predicti…
-- L216 `_patient_landmark_card(lang)` — Real-data dynamic-prediction card: at a chosen landmark the patient's own observ…
-- L253 `_phenotype_readout(res, lang)` — Dominant phenotype + membership-weighted conditioned prognosis for one patient.
-- L290 `_patient_phenotype_card(lang)` — Observed-trajectory phenotype card: the patient's own early SCIM/motor curve is …
-- L322 `render_patient(lang)`
-- L432 `_patient_regression(bundle, X, key_record, lang)`
-- L488 `_patient_multiclass(bundle, X, key_record, lang)`
-- L530 `_build_similarity_section(key_record, bundle, X, lang)`
-- L619 `_compute_patient_tab(key_record, strata, outcome_key, lang)`
-- L686 `update_patient_picker(id_number, lang)` [callback]
-- L695 `reset_episode_on_patient_change(id_number, current)` [callback]
-- L719 `update_patient_tab(key_record, strata, outcome_key, lang)` [callback]
-- L729 `update_patient_landmark_options(key_record)` [callback] — Offer only the landmarks this episode is still-admitted-eligible for; default to…
-- L749 `update_patient_landmark(landmark, key_record, outcome_key, lang)` [callback]
-- L782 `update_patient_phenotype_options(key_record, lang)` [callback] — Offer each observation-cutoff this episode is eligible for; default to the full …
-- L799 `update_patient_phenotype(cutoff, key_record, lang)` [callback]
-- L829 `download_report(n_clicks, key_record, id_number, strata, lang)` [callback]
+- L77 `_patient_picker_options(lang)`
+- L100 `_episode_options_for_patient(id_number, lang)`
+- L110 `_meta_strip(meta, lang)`
+- L163 `_isncsci_table(long_df, key_record, lang)`
+- L206 `_landmark_obs_note(observed, landmark, lang)` — One-line summary of the real early-recovery scores feeding the landmark predicti…
+- L221 `_patient_landmark_card(lang)` — Real-data dynamic-prediction card: at a chosen landmark the patient's own observ…
+- L258 `_phenotype_readout(res, lang)` — Dominant phenotype + membership-weighted conditioned prognosis for one patient.
+- L295 `_patient_phenotype_card(lang)` — Observed-trajectory phenotype card: the patient's own early SCIM/motor curve is …
+- L326 `_patient_conversion_card(lang)` — AIS-grade conversion card: the patient's admission row drives the calibrated end…
+- L347 `render_patient(lang)`
+- L460 `_patient_regression(bundle, X, key_record, lang)`
+- L516 `_patient_multiclass(bundle, X, key_record, lang)`
+- L558 `_build_similarity_section(key_record, bundle, X, lang)`
+- L647 `_compute_patient_tab(key_record, strata, outcome_key, lang)`
+- L714 `update_patient_picker(id_number, lang)` [callback]
+- L723 `reset_episode_on_patient_change(id_number, current)` [callback]
+- L747 `update_patient_tab(key_record, strata, outcome_key, lang)` [callback]
+- L757 `update_patient_landmark_options(key_record)` [callback] — Offer only the landmarks this episode is still-admitted-eligible for; default to…
+- L777 `update_patient_landmark(landmark, key_record, outcome_key, lang)` [callback]
+- L810 `update_patient_phenotype_options(key_record, lang)` [callback] — Offer each observation-cutoff this episode is eligible for; default to the full …
+- L827 `update_patient_phenotype(cutoff, key_record, lang)` [callback]
+- L855 `update_patient_conversion(key_record, lang)` [callback]
+- L889 `download_report(n_clicks, key_record, id_number, strata, lang)` [callback]
 
-### simulator.py (554 lines)
+### simulator.py (609 lines)
 Simulator tab — hypothetical patient prediction + What-if counterfactual.
-- L55 `render_simulator(lang, ref_data)`
-- L161 `_lm_obs_input(measure, lang)`
-- L174 `_landmark_card(lang)` — Hypothetical dynamic-prediction card: pick a landmark, enter observed scores, se…
-- L211 `_simulate_regression(bundle, X, lang)`
-- L246 `_simulate_multiclass(bundle, X, lang)`
-- L275 `_reliability_badge(a, lang)`
-- L338 `simulate(num_vals, cat_vals, num_ids, cat_ids, outcome_key, lang, ref_data)` [callback]
-- L426 `launch_whatif(n_clicks, key_record, id_number)` [callback]
-- L475 `update_whatif_banner(ref_data, lang)` [callback]
-- L499 `clear_whatif(_n)` [callback]
-- L513 `fill_or_clear(_fill, _clear, num_ids, cat_ids)` [callback] — Fill every field with the cohort default, or clear all to blank (NaN).
-- L537 `simulate_landmark(landmark, obs_vals, num_vals, cat_vals, outcome_key, lang, obs_ids, num_ids, cat_ids)` [callback]
+- L60 `render_simulator(lang, ref_data)`
+- L169 `_conversion_card(lang)` — Hypothetical AIS-grade conversion card driven by the simulator's admission input…
+- L191 `_lm_obs_input(measure, lang)`
+- L204 `_landmark_card(lang)` — Hypothetical dynamic-prediction card: pick a landmark, enter observed scores, se…
+- L241 `_simulate_regression(bundle, X, lang)`
+- L276 `_simulate_multiclass(bundle, X, lang)`
+- L305 `_reliability_badge(a, lang)`
+- L368 `simulate(num_vals, cat_vals, num_ids, cat_ids, outcome_key, lang, ref_data)` [callback]
+- L456 `launch_whatif(n_clicks, key_record, id_number)` [callback]
+- L505 `update_whatif_banner(ref_data, lang)` [callback]
+- L529 `clear_whatif(_n)` [callback]
+- L543 `fill_or_clear(_fill, _clear, num_ids, cat_ids)` [callback] — Fill every field with the cohort default, or clear all to blank (NaN).
+- L567 `simulate_landmark(landmark, obs_vals, num_vals, cat_vals, outcome_key, lang, obs_ids, num_ids, cat_ids)` [callback]
+- L598 `simulate_conversion(num_vals, cat_vals, lang, num_ids, cat_ids)` [callback]
 
 ## src/rehab_sci/data
 

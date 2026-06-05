@@ -10,6 +10,7 @@ import pandas as pd
 
 from rehab_sci.constants import AIS_ORD_TO_LETTER
 from rehab_sci.dashboard.state import (
+    CONVERSION_BUNDLE,
     EP,
     FEATURE_SPEC,
     LANDMARK_BUNDLE,
@@ -569,4 +570,100 @@ def predict_phenotype_membership(key_record: int, cutoff: str) -> dict | None:
         "cutoff": cutoff,
         "n_obs": sum(len(v) for v in obs_upto.values()),
         "k": K,
+    }
+
+
+# ---------- AIS-grade conversion (G4) ----------
+# Admission->discharge AIS *transition* inference for one admission row, gated by admission grade.
+# Two CALIBRATED binary endpoints (motor_incomplete A/B->>=C, ambulatory A-C->>=D) plus an ORDINAL
+# magnitude head {0,+1,>=+2} on A-D.  The two head families are NOT numerically comparable (see
+# AGENT_NOTES s3 CRUX): the binary heads are Platt-calibrated probabilities, the magnitude head is
+# class_weight="balanced" so its class scores are uncalibrated — surface it as its APS set /
+# most-likely class, never as a competing probability.  `_apply_platt` is mirrored here (logit ->
+# calibrator.predict_proba) so the dashboard never imports models.conversion (which pulls shap).
+
+def _apply_platt(calibrator, prob: float) -> float:
+    """Platt (sigmoid) recalibration over the LightGBM logit — mirrors models.conversion._apply_platt."""
+    p = min(max(float(prob), 1e-6), 1.0 - 1e-6)
+    logit = float(np.log(p / (1.0 - p)))
+    return float(calibrator.predict_proba([[logit]])[0, 1])
+
+
+def _conversion_input(X: pd.DataFrame) -> pd.DataFrame:
+    """One-row model input over the conversion bundle's feature universe, dtyped like training
+    (every head shares the 30 admission features; re-cast so LightGBM realigns category levels)."""
+    b = CONVERSION_BUNDLE
+    base = X.iloc[0].to_dict() if len(X) else {}
+    cat = set(b["categorical_cols"])
+    Xc = pd.DataFrame([{c: base.get(c) for c in b["feature_cols"]}])
+    for c in b["feature_cols"]:
+        if c in cat:
+            Xc[c] = Xc[c].astype("category")
+        else:
+            Xc[c] = pd.to_numeric(Xc[c], errors="coerce")
+    return Xc
+
+
+def mag_short_label(code: int, mag_cap: int) -> str:
+    """Compact, language-neutral label for an ordinal improvement-magnitude class."""
+    if code <= 0:
+        return "0"
+    if code >= mag_cap:
+        return f"≥+{mag_cap}"
+    return f"+{code}"
+
+
+def predict_conversion(X: pd.DataFrame) -> dict | None:
+    """Admission->discharge AIS conversion for one admission row (see header).
+
+    Returns ``None`` when the bundle is absent.  Requires the admission grade (``AIS_ord``) to be
+    present — cohort membership is otherwise undefined; ``ais_ord=None`` then yields an all-N/A
+    result the surfaces render as a "needs admission grade" prompt.  Each endpoint applies only if
+    the admission grade is in its at-risk ``adm_grades``; the magnitude head only for A-D.
+    """
+    if CONVERSION_BUNDLE is None:
+        return None
+    b = CONVERSION_BUNDLE
+    ais_raw = X.iloc[0].get(b["adm_col"]) if len(X) else None
+    ais_ord = None if ais_raw is None or pd.isna(ais_raw) else int(ais_raw)
+    Xc = _conversion_input(X)
+
+    endpoints: dict[str, dict] = {}
+    for key, e in b["endpoints"].items():
+        applicable = ais_ord is not None and ais_ord in e["adm_grades"]
+        entry: dict = {
+            "applicable": applicable,
+            "base_rate": float(e["base_rate"]),
+            "discharge_min": int(e["discharge_min"]),
+            "discharge_min_letter": AIS_ORD_TO_LETTER[int(e["discharge_min"])],
+            "adm_grades": list(e["adm_grades"]),
+        }
+        if applicable:
+            raw = float(e["clf"].predict_proba(Xc[e["feature_cols"]])[0, 1])
+            entry["prob"] = _apply_platt(e["calibrator"], raw)
+        endpoints[key] = entry
+
+    m = b["magnitude"]
+    mag_applicable = ais_ord is not None and ais_ord in m["adm_grades"]
+    magnitude: dict = {
+        "applicable": mag_applicable,
+        "mag_cap": int(m["mag_cap"]),
+        "class_codes": [int(c) for c in m["class_codes"]],
+    }
+    if mag_applicable:
+        proba = np.asarray(m["clf"].predict_proba(Xc[m["feature_cols"]])[0], dtype=float)
+        aps_idx = aps_prediction_set(proba, float(m["aps_q_hat"]))
+        codes = [int(c) for c in m["class_codes"]]
+        magnitude.update({
+            "proba": proba.tolist(),
+            "pred_code": codes[int(np.argmax(proba))],
+            "aps_codes": [codes[i] for i in aps_idx],
+        })
+
+    return {
+        "ais_ord": ais_ord,
+        "adm_letter": AIS_ORD_TO_LETTER.get(ais_ord) if ais_ord is not None else None,
+        "any_applicable": mag_applicable or any(e["applicable"] for e in endpoints.values()),
+        "endpoints": endpoints,
+        "magnitude": magnitude,
     }

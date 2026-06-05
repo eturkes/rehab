@@ -18,6 +18,7 @@ from rehab_sci.dashboard.compute import (
     compute_ref_predictions,
     episode_has_admission,
     inv_transform_scalar,
+    predict_conversion,
     predict_landmark,
     predict_trajectory,
     resolve_aps_q,
@@ -27,8 +28,11 @@ from rehab_sci.dashboard.compute import (
 )
 from rehab_sci.dashboard.i18n import col_label, t
 from rehab_sci.dashboard.layout import (
+    conversion_readout,
     dropdown_for,
     fig_class_probabilities,
+    fig_conversion_endpoints,
+    fig_conversion_magnitude,
     fig_landmark_compare,
     fig_prediction_interval,
     fig_shap_local,
@@ -37,6 +41,7 @@ from rehab_sci.dashboard.layout import (
 )
 from rehab_sci.dashboard.reliability import assess_input
 from rehab_sci.dashboard.state import (
+    CONVERSION_BUNDLE,
     DEFAULT_OUTCOME,
     EP,
     FEATURE_SPEC,
@@ -154,7 +159,32 @@ def render_simulator(lang: str, ref_data: dict | None = None) -> html.Div:
     lm_card = _landmark_card(lang)
     if lm_card is not None:
         children.append(lm_card)
+    conv_card = _conversion_card(lang)
+    if conv_card is not None:
+        children.append(conv_card)
     return html.Div(children)
+
+
+# ---------- AIS-grade conversion card ----------
+def _conversion_card(lang: str) -> html.Div | None:
+    """Hypothetical AIS-grade conversion card driven by the simulator's admission inputs.
+    Omitted entirely when the conversion bundle is absent."""
+    if CONVERSION_BUNDLE is None:
+        return None
+    return html.Div(
+        className="lm-card conv-card",
+        children=[
+            html.H2(t(SCHEMA, "conv_card_heading", lang), className="lm-card-heading"),
+            html.Div(t(SCHEMA, "conv_card_intro", lang), className="lm-card-intro"),
+            html.Div(id="sim-conv-readout"),
+            html.Div(t(SCHEMA, "conv_endpoints_heading", lang), className="sim-section-title"),
+            dcc.Graph(id="sim-conv-endpoints-graph", config={"displayModeBar": False}),
+            html.Div(t(SCHEMA, "conv_magnitude_heading", lang), className="sim-section-title"),
+            dcc.Graph(id="sim-conv-mag-graph", config={"displayModeBar": False}),
+            html.Div(t(SCHEMA, "conv_mag_caption", lang), className="sim-caveat"),
+            html.Div(t(SCHEMA, "conv_caption", lang), className="sim-caveat"),
+        ],
+    )
 
 
 # ---------- landmark (dynamic) prediction card ----------
@@ -551,4 +581,29 @@ def simulate_landmark(landmark, obs_vals, num_vals, cat_vals, outcome_key, lang,
     return (
         fig_landmark_compare(result, spec, lang, landmark),
         landmark_readout(result, spec, lang),
+    )
+
+
+# ---------- AIS-grade conversion callback ----------
+@callback(
+    Output("sim-conv-readout", "children"),
+    Output("sim-conv-endpoints-graph", "figure"),
+    Output("sim-conv-mag-graph", "figure"),
+    Input({"type": "num", "col": dash.ALL}, "value"),
+    Input({"type": "cat", "col": dash.ALL}, "value"),
+    Input("lang-store", "data"),
+    State({"type": "num", "col": dash.ALL}, "id"),
+    State({"type": "cat", "col": dash.ALL}, "id"),
+)
+def simulate_conversion(num_vals, cat_vals, lang, num_ids, cat_ids):
+    if not num_ids and not cat_ids:
+        return html.Div(t(SCHEMA, "conv_need_ais", lang), className="lm-prompt"), go.Figure(), go.Figure()
+    X = collect_sim_inputs(num_vals, num_ids, cat_vals, cat_ids)
+    result = predict_conversion(X)
+    if result is None:
+        return html.Div(t(SCHEMA, "conv_need_ais", lang), className="lm-prompt"), go.Figure(), go.Figure()
+    return (
+        conversion_readout(result, lang),
+        fig_conversion_endpoints(result, lang),
+        fig_conversion_magnitude(result, lang),
     )

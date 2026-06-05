@@ -112,5 +112,21 @@ LANDMARK_BUNDLE: dict | None = (
 _pheno_path = MODELS_DIR / "phenotypes" / "phenotypes.joblib"
 PHENOTYPE_DATA: dict | None = joblib.load(_pheno_path) if _pheno_path.exists() else None
 
+# G4 AIS-grade conversion modeling. `conversion_metrics.json` (tracked, identifier-free) drives
+# the Methods landscape/reliability/driver panels; `conversion/bundle.joblib` (gitignored) holds
+# the calibrated endpoint + ordinal-magnitude heads for per-row inference (compute.predict_conversion).
+# Both absent until `python -m rehab_sci.models.conversion`; every conversion surface degrades gracefully.
+_conversion_path = MODELS_DIR / "conversion_metrics.json"
+if _conversion_path.exists():
+    with _conversion_path.open(encoding="utf-8") as _f:
+        CONVERSION: dict | None = json.load(_f)
+else:
+    CONVERSION = None
+
+_conversion_bundle_path = MODELS_DIR / "conversion" / "bundle.joblib"
+CONVERSION_BUNDLE: dict | None = (
+    joblib.load(_conversion_bundle_path) if _conversion_bundle_path.exists() else None
+)
+
 PATIENT_OPTIONS = list_patient_options(EP)
 PATIENT_OPTIONS_BY_ID = {p.id_number: p for p in PATIENT_OPTIONS}

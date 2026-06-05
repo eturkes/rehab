@@ -470,6 +470,85 @@ methods_landmark_heading:
 methods_landmark_def:
   ja: "退院時アウトカムを、入院時特徴に加えて各ランドマーク時点 (72h・2w・4w・6w・2m・3m) までに観測された臨床指標 (SCIM 合計/下位尺度・AIS・運動/感覚スコアの直近値) から予測する。ランドマークが進み実際の初期回復が観測されるほど、点予測精度は上がり予測区間は狭まる。これが「観測の価値」である。各ランドマークでは、その時点で在院中の症例 (リスク集合) のみを対象とし、同一集合・同一分割で入院時のみ基準モデルも学習することで、集合の縮小を補正した観測の正味価値を分離する。診断・推論層であり、本番モデルは変更しない。"
   en: "Predict the discharge outcome from the admission features plus the clinical measures observed by each landmark time (72 h, 2 w, 4 w, 6 w, 2 m, 3 m) — the most-recent SCIM total / subscales, AIS grade, and motor / sensory scores. As the landmark advances and real early recovery is observed, point accuracy rises and the prediction interval narrows: the value of observation. Each landmark uses only the still-admitted episodes at that time (the risk set), and an admission-only baseline is fit on the same set and split, isolating the net value of the observed scores after correcting for the shrinking cohort. Diagnostic + inference layer — the production model is unchanged."
+# --- G4 AIS-grade conversion ---
+conv_card_heading:
+  ja: "AIS グレード転換予測"
+  en: "AIS-grade conversion"
+conv_card_intro:
+  ja: "入院時 AIS から退院時 AIS への転換を予測する。臨床的に意味のある2つの転換 (運動不全化・歩行能力獲得) を較正済み確率で、改善幅 (順序) を最尤クラスと80%予測集合で示す。転換は入院グレードに強く依存するため、適用される指標は入院 AIS により変わる。"
+  en: "Predicts the admission→discharge AIS transition. Two clinically meaningful conversions (becoming motor-incomplete, gaining ambulatory capability) are shown as calibrated probabilities; the improvement magnitude (ordinal) as its most-likely class and 80% prediction set. Conversion is strongly admission-gated, so which endpoints apply depends on the admission AIS."
+conv_endpoint_motor_incomplete:
+  ja: "運動不全への転換"
+  en: "Motor-incomplete"
+conv_endpoint_ambulatory:
+  ja: "歩行能力の獲得"
+  en: "Ambulatory-capable"
+conv_endpoints_heading:
+  ja: "臨床転換エンドポイント (較正済み確率)"
+  en: "Clinical conversion endpoints (calibrated probability)"
+conv_magnitude_heading:
+  ja: "改善幅 (順序・最尤クラス + 80%集合)"
+  en: "Improvement magnitude (ordinal — most-likely class + 80% set)"
+conv_adm_grade:
+  ja: "入院時グレード"
+  en: "Admission grade"
+conv_base:
+  ja: "基準"
+  en: "base"
+conv_mag_label:
+  ja: "改善幅"
+  en: "Improvement magnitude"
+conv_mag_unit:
+  ja: "段階"
+  en: "grade(s)"
+conv_most_likely:
+  ja: "最尤"
+  en: "most likely"
+conv_aps_set:
+  ja: "80%集合"
+  en: "80% set"
+conv_need_ais:
+  ja: "入院時 AIS グレードを入力すると転換予測が表示されます。"
+  en: "Enter the admission AIS grade to see the conversion prediction."
+conv_at_ceiling:
+  ja: "入院時 AIS E (天井) — 転換エンドポイントは適用されません。"
+  en: "Admission AIS E (ceiling) — no conversion endpoint applies."
+conv_mag_caption:
+  ja: "改善幅ヘッドは class_weight=balanced のため確率は較正されていない。較正済みの転換確率 (上) とは別物で、最尤クラスと APS 集合として解釈する。"
+  en: "The magnitude head is class-weighted, so its scores are uncalibrated — distinct from the calibrated conversion probabilities above; read it as the most-likely class and APS set."
+conv_caption:
+  ja: "エンドポイント確率は OOF 予測で Platt 較正済み (二値・near-balanced)。改善幅は交差コンフォーマル APS (α=0.2)。診断・推論層であり、本番の退院時 AIS モデルとは別。"
+  en: "Endpoint probabilities are Platt-calibrated on OOF predictions (binary, near-balanced); the magnitude set is cross-conformal APS (α=0.2). Diagnostic + inference layer, distinct from the production discharge-AIS model."
+methods_conversion_heading:
+  ja: "AIS グレード転換モデル (G4)"
+  en: "AIS-grade conversion modeling (G4)"
+methods_conversion_def:
+  ja: "本番の退院時 AIS モデルが絶対グレードを予測するのに対し、本モデルは臨床的に重要な転換 (入院→退院の遷移) を予測する。転換は入院グレードに強く依存する (AIS D で天井、E は改善余地なし) ため、各ヘッドは適応コホートで入院グレードを特徴に含めて学習する。較正済み二値エンドポイント2つ (運動不全化 A/B→≥C、歩行獲得 A–C→≥D) と、改善幅の順序多クラス {0,+1,≥+2} (A–D)。小コホート向けに患者単位5分割の OOF 予測で全指標・Platt 較正・交差コンフォーマル APS を計算し、最終ヘッドは全コホートで再学習。SHAP は記述的な院内重要度。診断・推論層で本番アーティファクトは不変。"
+  en: "Where the production discharge-AIS head predicts the absolute grade, this models the clinically salient conversion (admission→discharge transition). Conversion is strongly admission-gated (ceiling at AIS D, no room at E), so each head trains on its at-risk cohort with the admission grade kept as a feature. Two calibrated binary endpoints (motor-incomplete A/B→≥C, ambulatory A–C→≥D) plus an ordinal magnitude head {0,+1,≥+2} on A–D. For the small cohorts, grouped 5-fold OOF predictions drive every metric, the Platt calibrator, and a cross-conformal APS q; the final heads refit on the full cohort. SHAP drivers are descriptive in-sample. Diagnostic + inference layer — production artifacts unchanged."
+methods_conversion_landscape_heading:
+  ja: "転換ランドスケープ (記述統計)"
+  en: "Conversion landscape (descriptive)"
+methods_conversion_endpoint_heading:
+  ja: "エンドポイント別 性能・較正・ドライバー"
+  en: "Per-endpoint performance, calibration & drivers"
+methods_conversion_magnitude_heading:
+  ja: "改善幅ヘッド (順序多クラス)"
+  en: "Improvement-magnitude head (ordinal)"
+conv_table_grade:
+  ja: "入院 AIS"
+  en: "Adm AIS"
+conv_table_rate:
+  ja: "陽性率"
+  en: "Positive rate"
+conv_table_n:
+  ja: "n"
+  en: "n"
+conv_auc:
+  ja: "AUC"
+  en: "AUC"
+conv_brier:
+  ja: "Brier (較正後 / 基準)"
+  en: "Brier (cal / base)"
 insight_outcome_label:
   ja: "分析対象アウトカム"
   en: "Outcome to analyze"

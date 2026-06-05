@@ -22,6 +22,7 @@ from rehab_sci.dashboard.compute import (
     landmark_observed_for_episode,
     landmark_voi,
     phenotype_cutoff_options,
+    predict_conversion,
     predict_landmark,
     predict_phenotype_membership,
     predict_trajectory,
@@ -40,7 +41,10 @@ from rehab_sci.dashboard.figures import (
 from rehab_sci.dashboard.i18n import level_label, t
 from rehab_sci.dashboard.layout import (
     chart_card,
+    conversion_readout,
     fig_class_probabilities,
+    fig_conversion_endpoints,
+    fig_conversion_magnitude,
     fig_landmark_compare,
     fig_shap_local,
     fig_voi_patient,
@@ -50,6 +54,7 @@ from rehab_sci.dashboard.layout import (
 from rehab_sci.dashboard.report import generate_patient_report
 from rehab_sci.dashboard.state import (
     ARCHETYPE_DATA,
+    CONVERSION_BUNDLE,
     DEFAULT_OUTCOME,
     EP,
     FEATURE_SPEC,
@@ -318,6 +323,26 @@ def _patient_phenotype_card(lang: str) -> html.Div | None:
     )
 
 
+def _patient_conversion_card(lang: str) -> html.Div | None:
+    """AIS-grade conversion card: the patient's admission row drives the calibrated endpoint
+    probabilities + ordinal magnitude set.  Omitted entirely when the conversion bundle is absent."""
+    if CONVERSION_BUNDLE is None:
+        return None
+    return chart_card(
+        t(SCHEMA, "conv_card_heading", lang),
+        html.Div([
+            html.Div(t(SCHEMA, "conv_card_intro", lang), className="lm-card-intro"),
+            html.Div(id="patient-conv-readout"),
+            html.Div(t(SCHEMA, "conv_endpoints_heading", lang), className="pheno-subtitle"),
+            dcc.Graph(id="patient-conv-endpoints-graph", config={"displayModeBar": False}),
+            html.Div(t(SCHEMA, "conv_magnitude_heading", lang), className="pheno-subtitle"),
+            dcc.Graph(id="patient-conv-mag-graph", config={"displayModeBar": False}),
+            html.Div(t(SCHEMA, "conv_mag_caption", lang), className="sim-caveat"),
+            html.Div(t(SCHEMA, "conv_caption", lang), className="sim-caveat"),
+        ]),
+    )
+
+
 # ---------- layout ----------
 def render_patient(lang: str) -> html.Div:
     default_pid = PATIENT_OPTIONS[0].id_number if PATIENT_OPTIONS else None
@@ -417,6 +442,9 @@ def render_patient(lang: str) -> html.Div:
     pheno_card = _patient_phenotype_card(lang)
     if pheno_card is not None:
         content_children.append(pheno_card)
+    conv_card = _patient_conversion_card(lang)
+    if conv_card is not None:
+        content_children.append(conv_card)
     content_children.append(similarity_card)
 
     return html.Div(
@@ -814,6 +842,38 @@ def update_patient_phenotype(cutoff, key_record, lang):
         class_support=PHENOTYPE_DATA["class_support"], patient_obs=patient_obs,
     )
     return membership_fig, overlay_fig, _phenotype_readout(res, lang)
+
+
+# ---------- AIS-grade conversion callback ----------
+@callback(
+    Output("patient-conv-readout", "children"),
+    Output("patient-conv-endpoints-graph", "figure"),
+    Output("patient-conv-mag-graph", "figure"),
+    Input("patient-episode-radio", "value"),
+    Input("lang-store", "data"),
+)
+def update_patient_conversion(key_record, lang):
+    empty = go.Figure()
+    if CONVERSION_BUNDLE is None or key_record is None:
+        return html.Div(t(SCHEMA, "conv_need_ais", lang), className="lm-prompt"), empty, empty
+    key_record = int(key_record)
+    if not episode_has_admission(key_record):
+        return html.Div(t(SCHEMA, "conv_need_ais", lang), className="lm-prompt"), empty, empty
+    X = episode_row_for_model(key_record)
+    # Gate on the REAL admission grade — conversion cohort membership is undefined when AIS is
+    # unrecorded, so override episode_row_for_model's cohort-default imputation with the raw value
+    # (NaN -> the readout shows the "needs admission grade" prompt).
+    raw_ais = EP.loc[EP["KeyRecordNumber"] == key_record, "AIS_ord"]
+    X = X.copy()
+    X["AIS_ord"] = float(raw_ais.iloc[0]) if (not raw_ais.empty and pd.notna(raw_ais.iloc[0])) else float("nan")
+    result = predict_conversion(X)
+    if result is None:
+        return html.Div(t(SCHEMA, "conv_need_ais", lang), className="lm-prompt"), empty, empty
+    return (
+        conversion_readout(result, lang),
+        fig_conversion_endpoints(result, lang),
+        fig_conversion_magnitude(result, lang),
+    )
 
 
 # ---------- PDF report callback ----------

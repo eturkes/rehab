@@ -4,9 +4,11 @@ from __future__ import annotations
 
 from dash import dcc, html
 
+from rehab_sci.constants import AIS_ORD_TO_LETTER
 from rehab_sci.dashboard import figures as fg
 from rehab_sci.dashboard.i18n import t
 from rehab_sci.dashboard.state import (
+    CONVERSION,
     DATAQUALITY,
     LANDMARK,
     METRICS,
@@ -272,7 +274,7 @@ def _landmark_block(lang: str) -> html.Div | None:
             if voi_fig is not None:
                 card.append(html.P(
                     t(SCHEMA, "voi_methods_def", lang),
-                    style={"fontSize": "12px", "color": INK["600"], "marginTop": "8px"},
+                    style={"fontSize": "12px", "color": INK["500"], "marginTop": "8px"},
                 ))
                 card.append(dcc.Graph(figure=voi_fig, config={"displayModeBar": False}))
         children.append(html.Div(className="methods-perf-card", children=card))
@@ -283,6 +285,117 @@ def _landmark_block(lang: str) -> html.Div | None:
          "Per-landmark PIs use marginal split-conformal (α=0.2); coverage fluctuates around 80% on the small "
          "test folds. The still-admitted risk set shrinks as the landmark advances, so the admission-only "
          "baseline is fit on the same set to isolate the net value of the observed scores."),
+        style={"fontSize": "12px", "color": INK["500"]},
+    ))
+    return html.Div(className="methods-block", children=children)
+
+
+def _conversion_endpoint_label(key: str, discharge_min: int, lang: str) -> str:
+    return f"{t(SCHEMA, f'conv_endpoint_{key}', lang)} (≥{AIS_ORD_TO_LETTER[discharge_min]})"
+
+
+def _conversion_endpoint_card(key: str, em: dict, lang: str) -> html.Div:
+    """One binary endpoint: headline metrics + base-rate-by-grade table + reliability/SHAP figs."""
+    label = _conversion_endpoint_label(key, em["discharge_min"], lang)
+    metrics_line = (
+        f"AUC={em['auc']:.3f}   "
+        f"{t(SCHEMA, 'conv_brier', lang)}={em['brier']:.3f} / {em['brier_baseline']:.3f}   "
+        f"n={em['n']} (+{em['n_pos']}, base={em['base_rate']:.0%})"
+    )
+    children: list = [
+        html.H4(label),
+        html.P(metrics_line, style={"fontSize": "13px", "color": INK["700"]}),
+    ]
+    rbg = em.get("rate_by_admission_grade") or {}
+    if rbg:
+        header = html.Tr([
+            html.Th(t(SCHEMA, "conv_table_grade", lang)),
+            html.Th(t(SCHEMA, "conv_table_rate", lang)),
+            html.Th(t(SCHEMA, "conv_table_n", lang)),
+        ])
+        body = [
+            html.Tr([html.Td(f"AIS {g}"), html.Td(f"{d['rate']:.0%}"), html.Td(str(d["n"]))])
+            for g, d in sorted(rbg.items())
+        ]
+        children.append(html.Table([header, *body], className="patient-isncsci-table conv-mini-table"))
+    rel = fg.fig_conversion_reliability(em, lang, label)
+    shap = fg.fig_conversion_shap(em, SCHEMA, lang)
+    if rel is not None and shap is not None:
+        children.append(html.Div(
+            style={"display": "flex", "gap": "12px", "marginTop": "8px"},
+            children=[
+                dcc.Graph(figure=rel, config={"displayModeBar": False}, style={"flex": "1", "minWidth": "0"}),
+                dcc.Graph(figure=shap, config={"displayModeBar": False}, style={"flex": "1", "minWidth": "0"}),
+            ],
+        ))
+    return html.Div(className="methods-perf-card", children=children)
+
+
+def _conversion_block(lang: str) -> html.Div | None:
+    """G4 — AIS-grade conversion: descriptive landscape + per-endpoint calibration + magnitude."""
+    conv = CONVERSION
+    if not conv or not conv.get("endpoints"):
+        return None
+    ls = conv.get("landscape", {})
+    children: list = [
+        html.H3(t(SCHEMA, "methods_conversion_heading", lang)),
+        html.P(t(SCHEMA, "methods_conversion_def", lang)),
+    ]
+
+    # --- descriptive landscape ---
+    land_children: list = [html.H4(t(SCHEMA, "methods_conversion_landscape_heading", lang))]
+    summary = (
+        f"{('≥1段階改善' if lang == 'ja' else '≥1-grade improvement')} {ls.get('any_improve_rate', 0):.0%}   "
+        f"{('不変' if lang == 'ja' else 'stable')} {ls.get('stable_rate', 0):.0%}   "
+        f"{('悪化' if lang == 'ja' else 'deterioration')} {ls.get('deteriorate_rate', 0):.0%}   "
+        f"(n={ls.get('n_with_both_ais', 0)})"
+    )
+    land_children.append(html.P(summary, style={"fontSize": "13px", "color": INK["700"]}))
+    f_land = fg.fig_conversion_landscape(conv, lang)
+    f_delta = fg.fig_conversion_delta(conv, lang)
+    if f_land is not None and f_delta is not None:
+        land_children.append(html.Div(
+            style={"display": "flex", "gap": "12px", "marginTop": "8px"},
+            children=[
+                dcc.Graph(figure=f_land, config={"displayModeBar": False}, style={"flex": "1", "minWidth": "0"}),
+                dcc.Graph(figure=f_delta, config={"displayModeBar": False}, style={"flex": "1", "minWidth": "0"}),
+            ],
+        ))
+    children.append(html.Div(className="methods-perf-card", children=land_children))
+
+    # --- per-endpoint calibration + drivers ---
+    children.append(html.H4(
+        t(SCHEMA, "methods_conversion_endpoint_heading", lang),
+        style={"marginTop": "6px"},
+    ))
+    for key, em in conv["endpoints"].items():
+        children.append(_conversion_endpoint_card(key, em, lang))
+
+    # --- ordinal magnitude head ---
+    mag = conv.get("magnitude")
+    if mag:
+        ord_lbl = "順序MAE" if lang == "ja" else "ordinal MAE"
+        set_lbl = "平均集合サイズ" if lang == "ja" else "avg set size"
+        cov_lbl = "カバレッジ" if lang == "ja" else "coverage"
+        mag_children: list = [
+            html.H4(t(SCHEMA, "methods_conversion_magnitude_heading", lang)),
+            html.P(
+                f"acc={mag['accuracy']:.3f}   κ_quad={mag['kappa_quadratic']:.3f}   "
+                f"{ord_lbl}={mag['ordinal_mae']:.3f}   n={mag['n']}",
+                style={"fontSize": "13px", "color": INK["700"]},
+            ),
+            html.P(
+                f"APS: {cov_lbl}={mag['aps_coverage_80']:.0%}   {set_lbl}={mag['aps_avg_set_size']:.2f}",
+                style={"fontSize": "12px", "color": INK["500"]},
+            ),
+        ]
+        f_cm = fg.fig_conversion_confusion(mag, lang)
+        if f_cm is not None:
+            mag_children.append(dcc.Graph(figure=f_cm, config={"displayModeBar": False}))
+        children.append(html.Div(className="methods-perf-card", children=mag_children))
+
+    children.append(html.P(
+        t(SCHEMA, "conv_caption", lang),
         style={"fontSize": "12px", "color": INK["500"]},
     ))
     return html.Div(className="methods-block", children=children)
@@ -374,6 +487,9 @@ def render_methods(lang: str) -> html.Div:
     landmark_block = _landmark_block(lang)
     if landmark_block is not None:
         md.append(landmark_block)
+    conversion_block = _conversion_block(lang)
+    if conversion_block is not None:
+        md.append(conversion_block)
     dq_block = _dataquality_block(lang)
     if dq_block is not None:
         md.append(dq_block)

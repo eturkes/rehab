@@ -9,7 +9,7 @@ import numpy as np
 import plotly.graph_objects as go
 from dash import dcc, html
 
-from rehab_sci.dashboard.compute import format_value
+from rehab_sci.dashboard.compute import format_value, mag_short_label
 from rehab_sci.dashboard.i18n import col_label, level_label, t
 from rehab_sci.dashboard.state import FEATURE_SPEC, SCHEMA, SIM_DEFAULTS
 from rehab_sci.dashboard.theme import INK, PALETTE_CATEGORICAL
@@ -433,3 +433,123 @@ def voi_readout(voi: dict, spec: OutcomeSpec, lang: str) -> html.Div:
             key = "voi_all_observed" if not presc else "voi_none_prescriptive"
             lines.append(html.Div(t(SCHEMA, key, lang), className="lm-readout-line"))
     return html.Div(lines, className="lm-readout")
+
+
+# ---------- AIS-grade conversion (G4; shared by simulator + patient) ----------
+def _conversion_endpoint_label(key: str, letter: str, lang: str) -> str:
+    """Clinical endpoint name + its discharge threshold, e.g. 'Motor-incomplete (≥C)'."""
+    return f"{t(SCHEMA, f'conv_endpoint_{key}', lang)} (≥{letter})"
+
+
+def fig_conversion_endpoints(result: dict, lang: str) -> go.Figure:
+    """Calibrated conversion probabilities for the applicable binary endpoints (see
+    compute.predict_conversion).  One horizontal bar per endpoint = P(conversion); a grey diamond
+    marks that endpoint's cohort base rate so the per-patient lift is visible.  Empty when no
+    endpoint applies at the admission grade (e.g. AIS D/E)."""
+    items = [(k, e) for k, e in result["endpoints"].items() if e.get("applicable")]
+    if not items:
+        return go.Figure()
+    labels = [_conversion_endpoint_label(k, e["discharge_min_letter"], lang) for k, e in items]
+    probs = [e["prob"] for _, e in items]
+    bases = [e["base_rate"] for _, e in items]
+    accent_dark = "#0c5a66"
+    base_word = "コホート基準率" if lang == "ja" else "Cohort base rate"
+    prob_word = "転換確率" if lang == "ja" else "Conversion probability"
+    fig = go.Figure()
+    fig.add_trace(go.Bar(
+        x=probs, y=labels, orientation="h",
+        marker=dict(color="rgba(17,122,139,0.85)", line=dict(color=accent_dark, width=1)),
+        text=[f"{p:.0%}" for p in probs], textposition="outside", textfont=dict(size=12),
+        hovertemplate="%{y}<br>" + prob_word + ": %{x:.1%}<extra></extra>",
+        showlegend=False,
+    ))
+    fig.add_trace(go.Scatter(
+        x=bases, y=labels, mode="markers",
+        marker=dict(color=INK["500"], size=12, symbol="diamond",
+                    line=dict(color="#fff", width=1.2)),
+        hovertemplate=base_word + ": %{x:.1%}<extra></extra>", showlegend=False,
+    ))
+    fig.update_layout(
+        height=58 * len(items) + 70,
+        margin=dict(l=210, r=44, t=16, b=38),
+        xaxis=dict(range=[0, 1.02], tickformat=".0%", title=prob_word),
+        yaxis=dict(autorange="reversed", tickfont=dict(size=11.5), showgrid=False),
+    )
+    return fig
+
+
+def fig_conversion_magnitude(result: dict, lang: str) -> go.Figure:
+    """Ordinal improvement-magnitude head shown AS its 80% APS set / most-likely class (not as a
+    competing probability — the head is class-weighted, hence uncalibrated; see the s3 CRUX).  Bars
+    are the relative class scores over {0,+1,≥+2}; APS-set members are filled + bordered, the
+    most-likely class carries a caret.  Empty when magnitude does not apply (admission AIS E)."""
+    mag = result.get("magnitude") or {}
+    if not mag.get("applicable"):
+        return go.Figure()
+    codes = mag["class_codes"]
+    proba = mag["proba"]
+    cap = mag["mag_cap"]
+    aps = set(mag["aps_codes"])
+    pred = mag["pred_code"]
+    ticks = [mag_short_label(c, cap) for c in codes]
+    accent, accent_dark = PALETTE_CATEGORICAL[0], "#0c5a66"
+    colors = [accent if c in aps else "rgba(17,122,139,0.20)" for c in codes]
+    borders = [accent_dark if c in aps else "rgba(0,0,0,0)" for c in codes]
+    score_word = "相対尤度 (較正なし)" if lang == "ja" else "Relative likelihood (uncalibrated)"
+    fig = go.Figure(go.Bar(
+        x=ticks, y=proba,
+        marker=dict(color=colors, line=dict(color=borders, width=1.5)),
+        text=[("▲ " if c == pred else "") + f"{p:.0%}" for c, p in zip(codes, proba, strict=True)],
+        textposition="outside", textfont=dict(size=11),
+        hovertemplate="%{x}: %{y:.1%}<extra></extra>", showlegend=False,
+    ))
+    fig.update_layout(
+        height=230,
+        margin=dict(l=56, r=20, t=24, b=40),
+        yaxis=dict(range=[0, 1.08], tickformat=".0%", title=score_word),
+        xaxis=dict(title=("改善幅 (段階)" if lang == "ja" else "Improvement (grades)")),
+    )
+    return fig
+
+
+def conversion_readout(result: dict, lang: str) -> html.Div:
+    """Text summary of the conversion panel: admission grade, each applicable calibrated endpoint
+    probability with its cohort base-rate lift, and the magnitude most-likely class + APS set.
+    Renders a 'needs admission grade' / 'at ceiling' note when nothing applies."""
+    if result["ais_ord"] is None:
+        return html.Div(t(SCHEMA, "conv_need_ais", lang), className="lm-prompt")
+    lines: list = [
+        html.Div(
+            f"{t(SCHEMA, 'conv_adm_grade', lang)}: AIS {result['adm_letter']}",
+            className="conv-readout-grade",
+        ),
+    ]
+    if not result["any_applicable"]:
+        lines.append(html.Div(t(SCHEMA, "conv_at_ceiling", lang), className="lm-readout-line"))
+        return html.Div(lines, className="lm-readout conv-readout")
+
+    pp_word = "pt" if lang == "ja" else "pp"
+    for key, e in result["endpoints"].items():
+        if not e.get("applicable"):
+            continue
+        lift = (e["prob"] - e["base_rate"]) * 100
+        name = _conversion_endpoint_label(key, e["discharge_min_letter"], lang)
+        lines.append(html.Div(
+            f"{name}: {e['prob']:.0%} "
+            f"({t(SCHEMA, 'conv_base', lang)} {e['base_rate']:.0%}, {lift:+.0f}{pp_word})",
+            className="lm-readout-line",
+        ))
+
+    mag = result.get("magnitude") or {}
+    if mag.get("applicable"):
+        cap = mag["mag_cap"]
+        unit = t(SCHEMA, "conv_mag_unit", lang)
+        pred_lbl = mag_short_label(mag["pred_code"], cap)
+        set_lbl = ", ".join(mag_short_label(c, cap) for c in mag["aps_codes"])
+        lines.append(html.Div(
+            f"{t(SCHEMA, 'conv_mag_label', lang)}: "
+            f"{t(SCHEMA, 'conv_most_likely', lang)} {pred_lbl} {unit} · "
+            f"{t(SCHEMA, 'conv_aps_set', lang)} {{{set_lbl}}}",
+            className="lm-readout-line lm-readout-delta",
+        ))
+    return html.Div(lines, className="lm-readout conv-readout")

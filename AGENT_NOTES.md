@@ -35,12 +35,11 @@ superseded, duplicated elsewhere, or has gone stale.
 * This file — agent-facing scratchpad.  Read before planning; update after each
   session; prune duplication per the inclusion rule above.
 * **Default-work pool: §8 backlog.**  F1–F25 + G1 (s29/s30) + G2 (s31) + G3
-  observed-trajectory phenotyping (s32 part 1 cohort surface, s33 part 2 patient
-  surface) fully shipped (see §7).  **In progress: G4 AIS conversion — part 1 (model + metrics)
-  shipped s34; part 2 (dashboard surfaces) is the next work, backlog tasks 4–7.**  Open after
-  that: F26 test harness · F27 dep refresh.  The user steers toward *insightful*
-  (clinical/scientific) features over infra/maintenance — propose those (G-series) first unless
-  redirected.
+  observed-trajectory phenotyping (s32/s33) + G4 AIS-grade conversion (s34 model+metrics,
+  s35 dashboard surfaces across Methods/Patient/Simulator) fully shipped (see §7).  **Open:
+  F26 test harness · F27 dep refresh — or propose a new insightful G-series feature.**  The user
+  steers toward *insightful* (clinical/scientific) features over infra/maintenance — propose those
+  (G-series) first unless redirected.
 
 ## 0b. Lessons & mistakes (append; prune when superseded)
 
@@ -129,6 +128,13 @@ superseded, duplicated elsewhere, or has gone stale.
   for an imbalanced one that needs weighting, surface the *APS set / argmax class*, not the raw
   probability.  (Also: `shap.TreeExplainer(lgbm_binary).shap_values(X)` now returns a *list of
   ndarray* — take `[-1]` for the positive class; the 3-D `(n,p,2)` form takes `[:,:,-1]`.)
+* **"Dashboard boots 200" does NOT exercise tab content — render each touched tab in both langs
+  before claiming it works.**  An `INK["600"]` typo (no such key; INK has 900/700/500/300/…) in the
+  Methods VOI paragraph (added s31) crashed the entire Methods-tab render for *four sessions* yet
+  every "boots 200" check passed, because the tab bodies are built lazily by the `update_tab`
+  callback, not at boot.  The cheap guard is a headless `render_methods('ja'/'en')` /
+  `render_patient` / `render_simulator` call (plus invoking the new callbacks directly) — it caught
+  this immediately.  Add such a render to any verification that touches a tab.
 * **The admission-feature count is 30, not 32 — docs had drifted; cite "the
   admission features" without a number.**  `af.feature_cols` (== `len(
   ADMISSION_FEATURES)`) is **30**: 2 demographics + 9 injury/admin + 15
@@ -471,8 +477,22 @@ superseded, duplicated elsewhere, or has gone stale.
   (admission features predict ambulatory conversion well); `motor_incomplete` AUC ≈0.62 (admission
   data poorly predicts complete→incomplete — a real clinical reality, an insightful contrast, not
   a bug); magnitude κ_quadratic ≈0.49, APS conservative (~99 %, set ≈2.4, as documented for
-  discrete K).  **Status: model + tracked metrics shipped (s34); dashboard surfaces
-  (compute/figures/Methods+Patient+Simulator) PENDING — resume at backlog tasks 4–7.**
+  discrete K).  **Fully shipped: model + tracked metrics (s34) + dashboard surfaces (s35).**
+  **Dashboard contract (s35):** pure `compute.predict_conversion(X_row)` (inline `_apply_platt`
+  mirror — never import `models.conversion`, it pulls shap) returns per-endpoint calibrated prob +
+  applicability flag (gated by admission grade ∈ `adm_grades`) and the magnitude class-probs / APS
+  set / argmax (A–D only); `ais_ord=None` ⇒ an all-N/A result the UI renders as a "needs admission
+  grade" prompt.  Shared inference figs live in `layout.py` (`fig_conversion_endpoints` calibrated
+  horizontal bars + cohort base-rate diamonds; `fig_conversion_magnitude` ordinal set/argmax bars;
+  `conversion_readout`), Methods-only metric figs in `figures/methods.py` (`fig_conversion_landscape`,
+  `_delta`, `_reliability` calibrated-vs-raw, `_shap`, `_confusion`).  Surfaces: Methods landscape +
+  per-endpoint calibration/driver cards + magnitude confusion; Simulator hypothetical card (driven by
+  the admission inputs); Patient card.  **Patient-card gating invariant:** `episode_row_for_model`
+  imputes cohort defaults for missing features, so the patient callback **overrides `AIS_ord` with
+  the episode's raw admission grade** before inference — conversion cohort membership is undefined
+  when the grade is unrecorded (~12 % of episodes), so a missing real grade shows the prompt rather
+  than a transition *from* an imputed grade (stricter than the production AIS head, by design).
+  The Simulator leaves blanks as NaN (no imputation), so its prompt is natural.
 
 ## 4. Dashboard conventions
 
@@ -604,6 +624,20 @@ bgcmd 'exit()'; rm -rf "$BGCMDDIR"               # stop + clean
 
 One line per session; full detail is in Git history (`git log`, diffs).
 
+* **s35** — G4 AIS-grade conversion, **Part 2** (dashboard surfaces across Methods + Patient +
+  Simulator).  Pure `compute.predict_conversion` (inline `_apply_platt` mirror; admission-grade
+  gating; real-grade override on the Patient card) + `state.CONVERSION`/`CONVERSION_BUNDLE`
+  loaders.  Shared `layout` figs (`fig_conversion_endpoints` calibrated bars + base-rate diamonds,
+  `fig_conversion_magnitude` ordinal set/argmax, `conversion_readout`) and 5 Methods metric figs
+  (`fig_conversion_landscape`/`_delta`/`_reliability`/`_shap`/`_confusion`).  Methods landscape +
+  per-endpoint calibration/driver cards + magnitude confusion; Simulator + Patient inference cards.
+  Bilingual `conv_*` strings + `.conv-*` CSS.  Honored the §3 CRUX (binary = calibrated probs,
+  magnitude = APS set / argmax, never competing numbers).  **Caught + fixed a latent s31 bug:
+  `INK["600"]` (nonexistent key) in the Methods VOI paragraph had been crashing the whole Methods
+  tab render since G2 — invisible to "boots 200" checks (boot doesn't render tab content).**  Lint
+  + F-gate clean; final code boots 200 with both conversion callbacks registered; functional tests
+  pass for AIS A/C/D + missing-grade + blank-sim, both langs.  No retrain — production + conversion
+  artifacts untouched.
 * **s34** — G4 AIS-grade conversion modeling, **Part 1** (model + tracked metrics; user chose
   panel+magnitude · diagnostic module · Methods+Patient+Simulator surfaces).  New
   `models/conversion.py`: two *calibrated binary* endpoints (`motor_incomplete` A/B→≥C,
@@ -780,7 +814,7 @@ One line per session; full detail is in Git history (`git log`, diffs).
 
 ## 8. Feature backlog (default-work pool)
 
-Propose from here unless the user redirects.  **Items F1–F25 + G1–G3 are
+Propose from here unless the user redirects.  **Items F1–F25 + G1–G4 are
 shipped** — see §7 for the session each landed in, and Git history for
 implementation detail.  The user steers toward *insightful* (clinical/
 scientific) features over infra/maintenance — lead with the **G-series**.
@@ -815,37 +849,26 @@ Shipped ledger (terse, by feature number):
   readout on the Patient tab.  See §3 for the contract (incl. the support-truncation /
   ordering extrapolation traps + the reproduce-stored-posterior invariant) and §7.  Fully
   shipped.
+* **G4 AIS-grade conversion** (s34 model + tracked metrics; s35 dashboard surfaces):
+  `models/conversion.py` (two calibrated binary endpoints + ordinal magnitude head) +
+  `compute.predict_conversion` + shared `layout` inference figs + 5 Methods metric figs +
+  Methods/Patient/Simulator surfaces (`conv_*` strings, `.conv-*` CSS).  See §3 for the model
+  + dashboard contract (incl. the binary-vs-magnitude non-comparability CRUX and the patient
+  real-grade gating invariant) and §7.  Fully shipped.
 
 **F23 (shipped s26): data-quality / clinical-consistency report** — see §7 and
 `data/quality.py`; durable data facts it surfaced live in §0b/§1, and the
 regenerated `models/dataquality_summary.json` holds the per-rule scorecard.
 
-**Ready candidates (pick the next unless redirected; lead with G-series):**
-* **G4 AIS-conversion modeling — PART 2 (dashboard surfaces): the next work.**  Part 1 (model +
-  tracked metrics) shipped s34 — see the §3 contract and the s34 session note.  Part 2 wires the
-  *diagnostic bundle* into the dashboard across **Methods + Patient + Simulator** (the surfaces
-  the user approved).  Concrete resume plan = backlog **tasks 4–7**:
-  - **(task 4) compute.py** — pure `predict_conversion(X_row)`: load `CONVERSION`/`CONVERSION_BUNDLE`
-    in `state.py` (mirror the `LANDMARK`/`LANDMARK_BUNDLE` block); per-endpoint calibrated prob
-    (inline `_apply_platt` = logit→`calibrator.predict_proba`, do **not** import `models.conversion`
-    — it pulls shap) gated by admission grade; magnitude class-probs + APS set (reuse
-    `_aps_prediction_set` already imported in compute).  Requires `AIS_ord` present.
-  - **(task 5) figures + layout** — Methods: cohort base-rate table by admission grade + delta
-    dist (from `conversion_metrics.json` `landscape`), reliability curve(s) (`calibration` vs
-    `calibration_raw`), SHAP driver bars (`shap_top`), magnitude confusion/APS.  Patient/Simulator:
-    per-row endpoint probability gauge/bars + magnitude APS-set readout.  Put per-tab figs in
-    `figures/{methods,patient,simulator}.py` + `__all__`; use registered palettes/`PALETTE_AIS`.
-  - **(task 6) tabs + bilingual `conv_*` ui_strings (ja/en) + `.conv-*` CSS** — respect the
-    `lang-store` State-vs-Input race note in §4.
-  - **(task 7) verify** (MAP regen, ruff + `--select F`, dashboard boots 200 + conversion callbacks
-    in `/_dash-dependencies`, both langs) + finalize docs (mark G4 fully shipped) + commit.
-  **UI-framing invariant (see §3 CRUX):** surface the *binary* heads as calibrated conversion
-  probabilities and the *magnitude* head as its APS set / most-likely class — never as competing
-  numbers.  *data dep:* `models/conversion/bundle.joblib` (regenerate via the §6 command if absent).
+**Ready candidates (pick the next unless redirected; the user prefers a new insightful G-series
+feature over the infra items below):**
 * **F26 invariant test harness** — narrow pytest enforcing §1 data + model
-  invariants + a smoke test; skip-if-CSV-absent.  M.  files: `tests/`, pyproject.
+  invariants + a smoke test (incl. a headless `render_{methods,patient,simulator}` per the §0b
+  lesson, which would have caught the s31 `INK["600"]` crash).  skip-if-CSV-absent.  M.  files:
+  `tests/`, pyproject.
 * **F27 dependency refresh** — minor/patch bumps + raise the `shap<0.52` cap;
   retrain to verify byte-repro.  S, low value now (no CVEs, lint clean).
-
-Propose new feature candidates or maintenance and add them here with **what /
-why / effort / files / data dependency** before starting.
+* **New G-series ideas (propose to the user; none scoped yet):** e.g. competing-risks /
+  time-to-event discharge modeling; a counterfactual "treatment lever" explorer; calibration
+  drift monitoring.  Add any candidate here with **what / why / effort / files / data
+  dependency** before starting.

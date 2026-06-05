@@ -5,6 +5,7 @@ from __future__ import annotations
 import numpy as np
 import plotly.graph_objects as go
 
+from rehab_sci.dashboard.i18n import col_label
 from rehab_sci.dashboard.theme import INK, PALETTE_AIS, PALETTE_CATEGORICAL
 from rehab_sci.schema import Schema
 
@@ -470,5 +471,165 @@ def fig_voi_scorecard(lm_outcome: dict, lang: str, measure_labels: dict) -> go.F
         margin=dict(l=8, r=8, t=10, b=40),
         xaxis=dict(title=x_lbl, side="bottom"),
         yaxis=dict(autorange="reversed", tickfont=dict(size=11)),
+    )
+    return fig
+
+
+# ----------------------------- AIS-grade conversion (G4) ----------------------------
+_AIS_GRADE_ORDER = ("A", "B", "C", "D", "E")
+
+
+def fig_conversion_landscape(conv: dict, lang: str) -> go.Figure | None:
+    """Descriptive conversion landscape: ≥1-grade AIS improvement rate by admission grade.
+
+    Visualizes the admission-gating that motivates the conversion heads — improvement is common
+    from B/C, rare from D, impossible from E (ceiling).  ``conv`` is ``conversion_metrics.json``.
+    """
+    by_grade = (conv or {}).get("landscape", {}).get("improve_rate_by_admission_grade")
+    if not by_grade:
+        return None
+    grades = [g for g in _AIS_GRADE_ORDER if g in by_grade]
+    rates = [by_grade[g]["improve_rate"] for g in grades]
+    ns = [by_grade[g]["n"] for g in grades]
+    rate_lbl = "改善率 (≥1段階)" if lang == "ja" else "Improvement rate (≥1 grade)"
+    adm_lbl = "入院時 AIS" if lang == "ja" else "Admission AIS"
+    n_word = "症例数" if lang == "ja" else "n"
+    fig = go.Figure(go.Bar(
+        x=[f"AIS {g}" for g in grades], y=rates,
+        marker=dict(color=[PALETTE_AIS[g] for g in grades]),
+        text=[f"{r:.0%}<br>(n={n})" for r, n in zip(rates, ns, strict=True)],
+        textposition="outside", textfont=dict(size=11),
+        hovertemplate="%{x}<br>" + rate_lbl + ": %{y:.0%}<br>" + n_word + "=%{customdata}<extra></extra>",
+        customdata=ns, showlegend=False,
+    ))
+    fig.update_layout(
+        height=280, margin=dict(l=54, r=20, t=20, b=40),
+        xaxis=dict(title=adm_lbl),
+        yaxis=dict(range=[0, 1.08], tickformat=".0%", title=rate_lbl),
+    )
+    return fig
+
+
+def fig_conversion_delta(conv: dict, lang: str) -> go.Figure | None:
+    """Distribution of the AIS grade change (discharge − admission) over the dual-AIS cohort.
+
+    Deterioration (Δ<0) crimson, stable (Δ=0) slate, improvement (Δ>0) teal.  ``conv`` is
+    ``conversion_metrics.json``.
+    """
+    dist = (conv or {}).get("landscape", {}).get("delta_distribution")
+    if not dist:
+        return None
+    deltas = sorted(int(k) for k in dist)
+    counts = [dist[str(d)] for d in deltas]
+    colors = ["#a3354e" if d < 0 else (INK["300"] if d == 0 else PALETTE_CATEGORICAL[0]) for d in deltas]
+    delta_lbl = "AIS グレード変化 (退院 − 入院)" if lang == "ja" else "AIS grade change (discharge − admission)"
+    n_word = "症例数" if lang == "ja" else "Episodes"
+    fig = go.Figure(go.Bar(
+        x=[f"{d:+d}" if d != 0 else "0" for d in deltas], y=counts,
+        marker=dict(color=colors),
+        text=counts, textposition="outside", textfont=dict(size=11),
+        hovertemplate="Δ=%{x}<br>" + n_word + ": %{y}<extra></extra>", showlegend=False,
+    ))
+    fig.update_layout(
+        height=260, margin=dict(l=54, r=20, t=20, b=40),
+        xaxis=dict(title=delta_lbl),
+        yaxis=dict(title=n_word),
+    )
+    return fig
+
+
+def fig_conversion_reliability(em: dict, lang: str, label: str) -> go.Figure | None:
+    """Reliability curve for one binary conversion endpoint: Platt-calibrated vs raw LightGBM,
+    against the diagonal.  Markers sized by bin count.  ``em`` is one entry of
+    ``conversion_metrics.json['endpoints']``."""
+    cal, raw = (em or {}).get("calibration"), (em or {}).get("calibration_raw")
+    if not cal or not raw:
+        return None
+    conf_lbl = "予測確率" if lang == "ja" else "Predicted probability"
+    obs_lbl = "実測頻度" if lang == "ja" else "Observed frequency"
+    cal_lbl = "較正後 (Platt)" if lang == "ja" else "Calibrated (Platt)"
+    raw_lbl = "生 (LightGBM)" if lang == "ja" else "Raw (LightGBM)"
+
+    def _sizes(counts: list) -> list:
+        c = np.asarray(counts, dtype=float)
+        return list(8 + 14 * np.sqrt(c / max(c.max(), 1.0)))
+
+    fig = go.Figure()
+    fig.add_trace(go.Scatter(
+        x=[0, 1], y=[0, 1], mode="lines",
+        line=dict(color=INK["200"], dash="dash", width=1.5),
+        showlegend=False, hoverinfo="skip",
+    ))
+    fig.add_trace(go.Scatter(
+        x=raw["pred_mean"], y=raw["obs_freq"], mode="lines+markers", name=raw_lbl,
+        marker=dict(size=_sizes(raw["count"]), color=INK["300"], symbol="circle-open"),
+        line=dict(color=INK["300"], width=1.5, dash="dot"),
+        hovertemplate=conf_lbl + "=%{x:.2f}<br>" + obs_lbl + "=%{y:.2f}<extra></extra>",
+    ))
+    fig.add_trace(go.Scatter(
+        x=cal["pred_mean"], y=cal["obs_freq"], mode="lines+markers", name=cal_lbl,
+        marker=dict(size=_sizes(cal["count"]), color=PALETTE_CATEGORICAL[0]),
+        line=dict(color=PALETTE_CATEGORICAL[0], width=2),
+        hovertemplate=conf_lbl + "=%{x:.2f}<br>" + obs_lbl + "=%{y:.2f}<extra></extra>",
+    ))
+    fig.update_layout(
+        height=300, margin=dict(l=50, r=20, t=34, b=44),
+        title=dict(text=label, font=dict(size=12.5, color=INK["700"]), x=0.5, xanchor="center"),
+        xaxis=dict(title=conf_lbl, range=[0, 1]),
+        yaxis=dict(title=obs_lbl, range=[0, 1]),
+        legend=dict(x=0.02, y=0.98, xanchor="left", yanchor="top",
+                    bgcolor="rgba(255,255,255,0.8)", font=dict(size=10)),
+    )
+    return fig
+
+
+def fig_conversion_shap(em: dict, schema: Schema, lang: str, top_n: int = 10) -> go.Figure | None:
+    """Descriptive in-sample SHAP drivers for one conversion endpoint (mean |SHAP| on the full
+    cohort).  ``em`` is one entry of ``conversion_metrics.json['endpoints']``."""
+    items = (em or {}).get("shap_top")
+    if not items:
+        return None
+    items = items[:top_n][::-1]
+    names = [col_label(schema, r["feature"], lang) for r in items]
+    vals = [r["mean_abs"] for r in items]
+    fig = go.Figure(go.Bar(
+        x=vals, y=names, orientation="h",
+        marker=dict(color=PALETTE_CATEGORICAL[3]),
+        hovertemplate="%{y}<br>|SHAP|: %{x:.3f}<extra></extra>",
+    ))
+    fig.update_layout(
+        height=max(240, 22 * len(items) + 70),
+        margin=dict(l=210, r=20, t=10, b=40),
+        xaxis_title="mean(|SHAP|)",
+    )
+    return fig
+
+
+def fig_conversion_confusion(mag: dict, lang: str) -> go.Figure | None:
+    """Row-normalized confusion matrix for the ordinal magnitude head over {0, +1, ≥+2}.
+
+    ``mag`` is ``conversion_metrics.json['magnitude']`` (out-of-fold predictions).
+    """
+    cm = (mag or {}).get("confusion")
+    if not cm:
+        return None
+    cm = np.asarray(cm, dtype=int)
+    cap = int(mag.get("mag_cap", 2))
+    labels = ["0", *[f"+{i}" for i in range(1, cap)], f"≥+{cap}"][: cm.shape[0]]
+    row_sums = cm.sum(axis=1, keepdims=True)
+    cm_pct = np.where(row_sums > 0, cm / np.maximum(row_sums, 1) * 100, 0)
+    actual_lbl = "実際" if lang == "ja" else "Actual"
+    pred_lbl = "予測" if lang == "ja" else "Predicted"
+    text = [[f"{cm[i, j]}<br>({cm_pct[i, j]:.0f}%)" for j in range(cm.shape[1])] for i in range(cm.shape[0])]
+    fig = go.Figure(go.Heatmap(
+        z=cm_pct, x=labels, y=labels, text=text,
+        texttemplate="%{text}", textfont=dict(size=12),
+        colorscale=[[0, INK["paper"]], [1, PALETTE_CATEGORICAL[0]]], showscale=False,
+        hovertemplate=f"{actual_lbl}: %{{y}}<br>{pred_lbl}: %{{x}}<br>%{{text}}<extra></extra>",
+    ))
+    fig.update_layout(
+        height=300, margin=dict(l=60, r=20, t=28, b=50),
+        xaxis=dict(title=pred_lbl, side="bottom"),
+        yaxis=dict(title=actual_lbl, autorange="reversed"),
     )
     return fig
