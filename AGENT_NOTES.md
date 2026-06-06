@@ -36,10 +36,11 @@ superseded, duplicated elsewhere, or has gone stale.
   session; prune duplication per the inclusion rule above.
 * **Default-work pool: §8 backlog.**  F1–F25 + G1 (s29/s30) + G2 (s31) + G3
   observed-trajectory phenotyping (s32/s33) + G4 AIS-grade conversion (s34/s35) + G6 AIS
-  multi-state recovery (s36 model + s37 dashboard) fully shipped (see §7).  Other
-  open: F26 test harness · F27 dep refresh.  **No G-series feature is mid-flight — propose a NEW
-  insightful G-series idea (see §8 candidates) unless redirected.**  The user steers toward
-  *insightful* (clinical/scientific) features over infra/maintenance, so lead with those.
+  multi-state recovery (s36/s37) fully shipped (see §7).  **G7 functional-independence profile is
+  MID-FLIGHT: Part 1 (model + metrics) shipped s38; Part 2 (dashboard surfaces) is the immediate
+  next task** (see §8 G7 bullet + §3 contract).  Other open: F26 test harness · F27 dep refresh.
+  The user steers toward *insightful* (clinical/scientific) features over infra/maintenance, so
+  lead with those.
 
 ## 0b. Lessons & mistakes (append; prune when superseded)
 
@@ -142,6 +143,17 @@ superseded, duplicated elsewhere, or has gone stale.
   (PDF methods text), `train.py` (trajectory docstring), and §3 here.  When a
   count is load-bearing, derive it from `len(af.feature_cols)` at runtime
   rather than re-typing a literal that silently drifts.
+* **A conformal *prediction set* over a BINARY head degenerates — do not surface
+  it; use the calibrated probability + reliability curve instead.**  G7 first put
+  an APS set over {dependent, independent}; coverage came out 100 % with ~90–100 %
+  *abstain* (`{both}`) on every one of the 18 heads.  Root cause: the APS
+  nonconformity score is the cumulative mass to reach the true class, so every
+  misranked episode scores **exactly 1.0**; accuracy ~0.85 pins ~15 % of scores at
+  1.0, dragging the 80 %-quantile q to ~0.98–1.0, which then forces `{both}`
+  whenever `p_top < q` (i.e. almost always).  For K=2 the calibrated probability
+  already *is* the honest uncertainty (a singleton `{argmax}` covers ≈accuracy ≥
+  target anyway), so a set adds nothing.  Reserve APS/abstention sets for K≥3
+  (AIS, magnitude).  Verified q_hat=0.98–1.00 before removing the layer.
 
 ## 1. Data invariants (do not rediscover)
 
@@ -555,6 +567,40 @@ superseded, duplicated elsewhere, or has gone stale.
   `ms_*`/`methods_ms_*` strings; the surfaces reuse the `.lm-card`/`.conv-readout`/`.sim-*` CSS
   (`.ms-card` is an unstyled hook like `.conv-card`).
 
+* **Functional-independence profile (`models/independence.py`, G7)** — predicts, per individual
+  SCIM-III ADL item, the calibrated P(**functional independence** at discharge) from admission
+  features, reframing the aggregate SCIM heads into the per-function "will I feed myself / manage
+  my bladder / walk?" question.  **18 calibrated binary heads** (one per modelable item;
+  Respiration excluded — 95 % independent at discharge, too imbalanced; its rate is noted in the
+  metrics' `excluded`).  **Label = functional independence (aids/devices allowed, no human
+  assistance)** via a per-item SCIM-rubric threshold, mapped to the rubric and validated against
+  the observed score distributions — the canonical table (also in `independence.py::ITEMS`):
+  feeding/bathing/dressing/grooming **≥2** (independent with devices/simple clothes);
+  bladder **≥9** / bowel **≥8** (self-manages, no caregiver); toilet **≥3**; bed-mobility =6 and
+  the 0–2 transfers (bed↔WC, WC↔toilet, WC↔car) + ground↔WC at their **top score** (the scale
+  lumps human-assist with device-use ⇒ no clean "with-aids" middle); the three **walking** items
+  (indoors/moderate/outdoors) **≥4** = ambulates independently *with or without aids* —
+  wheelchair-independence does NOT count, so they read as distinct ambulation milestones (the
+  user's explicit framing).  Domains (display grouping): self_care(6) / sphincter(3) /
+  mobility(5, transfers+bed) / ambulation(4, walking+stair).  **Methodology — binary plumbing
+  reused verbatim from `conversion.py`** (`_typed_X`/`_params_binary`/`_oof_binary`/`_fit_platt`/
+  `_apply_platt`/`_refit`/`_calibration_curve`/`_shap_top`, imported): grouped-5fold-CV OOF →
+  AUC/Brier/calibration + Platt calibrator; refit on full cohort; descriptive in-sample SHAP
+  drivers.  **CRUX — the uncertainty surface is the calibrated probability + reliability curve,
+  NOT a conformal set: an APS set over a binary head degenerates (§0b) and was removed.**  No
+  `class_weight` (items near-balanced ⇒ calibratable).  Findings: mean AUC ≈0.905 across 18 items
+  (range 0.88–0.93), every Brier well below its base-rate baseline; the **expected-independent
+  count** (Σ of the 18 calibrated probs, a clean profile summary) rises monotonically with
+  admission AIS (A≈0.9 → B≈6 → C≈13 → D/E≈17 of 18), and **outdoor walking is the hardest
+  milestone** (P≈0.36 even at AIS-C) — the differentiated walking signal.  Diagnostic + inference
+  layer like conversion/multistate/landmark: tracked identifier-free
+  `models/independence_metrics.json` + git-ignored `models/independence/bundle.joblib`;
+  **production `train.py` artifacts untouched (empty `training_metrics.json` diff)**.  Bundle
+  shape (consumed by the pending `compute.predict_independence`): `items` registry +
+  `heads[key]={clf, calibrator, thr, col, domain, feature_cols, base_rate}`; mirror `_apply_platt`
+  inline in compute.py (never import this module — it pulls shap via conversion→train).  **Part 1
+  shipped (s38): model + tracked metrics; dashboard surfaces PENDING (backlog G7 Part 2).**
+
 ## 4. Dashboard conventions
 
 * **Module layout** (`src/rehab_sci/dashboard/`) — `MAP.md` is the authoritative
@@ -663,6 +709,7 @@ uv run python -m rehab_sci.models.landmark       # landmark (dynamic) prediction
 uv run python -m rehab_sci.models.phenotypes     # observed-trajectory phenotyping — growth mixture model (G3); ~5 min
 uv run python -m rehab_sci.models.conversion     # AIS-grade conversion modeling (G4); ~15 s
 uv run python -m rehab_sci.models.multistate     # AIS multi-state recovery — transition Markov + improve head (G6); ~5 s
+uv run python -m rehab_sci.models.independence   # functional-independence profile — 18 per-SCIM-item calibrated heads (G7); ~50 s
 uv run python -m rehab_sci.dashboard.app         # serve at :8050
 pkill -f 'rehab_sci.dashboard.app'               # stop stale dashboard
 uv cache prune                                   # reclaim uv cache space
@@ -686,6 +733,20 @@ bgcmd 'exit()'; rm -rf "$BGCMDDIR"               # stop + clean
 
 One line per session; full detail is in Git history (`git log`, diffs).
 
+* **s38** — G7 functional-independence profile, **Part 1** (model + tracked metrics; user chose
+  the *functional* independence definition — aids/devices allowed — and the *ambulation* framing
+  for the 3 walking items).  New `models/independence.py`: 18 calibrated binary heads (one per
+  modelable SCIM-III ADL item; Respiration excluded as near-universal), label = per-item
+  rubric-mapped functional-independence threshold (validated against the observed discharge score
+  distributions; full table in §3).  Reuses `conversion.py` binary plumbing verbatim
+  (grouped-CV OOF → Platt + AUC/Brier/calibration; refit full cohort; in-sample SHAP).  **Caught +
+  removed a degenerate binary APS abstention set** (100 % coverage / ~99 % abstain because the APS
+  q pins at ~1.0 for K=2 — new §0b lesson); the calibrated probability + reliability curve is the
+  uncertainty surface.  Tracked identifier-free `independence_metrics.json` + git-ignored bundle;
+  production byte-repro verified (empty `training_metrics.json` diff).  Findings: mean AUC ≈0.905,
+  expected-independent-count rises monotonically A→E (0.9→6→13→17 of 18), outdoor walking the
+  hardest milestone.  Validated bundle inference + clinical monotonicity per AIS grade; lint +
+  F-gate clean; MAP regenerated.  Dashboard surfaces (Part 2) deferred to the backlog.
 * **s37** — G6 AIS multi-state recovery, **Part 2** (dashboard surfaces across Methods + Patient +
   Simulator; user chose all 4 cohort-dynamics visuals + all-three-surfaces with a Methods
   checkpoint commit).  Pure `compute.predict_multistate` (inline `_apply_platt` mirror;
@@ -904,10 +965,10 @@ One line per session; full detail is in Git history (`git log`, diffs).
 ## 8. Feature backlog (default-work pool)
 
 Propose from here unless the user redirects.  **Items F1–F25 + G1–G4 + G6 are
-shipped** — see §7 for the session each landed in, and Git history for
-implementation detail.  The user steers toward *insightful* (clinical/
-scientific) features over infra/maintenance — so **propose a NEW G-series idea**
-(see candidates below); no G feature is mid-flight.
+shipped; G7 Part 1 is shipped (s38) and G7 Part 2 is the immediate next task** —
+see §7 for the session each landed in, and Git history for implementation detail.
+The user steers toward *insightful* (clinical/scientific) features over
+infra/maintenance.
 Shipped ledger (terse, by feature number):
 
 * F1 patient explorer · F2 multi-outcome prediction · F3 Mondrian conformal ·
@@ -955,6 +1016,16 @@ Shipped ledger (terse, by feature number):
   absorbing-above monotone first-passage, the faithful apparent-regression caveat, the non-monotone
   improve base rate, the cohort-not-personalized CRUX + first-passage dedup invariant) and §7.
   Fully shipped.
+* **G7 functional-independence profile** (s38 Part 1 — model + tracked metrics; Part 2 dashboard
+  pending): `models/independence.py` — 18 per-SCIM-III-item calibrated binary heads predicting
+  P(functional independence at discharge) per ADL item, reframing the aggregate SCIM total as
+  concrete acts ("will I feed myself / manage my bladder / walk?").  Independence = item score ≥ its
+  functional-with-aids rubric threshold (aids/devices count); the 3 walking-mobility items use the
+  ambulation (walking, ≥4) framing so wheelchair-independence does **not** count.  Borrows the
+  conversion.py binary plumbing verbatim (`_oof_binary`/`_fit_platt`/`_apply_platt`/`_shap_top`,
+  grouped-CV by IDNumber, Platt calibration).  Respiration excluded (near-universal).  No APS layer
+  (binary APS is degenerate — see §0b).  See §3 for the contract and §7.  Part 1 shipped; Part 2
+  (Methods/Patient/Simulator surfaces) is the immediate next task.
 
 **F23 (shipped s26): data-quality / clinical-consistency report** — see §7 and
 `data/quality.py`; durable data facts it surfaced live in §0b/§1, and the
@@ -962,6 +1033,13 @@ regenerated `models/dataquality_summary.json` holds the per-rule scorecard.
 
 **Ready candidates (pick the next unless redirected; the user prefers a new insightful G-series
 feature over the infra items below):**
+* **G7 Part 2 — functional-independence dashboard surfaces (IMMEDIATE NEXT):** pure
+  `compute.predict_independence` (inline `_apply_platt` mirror, no model-module import — keeps
+  compute.py shap-free), a shared layout profile figure (horizontal P(independence) bars grouped by
+  domain), Methods metric figs (per-item AUC/Brier scorecard, calibration, SHAP driver heatmap,
+  cohort base-rate landscape), and Methods+Patient+Simulator surfaces with bilingual `ind_*` /
+  `methods_ind_*` strings + `.ind-*` CSS.  Mirror the G4/G6 dashboard pattern.  See §3 for the
+  contract.
 * **F26 invariant test harness** — narrow pytest enforcing §1 data + model
   invariants + a smoke test (incl. a headless `render_{methods,patient,simulator}` per the §0b
   lesson, which would have caught the s31 `INK["600"]` crash).  skip-if-CSV-absent.  M.  files:

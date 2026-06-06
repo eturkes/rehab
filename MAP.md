@@ -3,7 +3,7 @@
 Regenerate after structural changes: `uv run python scripts/gen_map.py`.
 Line numbers are 1-indexed — slice with `Read(path, offset, limit)` instead of
 reading whole files.  Sources: src/rehab_sci, scripts.
-Index: 47 files, 13909 source lines.
+Index: 48 files, 14190 source lines.
 
 ## scripts
 
@@ -528,6 +528,21 @@ AIS-grade conversion modeling (G4) — predict the admission->discharge AIS *tra
 - L303 `_run_magnitude(ep, af)` — Fit + score the ordinal improvement-magnitude head; return (metrics, persisted-m…
 - L357 `_landscape(ep)` — Descriptive conversion landscape over every episode with both admission + discha…
 - L381 `main()`
+
+### independence.py (281 lines)
+Functional-independence profile (G7) — per-SCIM-item discharge independence pred…
+- L78 `ROOT` (const)
+- L79 `OUT` (const)
+- L81 `N_CAL_BINS` (const)
+- L82 `MIN_MINORITY` (const)
+- L84 `ADM_COL` (const)
+- L85 `DISCHARGE_TP` (const)
+- L91 `ITEMS` (const)
+- L118 `EXCLUDED` (const)
+- L126 `_attach_discharge_items(af)` — Episode frame + the discharge-timepoint raw score for every registry (and exclud…
+- L143 `_run_item(spec, ep, af)` — Fit + score one calibrated binary independence head; return (metrics, persisted-…
+- L201 `_excluded_rates(ep)` — Discharge independence rate for the documented-excluded items (for the metrics r…
+- L217 `main()`
 
 ### landmark.py (458 lines)
 Landmark (dynamic) prediction — sharpen the discharge prognosis as early recover…
