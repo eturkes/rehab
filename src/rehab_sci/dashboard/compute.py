@@ -13,6 +13,7 @@ from rehab_sci.dashboard.state import (
     CONVERSION_BUNDLE,
     EP,
     FEATURE_SPEC,
+    INDEPENDENCE_BUNDLE,
     LANDMARK_BUNDLE,
     LONG,
     MULTISTATE_BUNDLE,
@@ -764,3 +765,87 @@ def predict_multistate(X: pd.DataFrame) -> dict | None:
         imp["to_e"] = ais_ord == 4  # admission D -> "improvement" means reaching AIS E
     result["improve"] = imp
     return result
+
+
+# ---------- functional-independence profile (G7) ----------
+# Per-SCIM-item discharge independence inference for one admission row.  Unlike conversion /
+# multistate, this is NOT admission-grade gated — functional independence is predicted for everyone;
+# each of the 18 calibrated binary heads emits P(functionally independent in that act at discharge).
+# `_apply_platt` is the same Platt mirror used for conversion, so the dashboard never imports
+# models.independence (which pulls shap via conversion -> train).
+
+def _independence_input(X: pd.DataFrame) -> pd.DataFrame:
+    """One-row input over the independence bundle's feature universe, dtyped like training (all 18
+    heads share the 30 admission features; re-cast so LightGBM realigns category levels by value)."""
+    b = INDEPENDENCE_BUNDLE
+    base = X.iloc[0].to_dict() if len(X) else {}
+    cat = set(b["categorical_cols"])
+    Xc = pd.DataFrame([{c: base.get(c) for c in b["feature_cols"]}])
+    for c in b["feature_cols"]:
+        if c in cat:
+            Xc[c] = Xc[c].astype("category")
+        else:
+            Xc[c] = pd.to_numeric(Xc[c], errors="coerce")
+    return Xc
+
+
+def predict_independence(X: pd.DataFrame) -> dict | None:
+    """Per-SCIM-item discharge functional-independence profile for one admission row.
+
+    Returns ``None`` when the bundle is absent.  Runs every calibrated per-item head (no
+    admission-grade gating — independence is predicted for everyone) and returns, in display order,
+    each item's calibrated P(independent) + its cohort base rate, the ordered domain list, and the
+    expected number of independent functions (Σ of the calibrated probabilities — a clean profile
+    summary that rises monotonically with admission AIS).
+    """
+    if INDEPENDENCE_BUNDLE is None:
+        return None
+    b = INDEPENDENCE_BUNDLE
+    Xc = _independence_input(X)
+    items: list[dict] = []
+    total = 0.0
+    for it in b["items"]:
+        head = b["heads"][it["key"]]
+        raw = float(head["clf"].predict_proba(Xc[head["feature_cols"]])[0, 1])
+        prob = _apply_platt(head["calibrator"], raw)
+        total += prob
+        items.append({
+            "key": it["key"],
+            "col": head["col"],
+            "domain": head["domain"],
+            "thr": int(head["thr"]),
+            "prob": prob,
+            "base_rate": float(head["base_rate"]),
+        })
+    domains: list[str] = []
+    for it in items:
+        if it["domain"] not in domains:
+            domains.append(it["domain"])
+    return {
+        "items": items,
+        "domains": domains,
+        "expected_count": total,
+        "n_items": len(items),
+    }
+
+
+def independence_observed_for_episode(key_record: int) -> dict[str, bool]:
+    """Realized discharge functional independence per item for one episode (discharge item score
+    >= the head's independence threshold).  Drives the patient-card overlay of achieved-vs-predicted
+    independence.  Only items with an observed discharge score appear; empty when the episode has
+    no discharge record."""
+    if INDEPENDENCE_BUNDLE is None:
+        return {}
+    b = INDEPENDENCE_BUNDLE
+    sub = LONG[(LONG["KeyRecordNumber"] == key_record) & (LONG["TIME_Name"] == b["discharge_timepoint"])]
+    if sub.empty:
+        return {}
+    row = sub.iloc[0]
+    out: dict[str, bool] = {}
+    for it in b["items"]:
+        if it["col"] not in sub.columns:
+            continue
+        v = pd.to_numeric(pd.Series([row[it["col"]]]), errors="coerce").iloc[0]
+        if pd.notna(v):
+            out[it["key"]] = bool(v >= it["thr"])
+    return out

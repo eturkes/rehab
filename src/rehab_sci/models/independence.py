@@ -256,6 +256,7 @@ def main() -> None:
         "feature_cols": list(af.feature_cols),
         "numeric_cols": list(af.numeric_cols),
         "categorical_cols": list(af.categorical_cols),
+        "discharge_timepoint": DISCHARGE_TP,
         "items": [dict(it) for it in ITEMS if it["key"] in heads_models],
         "heads": heads_models,
     }

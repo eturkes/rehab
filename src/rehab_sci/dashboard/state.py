@@ -146,5 +146,22 @@ MULTISTATE_BUNDLE: dict | None = (
     joblib.load(_multistate_bundle_path) if _multistate_bundle_path.exists() else None
 )
 
+# G7 functional-independence profile. `independence_metrics.json` (tracked, identifier-free) drives
+# the Methods scorecard / calibration overlay / SHAP-driver heatmap / per-AIS base-rate landscape +
+# the per-item drilldown; `independence/bundle.joblib` (gitignored) holds the 18 calibrated per-item
+# heads for per-row inference (compute.predict_independence).  Both absent until
+# `python -m rehab_sci.models.independence`; every independence surface degrades gracefully.
+_independence_path = MODELS_DIR / "independence_metrics.json"
+if _independence_path.exists():
+    with _independence_path.open(encoding="utf-8") as _f:
+        INDEPENDENCE: dict | None = json.load(_f)
+else:
+    INDEPENDENCE = None
+
+_independence_bundle_path = MODELS_DIR / "independence" / "bundle.joblib"
+INDEPENDENCE_BUNDLE: dict | None = (
+    joblib.load(_independence_bundle_path) if _independence_bundle_path.exists() else None
+)
+
 PATIENT_OPTIONS = list_patient_options(EP)
 PATIENT_OPTIONS_BY_ID = {p.id_number: p for p in PATIENT_OPTIONS}

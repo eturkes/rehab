@@ -43,6 +43,15 @@ PALETTE_PARA = {
     "NONE": "#7d92a8",
 }
 
+# G7 functional-independence domains (display grouping for the per-SCIM-item profile);
+# one color per SCIM-ADL domain, drawn from the categorical palette.
+PALETTE_INDEPENDENCE_DOMAIN = {
+    "self_care": "#117a8b",   # deep teal
+    "sphincter": "#d4773c",   # warm orange
+    "mobility": "#2c8a6b",    # forest green
+    "ambulation": "#5b6f80",  # slate
+}
+
 INK = {
     "900": "#0e1b2a",
     "700": "#1c3147",

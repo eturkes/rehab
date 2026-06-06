@@ -768,3 +768,92 @@ methods_ms_calibration_heading:
 methods_ms_drivers_heading:
   ja: "改善ヘッドの寄与因子 (in-sample SHAP)"
   en: "Improvement-head drivers (in-sample SHAP)"
+
+# ---------- G7 functional-independence profile (Methods + Patient + Simulator) ----------
+ind_domain_self_care:
+  ja: "セルフケア"
+  en: "Self-care"
+ind_domain_sphincter:
+  ja: "排泄管理"
+  en: "Sphincter management"
+ind_domain_mobility:
+  ja: "移乗・ベッド上動作"
+  en: "Transfers & bed mobility"
+ind_domain_ambulation:
+  ja: "歩行"
+  en: "Ambulation"
+ind_card_heading:
+  ja: "機能的自立プロファイル (退院時)"
+  en: "Functional-independence profile (at discharge)"
+ind_card_intro:
+  ja: "SCIM-III の各 ADL 項目について、退院時に人的介助なし (補助具・装具は可) で自立する較正済み確率。集計 SCIM スコアを「食事・排泄・歩行はできるようになるか」という具体的な行為へ翻訳する。"
+  en: "Calibrated probability of functional independence (no human assistance; aids/devices allowed) in each SCIM-III ADL item at discharge — reframing the aggregate SCIM score into the concrete acts patients ask about (feeding, bladder, walking)."
+ind_profile_heading:
+  ja: "項目別 自立確率 (領域別)"
+  en: "Per-item independence probability (by domain)"
+ind_expected_count:
+  ja: "自立が期待される動作数"
+  en: "Expected independent functions"
+ind_by_domain:
+  ja: "領域別"
+  en: "By domain"
+ind_most_likely:
+  ja: "最も自立しやすい"
+  en: "Most likely independent"
+ind_least_likely:
+  ja: "最も自立が難しい (注目点)"
+  en: "Least likely (focus)"
+ind_achieved:
+  ja: "実測: 自立"
+  en: "Observed: independent"
+ind_not_achieved:
+  ja: "実測: 非自立"
+  en: "Observed: not independent"
+ind_prob_axis:
+  ja: "自立確率"
+  en: "Independence probability"
+ind_base_rate:
+  ja: "コホート基準率"
+  en: "Cohort base rate"
+ind_caption:
+  ja: "18 個の SCIM-III ADL 項目ごとの較正済み二値ヘッド (患者群 5 分割 OOF + Platt 較正)。自立 = 当該項目の機能的自立しきい値以上 (補助具・装具は可、人的介助なし)。歩行 3 項目は車椅子自立を含まない歩行自立。呼吸は退院時ほぼ全員自立のため除外。"
+  en: "18 calibrated per-item binary heads (grouped 5-fold OOF + Platt calibration). Independence = item score at/above its functional-independence threshold (aids/devices allowed, no human assistance); the 3 walking items mean ambulation (wheelchair-independence excluded). Respiration is excluded (near-universal at discharge)."
+methods_independence_heading:
+  ja: "機能的自立プロファイル (G7)"
+  en: "Functional-independence profile (G7)"
+methods_independence_def:
+  ja: "退院時の集計 SCIM スコアを、SCIM-III の ADL 項目ごとの「機能的自立」確率へと分解する 18 個の較正済み二値ヘッド。各ヘッドは入院特徴のみから予測し、患者群 5 分割の OOF 予測で評価・Platt 較正する。"
+  en: "Eighteen calibrated binary heads that decompose the aggregate discharge SCIM score into a per-SCIM-III-item probability of functional independence. Each head predicts from admission features alone, evaluated and Platt-calibrated on grouped 5-fold out-of-fold predictions."
+methods_ind_scorecard_heading:
+  ja: "項目別スコアカード (判別・較正)"
+  en: "Per-item scorecard (discrimination & calibration)"
+methods_ind_scorecard_caption:
+  ja: "各項目の AUC と Brier スキルスコア (1 − Brier/基準分散)。全項目で AUC≈0.88–0.93、Brier は基準を大きく下回る。色は領域。"
+  en: "AUC and Brier skill score (1 − Brier/baseline variance) per item. Every item reaches AUC≈0.88–0.93 with Brier well below baseline. Color = domain."
+methods_ind_calibration_heading:
+  ja: "信頼度曲線オーバーレイ (全 18 ヘッド)"
+  en: "Reliability overlay (all 18 heads)"
+methods_ind_calibration_caption:
+  ja: "全項目の Platt 較正後曲線を対角線に重ねたもの。対角付近に集まり、各項目ヘッドが良好に較正されていることを示す。個別の生 vs 較正は下のドリルダウン参照。"
+  en: "Every item's Platt-calibrated reliability curve overlaid against the diagonal. The near-diagonal bundle shows the heads are well calibrated; the raw-vs-calibrated detail per item is in the drilldown below."
+methods_ind_shap_heading:
+  ja: "項目別 寄与因子ヒートマップ (in-sample SHAP)"
+  en: "Per-item driver heatmap (in-sample SHAP)"
+methods_ind_shap_caption:
+  ja: "各項目について、全体で重要な入院特徴の平均 |SHAP| を項目内で正規化した相対寄与度。運動スコア (TotalMotor/UEMS/LEMS) と年齢が領域ごとに異なる役割を持つ。記述的 (in-sample)。"
+  en: "For each item, the mean |SHAP| of the globally most-important admission features, row-normalized to the relative driver pattern within the item. Motor scores (TotalMotor/UEMS/LEMS) and age play domain-specific roles. Descriptive (in-sample)."
+methods_ind_landscape_heading:
+  ja: "入院 AIS 別 自立率ランドスケープ"
+  en: "Independence-rate landscape by admission AIS"
+methods_ind_landscape_caption:
+  ja: "入院 AIS グレード別の各項目の実測自立率。行ごとに左→右へ明るくなる (A→E で自立率が単調上昇) のが G7 の中核所見。屋外歩行は全グレードで最も低い。"
+  en: "Observed independence rate per item by admission AIS grade. The left→right brightening of each row (independence rises monotonically A→E) is the core G7 finding; outdoor walking stays lowest throughout."
+methods_ind_drilldown_heading:
+  ja: "項目別ドリルダウン (信頼度 + 寄与因子)"
+  en: "Per-item drilldown (reliability + drivers)"
+methods_ind_drilldown_caption:
+  ja: "項目を選択すると、生 vs Platt 較正の信頼度曲線と in-sample SHAP 寄与因子を表示。"
+  en: "Select an item to see its raw-vs-Platt-calibrated reliability curve and in-sample SHAP drivers."
+methods_ind_item_label:
+  ja: "SCIM 項目"
+  en: "SCIM item"

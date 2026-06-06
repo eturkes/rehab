@@ -2,14 +2,16 @@
 
 from __future__ import annotations
 
-from dash import dcc, html
+import plotly.graph_objects as go
+from dash import Input, Output, callback, dcc, html
 
 from rehab_sci.constants import AIS_ORD_TO_LETTER
 from rehab_sci.dashboard import figures as fg
-from rehab_sci.dashboard.i18n import t
+from rehab_sci.dashboard.i18n import col_label, t
 from rehab_sci.dashboard.state import (
     CONVERSION,
     DATAQUALITY,
+    INDEPENDENCE,
     LANDMARK,
     METRICS,
     MULTISTATE,
@@ -471,6 +473,93 @@ def _multistate_block(lang: str) -> html.Div | None:
     return html.Div(className="methods-block", children=children)
 
 
+def _independence_block(lang: str) -> html.Div | None:
+    """G7 — functional-independence profile: per-item scorecard + admission-AIS landscape +
+    all-heads calibration overlay + driver heatmap, plus the interactive per-item drilldown
+    (raw-vs-calibrated reliability + SHAP drivers for the selected item)."""
+    ind = INDEPENDENCE
+    if not ind or not ind.get("heads"):
+        return None
+    summary = ind.get("summary", {})
+    n_items = summary.get("n_items_modeled", len(ind["heads"]))
+    mean_auc = summary.get("mean_auc")
+    children: list = [
+        html.H3(t(SCHEMA, "methods_independence_heading", lang)),
+        html.P(t(SCHEMA, "methods_independence_def", lang)),
+    ]
+    if mean_auc is not None:
+        children.append(html.P(
+            f"{n_items} {'項目' if lang == 'ja' else 'items'}   "
+            f"{'平均 AUC' if lang == 'ja' else 'mean AUC'}={mean_auc:.3f}",
+            style={"fontSize": "13px", "color": INK["700"]},
+        ))
+
+    def _fig_card(heading_key: str, caption_key: str, fig) -> html.Div | None:
+        if fig is None:
+            return None
+        return html.Div(className="methods-perf-card", children=[
+            html.H4(t(SCHEMA, heading_key, lang)),
+            dcc.Graph(figure=fig, config={"displayModeBar": False}),
+            html.P(t(SCHEMA, caption_key, lang), style={"fontSize": "12px", "color": INK["500"]}),
+        ])
+
+    cards = [
+        _fig_card("methods_ind_scorecard_heading", "methods_ind_scorecard_caption",
+                  fg.fig_independence_scorecard(ind, SCHEMA, lang)),
+        _fig_card("methods_ind_landscape_heading", "methods_ind_landscape_caption",
+                  fg.fig_independence_landscape(ind, SCHEMA, lang)),
+        _fig_card("methods_ind_calibration_heading", "methods_ind_calibration_caption",
+                  fg.fig_independence_calibration(ind, SCHEMA, lang)),
+        _fig_card("methods_ind_shap_heading", "methods_ind_shap_caption",
+                  fg.fig_independence_shap_heatmap(ind, SCHEMA, lang)),
+    ]
+    children.extend(c for c in cards if c is not None)
+
+    # --- interactive per-item drilldown (raw-vs-calibrated reliability + SHAP, reused from G4) ---
+    options = [
+        {"label": col_label(SCHEMA, ind["heads"][it["key"]]["col"], lang), "value": it["key"]}
+        for it in ind["items"] if it["key"] in ind["heads"]
+    ]
+    children.append(html.Div(className="methods-perf-card", children=[
+        html.H4(t(SCHEMA, "methods_ind_drilldown_heading", lang)),
+        html.P(t(SCHEMA, "methods_ind_drilldown_caption", lang),
+               style={"fontSize": "12px", "color": INK["500"]}),
+        dcc.Dropdown(id="methods-ind-item", options=options,
+                     value=(options[0]["value"] if options else None), clearable=False,
+                     style={"maxWidth": "340px", "marginBottom": "8px"}),
+        html.Div(style={"display": "flex", "gap": "12px"}, children=[
+            dcc.Graph(id="methods-ind-rel-graph", config={"displayModeBar": False},
+                      style={"flex": "1", "minWidth": "0"}),
+            dcc.Graph(id="methods-ind-shap-graph", config={"displayModeBar": False},
+                      style={"flex": "1", "minWidth": "0"}),
+        ]),
+    ]))
+
+    children.append(html.P(t(SCHEMA, "ind_caption", lang),
+                           style={"fontSize": "12px", "color": INK["500"]}))
+    return html.Div(className="methods-block", children=children)
+
+
+@callback(
+    Output("methods-ind-rel-graph", "figure"),
+    Output("methods-ind-shap-graph", "figure"),
+    Input("methods-ind-item", "value"),
+    Input("lang-store", "data"),
+)
+def update_methods_independence_item(item_key, lang):
+    """Per-item drilldown: the selected independence head's raw-vs-Platt reliability curve and
+    in-sample SHAP drivers (reusing the G4 conversion reliability/SHAP figures)."""
+    if not INDEPENDENCE or not item_key:
+        return go.Figure(), go.Figure()
+    head = INDEPENDENCE["heads"].get(item_key)
+    if head is None:
+        return go.Figure(), go.Figure()
+    label = col_label(SCHEMA, head["col"], lang)
+    rel = fg.fig_conversion_reliability(head, lang, label) or go.Figure()
+    shap = fg.fig_conversion_shap(head, SCHEMA, lang) or go.Figure()
+    return rel, shap
+
+
 def _dataquality_block(lang: str) -> html.Div | None:
     dq = DATAQUALITY
     if not dq:
@@ -563,6 +652,9 @@ def render_methods(lang: str) -> html.Div:
     multistate_block = _multistate_block(lang)
     if multistate_block is not None:
         md.append(multistate_block)
+    independence_block = _independence_block(lang)
+    if independence_block is not None:
+        md.append(independence_block)
     dq_block = _dataquality_block(lang)
     if dq_block is not None:
         md.append(dq_block)

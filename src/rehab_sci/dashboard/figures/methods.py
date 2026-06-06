@@ -6,8 +6,13 @@ import numpy as np
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 
-from rehab_sci.dashboard.i18n import col_label, level_label
-from rehab_sci.dashboard.theme import INK, PALETTE_AIS, PALETTE_CATEGORICAL
+from rehab_sci.dashboard.i18n import col_label, level_label, t
+from rehab_sci.dashboard.theme import (
+    INK,
+    PALETTE_AIS,
+    PALETTE_CATEGORICAL,
+    PALETTE_INDEPENDENCE_DOMAIN,
+)
 from rehab_sci.schema import Schema
 
 
@@ -783,4 +788,213 @@ def fig_multistate_improve_base(ms: dict, lang: str) -> go.Figure | None:
     fig.update_layout(height=280, margin=dict(l=54, r=20, t=20, b=40),
                       xaxis=dict(title=adm_lbl),
                       yaxis=dict(range=[0, 1.08], tickformat=".0%", title=rate_lbl))
+    return fig
+
+
+# ----------------------------- functional-independence profile (G7) ----------------------------
+# Cohort metric figures over ``independence_metrics.json``: per-item discrimination/calibration
+# scorecard, an all-heads reliability overlay, an item x driver heatmap, and the item x
+# admission-AIS independence-rate landscape (the monotone A->E story).  Per-item reliability + SHAP
+# detail is the interactive drilldown (reuses fig_conversion_reliability / fig_conversion_shap).
+
+def _ind_modeled_items(ind: dict) -> list[dict]:
+    """Registry items that have a fitted head, in display (domain-grouped) order."""
+    heads = (ind or {}).get("heads") or {}
+    return [it for it in ((ind or {}).get("items") or []) if it["key"] in heads]
+
+
+def _ind_domain_order(items: list[dict]) -> list[str]:
+    """Unique SCIM domains in registry order."""
+    out: list[str] = []
+    for it in items:
+        if it["domain"] not in out:
+            out.append(it["domain"])
+    return out
+
+
+def _ind_domain_color(dom: str) -> str:
+    return PALETTE_INDEPENDENCE_DOMAIN.get(dom, PALETTE_CATEGORICAL[0])
+
+
+def fig_independence_scorecard(ind: dict, schema: Schema, lang: str) -> go.Figure | None:
+    """Per-item discrimination + calibration scorecard: AUC (left) and Brier skill score
+    (1 - Brier/baseline; right), one horizontal bar per SCIM-ADL item, colored by domain.  Reads
+    ``independence_metrics.json``."""
+    heads = (ind or {}).get("heads")
+    items = _ind_modeled_items(ind)
+    if not heads or not items:
+        return None
+    rows = items[::-1]  # reverse: registry-first item ends up at the top of the horizontal bars
+    names = [col_label(schema, heads[it["key"]]["col"], lang) for it in rows]
+    colors = [_ind_domain_color(it["domain"]) for it in rows]
+    aucs = [heads[it["key"]]["auc"] for it in rows]
+    bases = [heads[it["key"]]["base_rate"] for it in rows]
+    ns = [heads[it["key"]]["n"] for it in rows]
+    skill = [
+        (1.0 - heads[it["key"]]["brier"] / heads[it["key"]]["brier_baseline"])
+        if heads[it["key"]]["brier_baseline"] > 0 else 0.0
+        for it in rows
+    ]
+    auc_lbl = "判別 (AUC)" if lang == "ja" else "Discrimination (AUC)"
+    skill_lbl = "Brier スキル (1 − Brier/基準)" if lang == "ja" else "Brier skill (1 − Brier/baseline)"
+    fig = make_subplots(rows=1, cols=2, shared_yaxes=True, horizontal_spacing=0.04,
+                        subplot_titles=[auc_lbl, skill_lbl])
+    fig.add_trace(go.Bar(
+        x=aucs, y=names, orientation="h", marker=dict(color=colors),
+        text=[f"{a:.2f}" for a in aucs], textposition="outside", textfont=dict(size=10),
+        customdata=np.stack([bases, ns], axis=-1),
+        hovertemplate="%{y}<br>AUC=%{x:.3f}<br>base=%{customdata[0]:.0%} · n=%{customdata[1]}<extra></extra>",
+        showlegend=False,
+    ), row=1, col=1)
+    fig.add_trace(go.Bar(
+        x=skill, y=names, orientation="h", marker=dict(color=colors),
+        text=[f"{s:.2f}" for s in skill], textposition="outside", textfont=dict(size=10),
+        hovertemplate="%{y}<br>Brier skill=%{x:.3f}<extra></extra>", showlegend=False,
+    ), row=1, col=2)
+    for dom in _ind_domain_order(items):  # domain legend (legend-only swatch markers)
+        fig.add_trace(go.Scatter(
+            x=[None], y=[None], mode="markers", name=t(schema, f"ind_domain_{dom}", lang),
+            marker=dict(color=_ind_domain_color(dom), size=11, symbol="square"),
+            showlegend=True, hoverinfo="skip",
+        ), row=1, col=1)
+    fig.update_xaxes(range=[0.5, 1.0], tickformat=".2f", row=1, col=1)
+    fig.update_xaxes(range=[0, max([*skill, 0.1]) * 1.2], tickformat=".2f", row=1, col=2)
+    fig.update_layout(
+        height=26 * len(rows) + 124, margin=dict(l=212, r=30, t=46, b=34),
+        yaxis=dict(tickfont=dict(size=10.5)), bargap=0.25,
+        legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1, font=dict(size=10)),
+    )
+    return fig
+
+
+def fig_independence_calibration(ind: dict, schema: Schema, lang: str) -> go.Figure | None:
+    """All-heads reliability overlay: every item's Platt-calibrated curve against the diagonal,
+    colored by domain.  The near-diagonal bundle confirms the per-item heads are well calibrated.
+    Reads ``independence_metrics.json``."""
+    heads = (ind or {}).get("heads")
+    items = _ind_modeled_items(ind)
+    if not heads or not items:
+        return None
+    conf_lbl = "予測確率" if lang == "ja" else "Predicted probability"
+    obs_lbl = "実測頻度" if lang == "ja" else "Observed frequency"
+    fig = go.Figure()
+    fig.add_trace(go.Scatter(
+        x=[0, 1], y=[0, 1], mode="lines",
+        line=dict(color=INK["200"], dash="dash", width=1.5), showlegend=False, hoverinfo="skip",
+    ))
+    seen: set[str] = set()
+    for it in items:
+        cal = heads[it["key"]].get("calibration")
+        if not cal:
+            continue
+        dom = it["domain"]
+        label = col_label(schema, heads[it["key"]]["col"], lang)
+        fig.add_trace(go.Scatter(
+            x=cal["pred_mean"], y=cal["obs_freq"], mode="lines",
+            name=t(schema, f"ind_domain_{dom}", lang), legendgroup=dom, showlegend=(dom not in seen),
+            line=dict(color=_ind_domain_color(dom), width=1.4), opacity=0.6,
+            customdata=[label] * len(cal["pred_mean"]),
+            hovertemplate="%{customdata}<br>" + conf_lbl + "=%{x:.2f}<br>" + obs_lbl + "=%{y:.2f}<extra></extra>",
+        ))
+        seen.add(dom)
+    fig.update_layout(
+        height=360, margin=dict(l=54, r=20, t=18, b=46),
+        xaxis=dict(title=conf_lbl, range=[0, 1]),
+        yaxis=dict(title=obs_lbl, range=[0, 1]),
+        legend=dict(x=0.02, y=0.98, xanchor="left", yanchor="top",
+                    bgcolor="rgba(255,255,255,0.8)", font=dict(size=10)),
+    )
+    return fig
+
+
+def fig_independence_shap_heatmap(ind: dict, schema: Schema, lang: str, top_features: int = 12) -> go.Figure | None:
+    """Item x driver heatmap: for each item, the mean |SHAP| of the globally most-important
+    admission features, row-normalized so each row shows the *relative* driver pattern within that
+    item.  Reads ``independence_metrics.json``."""
+    heads = (ind or {}).get("heads")
+    items = _ind_modeled_items(ind)
+    if not heads or not items:
+        return None
+    per_item: dict[str, dict] = {}
+    total: dict[str, float] = {}
+    for it in items:
+        d = {r["feature"]: r["mean_abs"] for r in (heads[it["key"]].get("shap_top") or [])}
+        per_item[it["key"]] = d
+        for f, v in d.items():
+            total[f] = total.get(f, 0.0) + v
+    if not total:
+        return None
+    feats = [f for f, _ in sorted(total.items(), key=lambda kv: kv[1], reverse=True)[:top_features]]
+    z: list[list[float]] = []
+    zraw: list[list[float]] = []
+    for it in items:
+        raw = [per_item[it["key"]].get(f, 0.0) for f in feats]
+        m = max(raw) if max(raw) > 0 else 1.0
+        z.append([v / m for v in raw])
+        zraw.append(raw)
+    item_labels = [col_label(schema, heads[it["key"]]["col"], lang) for it in items]
+    drv_lbl = "相対寄与度 (項目内)" if lang == "ja" else "Relative importance (within item)"
+    fig = go.Figure(go.Heatmap(
+        z=z, x=[col_label(schema, f, lang) for f in feats], y=item_labels, customdata=zraw,
+        colorscale=[[0, INK["paper"]], [1, PALETTE_CATEGORICAL[0]]], zmin=0, zmax=1,
+        colorbar=dict(title=drv_lbl, thickness=12, len=0.8),
+        hovertemplate="%{y}<br>%{x}<br>|SHAP|=%{customdata:.3f}<extra></extra>",
+    ))
+    fig.update_layout(
+        height=26 * len(items) + 150, margin=dict(l=212, r=20, t=24, b=128),
+        xaxis=dict(tickangle=-40, side="bottom"),
+        yaxis=dict(autorange="reversed", tickfont=dict(size=10.5)),
+    )
+    return fig
+
+
+def fig_independence_landscape(ind: dict, schema: Schema, lang: str) -> go.Figure | None:
+    """Item x admission-AIS independence-rate landscape: observed P(independent at discharge) for
+    each item by admission grade — the monotone left->right brightening per row is the core G7
+    finding (independence rises with admission AIS, outdoor walking lowest throughout).  Reads
+    ``independence_metrics.json``."""
+    heads = (ind or {}).get("heads")
+    items = _ind_modeled_items(ind)
+    if not heads or not items:
+        return None
+    grades = ["A", "B", "C", "D", "E"]
+    present: set[str] = set()
+    z: list[list[float | None]] = []
+    nmat: list[list[int]] = []
+    for it in items:
+        rbg = heads[it["key"]].get("rate_by_admission_grade") or {}
+        zr: list[float | None] = []
+        nr: list[int] = []
+        for g in grades:
+            cell = rbg.get(g)
+            if cell:
+                zr.append(cell["rate"])
+                nr.append(cell["n"])
+                present.add(g)
+            else:
+                zr.append(None)
+                nr.append(0)
+        z.append(zr)
+        nmat.append(nr)
+    cols = [g for g in grades if g in present]
+    idx = [grades.index(g) for g in cols]
+    z = [[r[i] for i in idx] for r in z]
+    nmat = [[r[i] for i in idx] for r in nmat]
+    text = [[(f"{z[i][j] * 100:.0f}%" if z[i][j] is not None else "") for j in range(len(cols))]
+            for i in range(len(items))]
+    item_labels = [col_label(schema, heads[it["key"]]["col"], lang) for it in items]
+    rate_lbl = "自立率" if lang == "ja" else "Independence rate"
+    adm_lbl = "入院時 AIS" if lang == "ja" else "Admission AIS"
+    fig = go.Figure(go.Heatmap(
+        z=z, x=[f"AIS {g}" for g in cols], y=item_labels, customdata=nmat,
+        text=text, texttemplate="%{text}", textfont=dict(size=10),
+        colorscale=[[0, INK["paper"]], [1, PALETTE_CATEGORICAL[0]]], zmin=0, zmax=1,
+        colorbar=dict(title=rate_lbl, tickformat=".0%", thickness=12, len=0.8),
+        hovertemplate="%{y}<br>%{x}<br>" + rate_lbl + "=%{z:.0%}<br>n=%{customdata}<extra></extra>",
+    ))
+    fig.update_layout(
+        height=26 * len(items) + 140, margin=dict(l=212, r=20, t=22, b=46),
+        xaxis=dict(title=adm_lbl, side="bottom"),
+        yaxis=dict(autorange="reversed", tickfont=dict(size=10.5)),
+    )
     return fig
