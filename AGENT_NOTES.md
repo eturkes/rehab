@@ -36,9 +36,9 @@ superseded, duplicated elsewhere, or has gone stale.
   session; prune duplication per the inclusion rule above.
 * **Default-work pool: §8 backlog.**  F1–F25 + G1 (s29/s30) + G2 (s31) + G3
   observed-trajectory phenotyping (s32/s33) + G4 AIS-grade conversion (s34/s35) + G6 AIS
-  multi-state recovery (s36/s37) fully shipped (see §7).  **G7 functional-independence profile is
-  MID-FLIGHT: Part 1 (model + metrics) shipped s38; Part 2 (dashboard surfaces) is the immediate
-  next task** (see §8 G7 bullet + §3 contract).  Other open: F26 test harness · F27 dep refresh.
+  multi-state recovery (s36/s37) + G7 functional-independence profile (s38/s39) fully shipped
+  (see §7).  **No G-feature is mid-flight; pick the next item.**  Open: F26 test harness · F27 dep
+  refresh · new G-series idea (propose one — see §8 "New G-series ideas").
   The user steers toward *insightful* (clinical/scientific) features over infra/maintenance, so
   lead with those.
 
@@ -596,10 +596,36 @@ superseded, duplicated elsewhere, or has gone stale.
   layer like conversion/multistate/landmark: tracked identifier-free
   `models/independence_metrics.json` + git-ignored `models/independence/bundle.joblib`;
   **production `train.py` artifacts untouched (empty `training_metrics.json` diff)**.  Bundle
-  shape (consumed by the pending `compute.predict_independence`): `items` registry +
-  `heads[key]={clf, calibrator, thr, col, domain, feature_cols, base_rate}`; mirror `_apply_platt`
-  inline in compute.py (never import this module — it pulls shap via conversion→train).  **Part 1
-  shipped (s38): model + tracked metrics; dashboard surfaces PENDING (backlog G7 Part 2).**
+  shape: `items` registry + `heads[key]={clf, calibrator, thr, col, domain, feature_cols,
+  base_rate}` + `discharge_timepoint` (added s39 for the patient overlay); mirror `_apply_platt`
+  inline in compute.py (never import this module — it pulls shap via conversion→train).  **Fully
+  shipped: model + tracked metrics (s38) + dashboard surfaces (s39).**
+  **Dashboard contract (s39):** pure `compute.predict_independence(X)` (inline `_apply_platt`
+  mirror) runs all 18 heads and returns, in display order, each item's calibrated `prob` +
+  `base_rate` grouped by `domain` + the **expected-independent count** (Σ probs); it is **NOT
+  admission-grade gated** (independence is predicted for everyone) — so unlike the G4/G6 patient
+  cards it needs **no real-grade override** (`episode_row_for_model`'s cohort-default imputation is
+  used as-is, matching the production SCIM patient cards).  `independence_observed_for_episode`
+  reads `LONG`'s discharge slot vs each head's `thr` for the patient achieved/not-achieved overlay.
+  Shared `layout` figs: `fig_independence_profile` (domain-grouped horizontal P(indep) bars +
+  cohort base-rate diamonds + optional realized-independence markers) + `independence_readout`
+  (expected count + per-domain breakdown + most/least-likely item).  Methods-only figs in
+  `figures/methods.py`: `fig_independence_{scorecard,calibration,landscape,shap_heatmap}` (per-item
+  AUC/Brier-skill; all-18-heads reliability overlay; item×admission-AIS rate landscape = the
+  monotone-A→E centerpiece; item×driver heatmap).  The **per-item drilldown reuses
+  `fig_conversion_{reliability,shap}` verbatim** (a head's metrics entry shares the
+  `calibration`/`calibration_raw`/`shap_top` shape) and is driven by the **first-ever Methods
+  `@callback`** (`update_methods_independence_item`; the dropdown rebuilds + resets to the first
+  item on lang/tab change — acceptable).  **CRUX — `AIS_ord` alone is a weak driver
+  (TotalMotor/UEMS dominate the SHAP), so a Simulator profile with ONLY an admission grade set is
+  flat (~8.5/18), NOT grade-differentiated; the A→E spread (real-cohort patient-card means ≈
+  4.8→6.5→8.0→15.3→17.2 of 18) emerges only when the correlated motor/sensory features move with
+  the grade.**  This is correct (honest under missingness, consistent with F25), not a bug.  Item
+  display labels reuse `columns.yaml` via `col_label` (no per-item string keys); domain palette in
+  `theme.PALETTE_INDEPENDENCE_DOMAIN`; bilingual `ind_*`/`methods_ind_*`; surfaces reuse the
+  `.lm-card`/`.conv-readout`/`.sim-*`/`.chart-card`/`.pheno-subtitle` CSS (`.ind-card` is an
+  unstyled hook like `.ms-card`).  Surfaces: Methods cohort centerpiece (4 figs + drilldown);
+  Patient card (profile + realized overlay); Simulator hypothetical card (blanks→NaN, no overlay).
 
 ## 4. Dashboard conventions
 
@@ -733,6 +759,23 @@ bgcmd 'exit()'; rm -rf "$BGCMDDIR"               # stop + clean
 
 One line per session; full detail is in Git history (`git log`, diffs).
 
+* **s39** — G7 functional-independence profile, **Part 2** (dashboard surfaces across Methods +
+  Patient + Simulator; user chose the Methods "Both" calibration layout — static all-18-heads
+  overlay + the first interactive per-item drilldown — and the Patient achieved-vs-predicted
+  overlay).  Pure `compute.predict_independence` (inline `_apply_platt` mirror, all 18 heads, NO
+  admission-grade gating ⇒ no real-grade override on the patient card) + `independence_observed_for_episode`
+  (realized discharge independence for the overlay) + `state.INDEPENDENCE`/`INDEPENDENCE_BUNDLE`
+  loaders; bundle gained `discharge_timepoint`.  Shared `layout.fig_independence_profile`
+  (domain-grouped P(indep) bars + base-rate diamonds + achieved/not-achieved markers) +
+  `independence_readout` (expected-independent count + per-domain + most/least-likely).  Methods
+  cohort figs `fig_independence_{scorecard,calibration,landscape,shap_heatmap}` + the per-item
+  drilldown reusing `fig_conversion_{reliability,shap}` via the **first-ever Methods `@callback`**.
+  `theme.PALETTE_INDEPENDENCE_DOMAIN`; item labels reuse `columns.yaml` (`col_label`); bilingual
+  `ind_*`/`methods_ind_*`; `.ind-card` hook.  Documented the **AIS-alone-is-flat** invariant (§3)
+  — TotalMotor dominates, so a grade-only Simulator profile is flat; the A→E rise
+  (≈4.8→17.2 of 18) needs the correlated motor/sensory features.  Lint + F-gate clean; all 3 tabs
+  render both langs; the 3 new callbacks invoked directly; boots 200 (34 callbacks); MAP
+  regenerated.  No retrain — production + independence metrics byte-identical.
 * **s38** — G7 functional-independence profile, **Part 1** (model + tracked metrics; user chose
   the *functional* independence definition — aids/devices allowed — and the *ambulation* framing
   for the 3 walking items).  New `models/independence.py`: 18 calibrated binary heads (one per
@@ -964,9 +1007,9 @@ One line per session; full detail is in Git history (`git log`, diffs).
 
 ## 8. Feature backlog (default-work pool)
 
-Propose from here unless the user redirects.  **Items F1–F25 + G1–G4 + G6 are
-shipped; G7 Part 1 is shipped (s38) and G7 Part 2 is the immediate next task** —
-see §7 for the session each landed in, and Git history for implementation detail.
+Propose from here unless the user redirects.  **Items F1–F25 + G1–G4 + G6 + G7 are
+fully shipped (no G-feature mid-flight)** — see §7 for the session each landed in, and Git
+history for implementation detail.
 The user steers toward *insightful* (clinical/scientific) features over
 infra/maintenance.
 Shipped ledger (terse, by feature number):
@@ -1016,16 +1059,18 @@ Shipped ledger (terse, by feature number):
   absorbing-above monotone first-passage, the faithful apparent-regression caveat, the non-monotone
   improve base rate, the cohort-not-personalized CRUX + first-passage dedup invariant) and §7.
   Fully shipped.
-* **G7 functional-independence profile** (s38 Part 1 — model + tracked metrics; Part 2 dashboard
-  pending): `models/independence.py` — 18 per-SCIM-III-item calibrated binary heads predicting
+* **G7 functional-independence profile** (s38 model + tracked metrics; s39 dashboard surfaces):
+  `models/independence.py` — 18 per-SCIM-III-item calibrated binary heads predicting
   P(functional independence at discharge) per ADL item, reframing the aggregate SCIM total as
   concrete acts ("will I feed myself / manage my bladder / walk?").  Independence = item score ≥ its
   functional-with-aids rubric threshold (aids/devices count); the 3 walking-mobility items use the
   ambulation (walking, ≥4) framing so wheelchair-independence does **not** count.  Borrows the
   conversion.py binary plumbing verbatim (`_oof_binary`/`_fit_platt`/`_apply_platt`/`_shap_top`,
   grouped-CV by IDNumber, Platt calibration).  Respiration excluded (near-universal).  No APS layer
-  (binary APS is degenerate — see §0b).  See §3 for the contract and §7.  Part 1 shipped; Part 2
-  (Methods/Patient/Simulator surfaces) is the immediate next task.
+  (binary APS is degenerate — see §0b).  `compute.predict_independence` (no admission-grade gating)
+  + shared `layout` profile fig/readout + 4 Methods cohort figs + first-ever Methods drilldown
+  callback + Methods/Patient/Simulator surfaces (`ind_*`/`methods_ind_*` strings).  See §3 for the
+  model + dashboard contract (incl. the AIS-alone-is-flat invariant) and §7.  Fully shipped.
 
 **F23 (shipped s26): data-quality / clinical-consistency report** — see §7 and
 `data/quality.py`; durable data facts it surfaced live in §0b/§1, and the
@@ -1033,13 +1078,6 @@ regenerated `models/dataquality_summary.json` holds the per-rule scorecard.
 
 **Ready candidates (pick the next unless redirected; the user prefers a new insightful G-series
 feature over the infra items below):**
-* **G7 Part 2 — functional-independence dashboard surfaces (IMMEDIATE NEXT):** pure
-  `compute.predict_independence` (inline `_apply_platt` mirror, no model-module import — keeps
-  compute.py shap-free), a shared layout profile figure (horizontal P(independence) bars grouped by
-  domain), Methods metric figs (per-item AUC/Brier scorecard, calibration, SHAP driver heatmap,
-  cohort base-rate landscape), and Methods+Patient+Simulator surfaces with bilingual `ind_*` /
-  `methods_ind_*` strings + `.ind-*` CSS.  Mirror the G4/G6 dashboard pattern.  See §3 for the
-  contract.
 * **F26 invariant test harness** — narrow pytest enforcing §1 data + model
   invariants + a smoke test (incl. a headless `render_{methods,patient,simulator}` per the §0b
   lesson, which would have caught the s31 `INK["600"]` crash).  skip-if-CSV-absent.  M.  files:

@@ -726,6 +726,8 @@ input[type="number"]:focus, input[type="text"]:focus, select:focus {
 .lm-card-intro { font-size: 12.5px; line-height: 1.5; color: var(--ink-500); margin-bottom: 12px; }
 /* G6 multi-state recovery (Patient/Simulator) reuses the .lm-card / .conv-readout / .sim-*
    classes; .ms-card is a styling hook on the simulator card, parallel to the unstyled .conv-card. */
+/* G7 functional-independence profile (Patient/Simulator) likewise reuses .lm-card / .conv-readout /
+   .sim-*; .ind-card is an unstyled hook on the simulator card, parallel to .ms-card / .conv-card. */
 .lm-landmark-select { max-width: 220px; margin-bottom: 14px; }
 .lm-landmark-select label { display: block; font-size: 12.5px; color: var(--ink-700); margin-bottom: 4px; }
 .lm-obs-grid {

@@ -18,12 +18,14 @@ from rehab_sci.dashboard.compute import (
     episode_landmark_eligibility,
     episode_row_for_model,
     get_observed_for_outcome,
+    independence_observed_for_episode,
     inv_transform_scalar,
     landmark_observed_for_episode,
     landmark_voi,
     multistate_observed_grades,
     phenotype_cutoff_options,
     predict_conversion,
+    predict_independence,
     predict_landmark,
     predict_multistate,
     predict_phenotype_membership,
@@ -47,11 +49,13 @@ from rehab_sci.dashboard.layout import (
     fig_class_probabilities,
     fig_conversion_endpoints,
     fig_conversion_magnitude,
+    fig_independence_profile,
     fig_landmark_compare,
     fig_multistate_conversion_personal,
     fig_multistate_trajectory,
     fig_shap_local,
     fig_voi_patient,
+    independence_readout,
     landmark_readout,
     multistate_readout,
     voi_readout,
@@ -63,6 +67,7 @@ from rehab_sci.dashboard.state import (
     DEFAULT_OUTCOME,
     EP,
     FEATURE_SPEC,
+    INDEPENDENCE_BUNDLE,
     LANDMARK_BUNDLE,
     LONG,
     MULTISTATE_BUNDLE,
@@ -371,6 +376,25 @@ def _patient_multistate_card(lang: str) -> html.Div | None:
     )
 
 
+def _patient_independence_card(lang: str) -> html.Div | None:
+    """Functional-independence profile card: the patient's admission row drives the calibrated
+    per-SCIM-item P(independent) bars; the patient's OWN realized discharge independence is overlaid
+    (achieved / not-achieved markers) where discharge scores exist.  Independence is predicted for
+    everyone (no admission-grade gating).  Omitted entirely when the bundle is absent."""
+    if INDEPENDENCE_BUNDLE is None:
+        return None
+    return chart_card(
+        t(SCHEMA, "ind_card_heading", lang),
+        html.Div([
+            html.Div(t(SCHEMA, "ind_card_intro", lang), className="lm-card-intro"),
+            html.Div(id="patient-ind-readout"),
+            html.Div(t(SCHEMA, "ind_profile_heading", lang), className="pheno-subtitle"),
+            dcc.Graph(id="patient-ind-graph", config={"displayModeBar": False}),
+            html.Div(t(SCHEMA, "ind_caption", lang), className="sim-caveat"),
+        ]),
+    )
+
+
 # ---------- layout ----------
 def render_patient(lang: str) -> html.Div:
     default_pid = PATIENT_OPTIONS[0].id_number if PATIENT_OPTIONS else None
@@ -476,6 +500,9 @@ def render_patient(lang: str) -> html.Div:
     ms_card = _patient_multistate_card(lang)
     if ms_card is not None:
         content_children.append(ms_card)
+    ind_card = _patient_independence_card(lang)
+    if ind_card is not None:
+        content_children.append(ind_card)
     content_children.append(similarity_card)
 
     return html.Div(
@@ -936,6 +963,26 @@ def update_patient_multistate(key_record, lang):
         fig_multistate_trajectory(result, lang, patient_obs=obs),
         fig_multistate_conversion_personal(result, lang),
     )
+
+
+# ---------- functional-independence profile callback ----------
+@callback(
+    Output("patient-ind-readout", "children"),
+    Output("patient-ind-graph", "figure"),
+    Input("patient-episode-radio", "value"),
+    Input("lang-store", "data"),
+)
+def update_patient_independence(key_record, lang):
+    # No admission-grade gating — independence is predicted for everyone; the patient's realized
+    # discharge independence is overlaid on the predicted bars where discharge scores exist.
+    if INDEPENDENCE_BUNDLE is None or key_record is None:
+        return independence_readout(None, lang), go.Figure()
+    key_record = int(key_record)
+    result = predict_independence(episode_row_for_model(key_record))
+    if result is None:
+        return independence_readout(None, lang), go.Figure()
+    obs = independence_observed_for_episode(key_record)
+    return independence_readout(result, lang), fig_independence_profile(result, lang, observed=obs)
 
 
 # ---------- PDF report callback ----------

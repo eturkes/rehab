@@ -13,7 +13,12 @@ from rehab_sci.constants import AIS_ORD_TO_LETTER
 from rehab_sci.dashboard.compute import format_value, mag_short_label
 from rehab_sci.dashboard.i18n import col_label, level_label, t
 from rehab_sci.dashboard.state import FEATURE_SPEC, SCHEMA, SIM_DEFAULTS
-from rehab_sci.dashboard.theme import INK, PALETTE_AIS, PALETTE_CATEGORICAL
+from rehab_sci.dashboard.theme import (
+    INK,
+    PALETTE_AIS,
+    PALETTE_CATEGORICAL,
+    PALETTE_INDEPENDENCE_DOMAIN,
+)
 from rehab_sci.models.outcomes import OutcomeSpec
 
 
@@ -693,4 +698,105 @@ def multistate_readout(result: dict, lang: str) -> html.Div:
             f"{t(SCHEMA, 'ms_sojourn', lang)}: {parts}",
             className="lm-readout-line",
         ))
+    return html.Div(lines, className="lm-readout conv-readout")
+
+
+# ---------- functional-independence profile (G7; shared by simulator + patient) ----------
+def fig_independence_profile(result: dict, lang: str, observed: dict | None = None) -> go.Figure:
+    """Per-SCIM-item discharge functional-independence profile: one horizontal bar = calibrated
+    P(independent), colored by SCIM domain, with a grey diamond at the item's cohort base rate so
+    the per-patient lift is visible.  When ``observed`` (realized discharge independence per item)
+    is supplied (patient card), a green circle / crimson cross in the right gutter marks whether the
+    patient actually achieved independence — a predicted-vs-realized read.  Empty when no result."""
+    items = (result or {}).get("items")
+    if not items:
+        return go.Figure()
+    rows = items[::-1]  # reverse: first registry item (feeding) ends up at the top
+    names = [col_label(SCHEMA, it["col"], lang) for it in rows]
+    probs = [it["prob"] for it in rows]
+    bases = [it["base_rate"] for it in rows]
+    colors = [PALETTE_INDEPENDENCE_DOMAIN.get(it["domain"], PALETTE_CATEGORICAL[0]) for it in rows]
+    prob_word = t(SCHEMA, "ind_prob_axis", lang)
+    base_word = t(SCHEMA, "ind_base_rate", lang)
+    fig = go.Figure()
+    fig.add_trace(go.Bar(
+        x=probs, y=names, orientation="h", marker=dict(color=colors),
+        text=[f"{p:.0%}" for p in probs], textposition="outside", textfont=dict(size=10.5),
+        hovertemplate="%{y}<br>" + prob_word + ": %{x:.0%}<extra></extra>", showlegend=False,
+    ))
+    fig.add_trace(go.Scatter(
+        x=bases, y=names, mode="markers", name=base_word,
+        marker=dict(color=INK["500"], size=10, symbol="diamond", line=dict(color="#fff", width=1)),
+        hovertemplate=base_word + ": %{x:.0%}<extra></extra>",
+    ))
+    seen: set[str] = set()
+    for it in rows:  # domain legend (legend-only swatch markers)
+        d = it["domain"]
+        if d in seen:
+            continue
+        seen.add(d)
+        fig.add_trace(go.Scatter(
+            x=[None], y=[None], mode="markers", name=t(SCHEMA, f"ind_domain_{d}", lang),
+            marker=dict(color=PALETTE_INDEPENDENCE_DOMAIN.get(d, PALETTE_CATEGORICAL[0]),
+                        size=11, symbol="square"),
+            hoverinfo="skip",
+        ))
+    if observed:
+        gx = 1.08
+        ach = [n for n, it in zip(names, rows, strict=True) if observed.get(it["key"]) is True]
+        miss = [n for n, it in zip(names, rows, strict=True) if observed.get(it["key"]) is False]
+        if ach:
+            fig.add_trace(go.Scatter(
+                x=[gx] * len(ach), y=ach, mode="markers", name=t(SCHEMA, "ind_achieved", lang),
+                marker=dict(color="#2c8a6b", size=12, symbol="circle", line=dict(color="#fff", width=1)),
+                hovertemplate=t(SCHEMA, "ind_achieved", lang) + "<extra></extra>",
+            ))
+        if miss:
+            fig.add_trace(go.Scatter(
+                x=[gx] * len(miss), y=miss, mode="markers", name=t(SCHEMA, "ind_not_achieved", lang),
+                marker=dict(color="#a3354e", size=11, symbol="x", line=dict(width=0)),
+                hovertemplate=t(SCHEMA, "ind_not_achieved", lang) + "<extra></extra>",
+            ))
+    fig.update_layout(
+        height=24 * len(rows) + 122, margin=dict(l=222, r=24, t=46, b=40), barmode="overlay",
+        xaxis=dict(range=[0, 1.18], tickvals=[0, 0.25, 0.5, 0.75, 1.0], tickformat=".0%", title=prob_word),
+        yaxis=dict(tickfont=dict(size=10.5), showgrid=False),
+        legend=dict(orientation="h", yanchor="bottom", y=1.01, xanchor="right", x=1, font=dict(size=10)),
+    )
+    return fig
+
+
+def independence_readout(result: dict, lang: str) -> html.Div:
+    """Text summary of the independence profile: the expected number of independent functions
+    (Σ calibrated probs), the per-domain breakdown, and the most- / least-likely items.  Renders
+    the card intro as a prompt when no result (bundle absent / empty input)."""
+    items = (result or {}).get("items")
+    if not items:
+        return html.Div(t(SCHEMA, "ind_card_intro", lang), className="lm-prompt")
+    n = len(items)
+    exp = result["expected_count"]
+    lines: list = [html.Div(
+        f"{t(SCHEMA, 'ind_expected_count', lang)}: {exp:.1f} / {n}",
+        className="conv-readout-grade",
+    )]
+    dom_sum: dict[str, float] = {}
+    dom_n: dict[str, int] = {}
+    for it in items:
+        dom_sum[it["domain"]] = dom_sum.get(it["domain"], 0.0) + it["prob"]
+        dom_n[it["domain"]] = dom_n.get(it["domain"], 0) + 1
+    parts = [
+        f"{t(SCHEMA, f'ind_domain_{d}', lang)} {dom_sum[d]:.1f}/{dom_n[d]}"
+        for d in result["domains"]
+    ]
+    lines.append(html.Div(
+        f"{t(SCHEMA, 'ind_by_domain', lang)}: " + "  ·  ".join(parts),
+        className="lm-readout-line",
+    ))
+    ordered = sorted(items, key=lambda it: it["prob"])
+    least, most = ordered[0], ordered[-1]
+    lines.append(html.Div(
+        f"{t(SCHEMA, 'ind_most_likely', lang)}: {col_label(SCHEMA, most['col'], lang)} {most['prob']:.0%}"
+        f"  ·  {t(SCHEMA, 'ind_least_likely', lang)}: {col_label(SCHEMA, least['col'], lang)} {least['prob']:.0%}",
+        className="lm-readout-line lm-readout-delta",
+    ))
     return html.Div(lines, className="lm-readout conv-readout")

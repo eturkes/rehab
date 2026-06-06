@@ -19,6 +19,7 @@ from rehab_sci.dashboard.compute import (
     episode_has_admission,
     inv_transform_scalar,
     predict_conversion,
+    predict_independence,
     predict_landmark,
     predict_multistate,
     predict_trajectory,
@@ -34,11 +35,13 @@ from rehab_sci.dashboard.layout import (
     fig_class_probabilities,
     fig_conversion_endpoints,
     fig_conversion_magnitude,
+    fig_independence_profile,
     fig_landmark_compare,
     fig_multistate_conversion_personal,
     fig_multistate_trajectory,
     fig_prediction_interval,
     fig_shap_local,
+    independence_readout,
     landmark_readout,
     multistate_readout,
     number_input_for,
@@ -49,6 +52,7 @@ from rehab_sci.dashboard.state import (
     DEFAULT_OUTCOME,
     EP,
     FEATURE_SPEC,
+    INDEPENDENCE_BUNDLE,
     LANDMARK_BUNDLE,
     MULTISTATE_BUNDLE,
     OUTCOME_BUNDLES,
@@ -170,6 +174,9 @@ def render_simulator(lang: str, ref_data: dict | None = None) -> html.Div:
     ms_card = _multistate_card(lang)
     if ms_card is not None:
         children.append(ms_card)
+    ind_card = _independence_card(lang)
+    if ind_card is not None:
+        children.append(ind_card)
     return html.Div(children)
 
 
@@ -215,6 +222,26 @@ def _multistate_card(lang: str) -> html.Div | None:
             dcc.Graph(id="sim-ms-conv-graph", config={"displayModeBar": False}),
             html.Div(t(SCHEMA, "ms_cohort_caption", lang), className="sim-caveat"),
             html.Div(t(SCHEMA, "ms_caption", lang), className="sim-caveat"),
+        ],
+    )
+
+
+# ---------- functional-independence profile card ----------
+def _independence_card(lang: str) -> html.Div | None:
+    """Hypothetical functional-independence profile driven by the simulator's admission inputs:
+    per-SCIM-item calibrated P(independent) bars with cohort base-rate diamonds.  No realized-
+    outcome overlay (hypothetical patient).  Omitted entirely when the bundle is absent."""
+    if INDEPENDENCE_BUNDLE is None:
+        return None
+    return html.Div(
+        className="lm-card ind-card",
+        children=[
+            html.H2(t(SCHEMA, "ind_card_heading", lang), className="lm-card-heading"),
+            html.Div(t(SCHEMA, "ind_card_intro", lang), className="lm-card-intro"),
+            html.Div(id="sim-ind-readout"),
+            html.Div(t(SCHEMA, "ind_profile_heading", lang), className="sim-section-title"),
+            dcc.Graph(id="sim-ind-graph", config={"displayModeBar": False}),
+            html.Div(t(SCHEMA, "ind_caption", lang), className="sim-caveat"),
         ],
     )
 
@@ -665,3 +692,25 @@ def simulate_multistate(num_vals, cat_vals, lang, num_ids, cat_ids):
         fig_multistate_trajectory(result, lang),
         fig_multistate_conversion_personal(result, lang),
     )
+
+
+# ---------- functional-independence profile callback ----------
+@callback(
+    Output("sim-ind-readout", "children"),
+    Output("sim-ind-graph", "figure"),
+    Input({"type": "num", "col": dash.ALL}, "value"),
+    Input({"type": "cat", "col": dash.ALL}, "value"),
+    Input("lang-store", "data"),
+    State({"type": "num", "col": dash.ALL}, "id"),
+    State({"type": "cat", "col": dash.ALL}, "id"),
+)
+def simulate_independence(num_vals, cat_vals, lang, num_ids, cat_ids):
+    # Independence is predicted for everyone (no admission-grade gating); blanks stay NaN, so an
+    # empty form yields a near-cohort-average profile.  No realized-outcome overlay (hypothetical).
+    if not num_ids and not cat_ids:
+        return independence_readout(None, lang), go.Figure()
+    X = collect_sim_inputs(num_vals, num_ids, cat_vals, cat_ids)
+    result = predict_independence(X)
+    if result is None:
+        return independence_readout(None, lang), go.Figure()
+    return independence_readout(result, lang), fig_independence_profile(result, lang)
