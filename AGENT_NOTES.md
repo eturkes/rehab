@@ -36,9 +36,11 @@ superseded, duplicated elsewhere, or has gone stale.
   session; prune duplication per the inclusion rule above.
 * **Default-work pool: §8 backlog.**  F1–F25 + G1 (s29/s30) + G2 (s31) + G3
   observed-trajectory phenotyping (s32/s33) + G4 AIS-grade conversion (s34/s35) + G6 AIS
-  multi-state recovery (s36/s37) + G7 functional-independence profile (s38/s39) fully shipped
-  (see §7).  **No G-feature is mid-flight; pick the next item.**  Open: F26 test harness · F27 dep
-  refresh · new G-series idea (propose one — see §8 "New G-series ideas").
+  multi-state recovery (s36/s37) + G7 functional-independence profile (s38/s39) fully shipped, and
+  G8 recovery topography map **Part 1** (s40, model + metrics) shipped (see §7).  **G8 Part 2
+  (body-map dashboard surfaces) is the mid-flight next item — start there unless redirected.**  Also
+  open: F26 test harness · F27 dep refresh · a new G-series idea (data is exhausted of NEW field
+  families — see §8; any new G must reuse the existing ISNCSCI/SCIM/AIS signal).
   The user steers toward *insightful* (clinical/scientific) features over infra/maintenance, so
   lead with those.
 
@@ -154,6 +156,19 @@ superseded, duplicated elsewhere, or has gone stale.
   already *is* the honest uncertainty (a singleton `{argmax}` covers ≈accuracy ≥
   target anyway), so a set adds nothing.  Reserve APS/abstention sets for K≥3
   (AIS, magnitude).  Verified q_hat=0.98–1.00 before removing the layer.
+* **`build_episode_frame` ends with `feat.reset_index()` ⇒ `ep` (= `af.df`) has a POSITIONAL
+  index (0..N−1) and `KeyRecordNumber` is a COLUMN — so align any *separately-built* per-timepoint
+  matrix to `ep` by `ep["KeyRecordNumber"]`, never by `.reindex(ep.index)`.**  G8 first reindexed
+  the per-segment ISNCSCI discharge/admission matrices (which are `set_index("KeyRecordNumber")`)
+  onto `ep.index`, silently pulling KeyRecordNumbers 0..898 (the real values are the non-contiguous
+  1..1169) — a wholesale row scramble.  **The trap: per-segment AUC stayed HIGH (~0.87) so a naive
+  metrics check passed** — because the label `y` and the segment's own admission grade `adm_self`
+  were pulled by the *same* wrong reindex (mutually consistent), the head leaned on `adm_self` and
+  the misaligned 30-feature context merely added noise.  Fix:
+  `mtx.reindex(ep["KeyRecordNumber"].to_numpy()).set_axis(ep.index)` (lifted AUC to ~0.93, and the
+  30 features then contribute correctly).  **Catch a co-misaligned feature+label with a BEHAVIORAL
+  sanity check, not AUC**: a max-admission-motor patient must predict P(antigravity)≈1 and a
+  zero-motor complete injury ≈0 (mean |ΔP|≈0.9); the scrambled model gave a flat ~0.68/0.96.
 
 ## 1. Data invariants (do not rediscover)
 
@@ -627,6 +642,46 @@ superseded, duplicated elsewhere, or has gone stale.
   unstyled hook like `.ms-card`).  Surfaces: Methods cohort centerpiece (4 figs + drilldown);
   Patient card (profile + realized overlay); Simulator hypothetical card (blanks→NaN, no overlay).
 
+* **Recovery topography map (`models/topography.py`, G8)** — per-ISNCSCI-segment functional-recovery
+  atlas: for **every one of the 132 segments** (20 motor key muscles + 56 light-touch + 56
+  pin-prick dermatomes, L/R), the calibrated P(*functional milestone* at discharge).  Milestone =
+  motor **P(grade ≥3)** = antigravity; sensory **P(grade ≥1)** = protective/preserved sensation
+  (the closest analogue to motor antigravity).  The impairment/neurology complement to G7's ADL
+  profile; mines the largest *unused* signal (the 132 per-segment columns the 30 features collapse
+  into 5 totals).  **Method = 132 INDEPENDENT calibrated binary heads (NOT the structured low-rank
+  model first chosen).  CRUX — a diagnostic settled the architecture: the 30 aggregate admission
+  features predict a *specific* segment's discharge state barely above chance (per-segment OOF AUC
+  0.43–0.63), because the dominant predictor is the segment's OWN admission grade — a
+  per-segment/diagonal relationship, not the cross-segment correlation a low-rank model exploits
+  (the discharge matrix is also not low-rank).  The low-rank attempt collapsed to base-rate
+  (AUC ≈0.5, flat-by-AIS).  Adding the segment's own admission grade lifts AUC to ~0.93.**  So each
+  head = LightGBM on `[the 30 admission features] + [adm_self = that segment's own admission grade,
+  LOCF over the admission-fallback timepoints]` + Platt calibration — the `conversion.py` binary
+  plumbing imported verbatim (`_typed_X`/`_oof_binary`/`_fit_platt`/`_apply_platt`/`_refit`/
+  `_calibration_curve`/`_shap_top`).  `adm_self` is still admission-only (no leakage); it is the
+  per-segment ISNCSCI the curated 30 omit.  Grouped-5fold-CV-by-IDNumber OOF → metrics + Platt;
+  refit full cohort; descriptive in-sample SHAP.  **No conformal/APS** (binary APS degenerates,
+  §0b) — calibrated prob + reliability curve is the uncertainty surface (as in G7).  **Degenerate
+  heads (12: the high-cervical C2/C3 LT+PP ceiling dermatomes, < `MIN_MINORITY`=12 minority cases)
+  carry an honest constant base-rate prob, no fitted model** (mirrors G7 excluding Respiration).
+  **Alignment invariant: align the per-segment matrices to `ep` by `ep["KeyRecordNumber"]`, NOT
+  `ep.index` (§0b lesson) — a co-misalignment keeps AUC high while scrambling the 30-feature context
+  + CV groups; verify with the behavioral personalization check.**  Findings: mean OOF AUC motor
+  **0.94** / LT **0.93** / PP **0.91**; calibration MAE ~0.01; the model strongly personalizes
+  (own admission grade dominant, then LEMS/TotalMotor/mFrankel global severity).  **The cohort
+  expected-antigravity count (~14.7/20) is driven by injury LEVEL, not AIS grade — the raw
+  antigravity count is NON-monotone in admission AIS (A 12.7, B 16.3, C 14.5, D 15.2, E 15.8) — so a
+  naive "rises with AIS" sanity check is WRONG here** (unlike the SCIM/independence counts).
+  Diagnostic + inference layer like conversion/independence/multistate: tracked identifier-free
+  `models/topography_metrics.json` + git-ignored `models/topography/bundle.joblib`; **production
+  `train.py` artifacts untouched (empty `training_metrics.json` diff)**.  Bundle/metrics shape
+  documented inline at the top of `topography.py`; mirror `_apply_platt` inline in compute.py for
+  Part 2 (never import this module — it pulls shap via conversion→train).  **Part 1 shipped (s40):
+  model + tracked metrics + validation.  Part 2 (body-map dashboard surfaces) PENDING** — and it
+  needs **per-segment admission inputs**: the Patient card uses the patient's real admission exam
+  (looked up by KeyRecordNumber), but the Simulator will need an ISNCSCI-worksheet-style input grid
+  (or be patient-card-primary) since the 132 own-admission grades cannot come from the 30-field form.
+
 ## 4. Dashboard conventions
 
 * **Module layout** (`src/rehab_sci/dashboard/`) — `MAP.md` is the authoritative
@@ -736,6 +791,7 @@ uv run python -m rehab_sci.models.phenotypes     # observed-trajectory phenotypi
 uv run python -m rehab_sci.models.conversion     # AIS-grade conversion modeling (G4); ~15 s
 uv run python -m rehab_sci.models.multistate     # AIS multi-state recovery — transition Markov + improve head (G6); ~5 s
 uv run python -m rehab_sci.models.independence   # functional-independence profile — 18 per-SCIM-item calibrated heads (G7); ~50 s
+uv run python -m rehab_sci.models.topography      # recovery topography — 132 per-ISNCSCI-segment calibrated heads (G8); ~4 min
 uv run python -m rehab_sci.dashboard.app         # serve at :8050
 pkill -f 'rehab_sci.dashboard.app'               # stop stale dashboard
 uv cache prune                                   # reclaim uv cache space
@@ -759,6 +815,24 @@ bgcmd 'exit()'; rm -rf "$BGCMDDIR"               # stop + clean
 
 One line per session; full detail is in Git history (`git log`, diffs).
 
+* **s40** — G8 recovery topography map, **Part 1** (model + tracked metrics; user chose all-132
+  segments, the P(≥3 motor antigravity)/P(≥1 sensory protective) milestones, and — after a
+  diagnostic invalidated the originally-chosen joint low-rank model — **independent per-segment
+  heads**).  New `models/topography.py`: 132 calibrated binary heads (20 motor + 56 LT + 56 PP),
+  each LightGBM on the 30 admission features + the segment's OWN admission grade (`adm_self`, LOCF
+  over the admission-fallback timepoints) + Platt calibration, reusing `conversion.py` plumbing
+  verbatim.  **Diagnosed + abandoned the structured low-rank approach** (the 30 aggregates predict a
+  *specific* segment near-chance, OOF AUC 0.43–0.63; the segment's own admission grade dominates →
+  ~0.93; the discharge matrix is not low-rank) and **caught a co-misalignment bug** (per-segment
+  matrices reindexed on `ep.index` instead of `ep["KeyRecordNumber"]` — kept AUC ~0.87 while
+  scrambling the 30-feature context + CV groups; new §0b lesson + a behavioral personalization
+  check that AUC alone misses).  12 high-cervical C2/C3 ceiling dermatomes flagged degenerate
+  (honest constant base-rate, no model).  Tracked identifier-free `topography_metrics.json` +
+  git-ignored bundle; production byte-repro verified (empty `training_metrics.json` diff).
+  Findings: mean OOF AUC 0.94/0.93/0.91, calibration MAE ~0.01, strong personalization (own grade +
+  LEMS/TotalMotor severity); the cohort antigravity count is injury-LEVEL- not AIS-driven
+  (non-monotone in AIS).  Lint + F-gate clean; MAP regenerated.  Part 2 (body-map dashboard
+  surfaces; needs per-segment admission inputs) deferred to the backlog.
 * **s39** — G7 functional-independence profile, **Part 2** (dashboard surfaces across Methods +
   Patient + Simulator; user chose the Methods "Both" calibration layout — static all-18-heads
   overlay + the first interactive per-item drilldown — and the Patient achieved-vs-predicted
@@ -1008,7 +1082,8 @@ One line per session; full detail is in Git history (`git log`, diffs).
 ## 8. Feature backlog (default-work pool)
 
 Propose from here unless the user redirects.  **Items F1–F25 + G1–G4 + G6 + G7 are
-fully shipped (no G-feature mid-flight)** — see §7 for the session each landed in, and Git
+fully shipped; G8 recovery topography map Part 1 (model + metrics) shipped, G8 Part 2 (body-map
+dashboard surfaces) is MID-FLIGHT (the next item)** — see §7 for the session each landed in, and Git
 history for implementation detail.
 The user steers toward *insightful* (clinical/scientific) features over
 infra/maintenance.
@@ -1071,20 +1146,52 @@ Shipped ledger (terse, by feature number):
   + shared `layout` profile fig/readout + 4 Methods cohort figs + first-ever Methods drilldown
   callback + Methods/Patient/Simulator surfaces (`ind_*`/`methods_ind_*` strings).  See §3 for the
   model + dashboard contract (incl. the AIS-alone-is-flat invariant) and §7.  Fully shipped.
+* **G8 recovery topography map** (s40 Part 1 model + tracked metrics; **Part 2 dashboard PENDING —
+  the mid-flight next item**): `models/topography.py` — 132 independent calibrated
+  per-ISNCSCI-segment binary heads predicting P(functional milestone at discharge): motor
+  P(≥3 antigravity), sensory P(≥1 protective sensation).  The impairment/neurology complement to
+  G7; mines the largest unused signal (the 132 per-segment columns).  **The user's first-choice
+  joint low-rank structured model was diagnosed mismatched and abandoned** in favour of independent
+  heads each fed the segment's OWN admission grade (`adm_self`) — the dominant predictor (the 30
+  aggregates predict a specific segment near-chance).  Reuses conversion.py binary plumbing; no APS
+  (binary degenerate).  mean OOF AUC 0.94/0.93/0.91, calibration MAE ~0.01.  See §3 for the model
+  contract (incl. the architecture CRUX, the level-not-AIS count caveat) + the §0b KeyRecordNumber
+  alignment lesson, and §7.  **Part 2 (body-map Methods/Patient/Simulator surfaces) needs
+  per-segment admission inputs: the Patient card pulls the patient's real admission exam (by
+  KeyRecordNumber); the Simulator needs an ISNCSCI-worksheet-style input grid (or be
+  patient-primary) since the 132 own-admission grades cannot come from the 30-field form.**
 
 **F23 (shipped s26): data-quality / clinical-consistency report** — see §7 and
 `data/quality.py`; durable data facts it surfaced live in §0b/§1, and the
 regenerated `models/dataquality_summary.json` holds the per-rule scorecard.
 
-**Ready candidates (pick the next unless redirected; the user prefers a new insightful G-series
-feature over the infra items below):**
+**Ready candidates (pick the next unless redirected):**
+* **G8 Part 2 — recovery topography body-map surfaces** (the mid-flight next item; the user prefers
+  this insightful work over the infra items below).  Build pure `compute.predict_topography`
+  (inline `_apply_platt` mirror over the 132 heads; `adm_self` per segment from the patient's
+  admission exam; degenerate heads → constant base-rate) + a **body-map atlas figure** (per-segment
+  P(milestone) on a cord/dermatome layout) + the per-segment reliability/SHAP drilldown (reuse
+  `fig_conversion_{reliability,shap}` — the metrics carry per-segment `calibration`/`shap_top`) +
+  Methods/Patient/Simulator surfaces + `state.TOPOGRAPHY`/`TOPOGRAPHY_BUNDLE` loaders + bilingual
+  `topo_*`/`methods_topo_*` strings.  **Resolve the Simulator per-segment-admission input FIRST**
+  (an ISNCSCI-worksheet input grid vs patient-card-primary — ask the user).  Files: `compute.py`,
+  `layout.py`, `figures/*`, `tabs/*`, `ui_strings.yaml`, `assets/style.css`, `state.py`.
 * **F26 invariant test harness** — narrow pytest enforcing §1 data + model
   invariants + a smoke test (incl. a headless `render_{methods,patient,simulator}` per the §0b
-  lesson, which would have caught the s31 `INK["600"]` crash).  skip-if-CSV-absent.  M.  files:
-  `tests/`, pyproject.
+  lesson, which would have caught the s31 `INK["600"]` crash; and a topography-style row-alignment +
+  behavioral-personalization check per the new §0b alignment lesson).  skip-if-CSV-absent.  M.
+  files: `tests/`, pyproject.
 * **F27 dependency refresh** — minor/patch bumps + raise the `shap<0.52` cap;
   retrain to verify byte-repro.  S, low value now (no CVEs, lint clean).
-* **New G-series ideas (propose to the user; none scoped yet):** e.g. competing-risks /
-  time-to-event discharge modeling; a counterfactual "treatment lever" explorer; calibration
-  drift monitoring.  Add any candidate here with **what / why / effort / files / data
-  dependency** before starting.
+* **New G-series ideas — DATA IS EXHAUSTED OF NEW FIELD FAMILIES (s40 audit).**  An exhaustive
+  audit (all 219 raw cols diffed vs the schema; the loader ingests only `ALL_SCIDATA.csv`, no
+  external joins) confirmed the dataset is a pure SCI impairment+function registry: demographics +
+  injury context + ISNCSCI/AIS + SCIM, plus thin extras (WISCI [sparse], ZPP, COMP_INCOMP [≈AIS],
+  NonKeyMuscle [low-info]).  **Infeasible — the fields simply do not exist: disposition / mortality
+  / competing-risks; calendar time-to-event / survival (no admission/discharge/injury/birth dates —
+  only `LOS_days` duration + `BusinessYear`); complications / comorbidities; treatment-lever
+  counterfactuals (zero clinician-modifiable variables); pain / QoL / psychosocial.**  Any new G
+  must reuse the existing ISNCSCI/SCIM/AIS signal — e.g. neurological-level / motor-level recovery
+  (NLI/ZPP descent); ΔUEMS/ΔLEMS/ΔTotalMotor/ΔLightTouch/ΔPinPrick score recovery as conformal-PI
+  outcomes (the standard SCI-trial endpoint, currently inputs not outcomes); calibration-drift
+  monitoring (infra).  Scope **what / why / effort / files / data dependency** before starting.

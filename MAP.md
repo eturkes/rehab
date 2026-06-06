@@ -3,7 +3,7 @@
 Regenerate after structural changes: `uv run python scripts/gen_map.py`.
 Line numbers are 1-indexed — slice with `Read(path, offset, limit)` instead of
 reading whole files.  Sources: src/rehab_sci, scripts.
-Index: 48 files, 14818 source lines.
+Index: 49 files, 15148 source lines.
 
 ## scripts
 
@@ -667,6 +667,29 @@ Temporal (out-of-time) validation via rolling-origin expanding-window backtest.
 - L235 `_baseline_for(spec, metrics)`
 - L256 `_summarize(origins, task, baseline)`
 - L297 `main()`
+
+### topography.py (330 lines)
+Recovery topography map (G8) — per-segment ISNCSCI functional-recovery atlas.
+- L84 `ROOT` (const)
+- L85 `OUT` (const)
+- L87 `N_SPLITS` (const)
+- L88 `N_CAL_BINS` (const)
+- L89 `POOLED_BINS` (const)
+- L90 `MIN_MINORITY` (const)
+- L91 `DISCHARGE_TP` (const)
+- L94 `THRESHOLDS` (const)
+- L95 `MOTOR_LEVELS` (const)
+- L96 `SENSORY_LEVELS` (const)
+- L100 `SIDES` (const)
+- L101 `MODALITY_TEMPLATE` (const)
+- L106 `MODALITIES` (const)
+- L115 `LEVEL_ORDER` (const)
+- L120 `_build_registry()` — The 132 ISNCSCI segments in body-map display order: motor, then LT, then PP; ros…
+- L140 `_timepoint_matrix(long, tp, seg_keys)`
+- L145 `_discharge_matrix(long, seg_keys)` — Graded discharge ISNCSCI matrix (index=KeyRecordNumber, cols=segment keys), NaN …
+- L150 `_admission_matrix(long, seg_keys)` — Admission ISNCSCI matrix: first non-null over the admission-fallback timepoints,…
+- L164 `_run_segment(seg, ep, af, disch_col, adm_self)` — Fit + score one segment's calibrated binary milestone head; return (metrics, per…
+- L219 `main()`
 
 ### train.py (886 lines)
 Train one model per outcome spec + split-conformal PI + SHAP cache.
