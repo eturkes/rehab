@@ -22,11 +22,13 @@ from rehab_sci.dashboard.compute import (
     predict_independence,
     predict_landmark,
     predict_multistate,
+    predict_topography,
     predict_trajectory,
     resolve_aps_q,
     resolve_conformal_q,
     shap_for_row_class,
     shap_for_row_regression,
+    topography_admission_grades,
 )
 from rehab_sci.dashboard.i18n import col_label, t
 from rehab_sci.dashboard.layout import (
@@ -41,10 +43,12 @@ from rehab_sci.dashboard.layout import (
     fig_multistate_trajectory,
     fig_prediction_interval,
     fig_shap_local,
+    fig_topography_bodymap,
     independence_readout,
     landmark_readout,
     multistate_readout,
     number_input_for,
+    topography_readout,
 )
 from rehab_sci.dashboard.reliability import assess_input
 from rehab_sci.dashboard.state import (
@@ -59,6 +63,7 @@ from rehab_sci.dashboard.state import (
     SCHEMA,
     SCIM_TOTAL_BUNDLE,
     SIM_DEFAULTS,
+    TOPOGRAPHY_BUNDLE,
 )
 from rehab_sci.dashboard.theme import INK
 from rehab_sci.data.episodes import episode_admission_features
@@ -177,6 +182,9 @@ def render_simulator(lang: str, ref_data: dict | None = None) -> html.Div:
     ind_card = _independence_card(lang)
     if ind_card is not None:
         children.append(ind_card)
+    topo_card = _topography_card(lang, ref_data)
+    if topo_card is not None:
+        children.append(topo_card)
     return html.Div(children)
 
 
@@ -242,6 +250,83 @@ def _independence_card(lang: str) -> html.Div | None:
             html.Div(t(SCHEMA, "ind_profile_heading", lang), className="sim-section-title"),
             dcc.Graph(id="sim-ind-graph", config={"displayModeBar": False}),
             html.Div(t(SCHEMA, "ind_caption", lang), className="sim-caveat"),
+        ],
+    )
+
+
+# ---------- recovery-topography card (seeded ISNCSCI worksheet) ----------
+def _topo_worksheet(lang: str, seed: dict) -> html.Div:
+    """ISNCSCI-worksheet-style editable admission-grade grid: rows = cord levels (rostro-caudal),
+    columns = Motor / Light touch / Pin prick x Left/Right.  Each existing segment gets a small
+    number input (motor 0-5, sensory 0-2), id ``{"type":"topo-seg","seg":<segment key>}``, pre-filled
+    from ``seed`` (the reference patient's real admission exam) where present; blanks stay NaN."""
+    segs = TOPOGRAPHY_BUNDLE["segments"]
+    order = {s["level"]: s["cord_order"] for s in segs}
+    levels = sorted(order, key=order.get)
+    cell_for = {(s["modality"], s["side"], s["level"]): s for s in segs}
+    cols = [("motor", "Left"), ("motor", "Right"), ("light_touch", "Left"),
+            ("light_touch", "Right"), ("pin_prick", "Left"), ("pin_prick", "Right")]
+    hdr = {"motor": "運動" if lang == "ja" else "Mot",
+           "light_touch": "触覚" if lang == "ja" else "LT",
+           "pin_prick": "痛覚" if lang == "ja" else "PP"}
+    sd = {"Left": t(SCHEMA, "topo_side_left", lang), "Right": t(SCHEMA, "topo_side_right", lang)}
+
+    def _cell(modality: str, side: str, level: str):
+        seg = cell_for.get((modality, side, level))
+        if seg is None:
+            return html.Td("", className="topo-ws-empty")
+        v = seed.get(seg["key"])
+        return html.Td(dcc.Input(
+            id={"type": "topo-seg", "seg": seg["key"]}, type="number", min=0,
+            max=(5 if modality == "motor" else 2), step=1, debounce=True,
+            value=(round(v) if v is not None else None), className="topo-ws-input",
+        ))
+
+    header = html.Thead(html.Tr(
+        [html.Th("")] + [html.Th(f"{hdr[m]}{sd[s]}") for m, s in cols]
+    ))
+    body = html.Tbody([
+        html.Tr([html.Td(lv, className="topo-ws-level")] + [_cell(m, s, lv) for m, s in cols])
+        for lv in levels
+    ])
+    return html.Div(html.Table([header, body], className="topo-worksheet"),
+                    className="topo-worksheet-scroll")
+
+
+def _topography_card(lang: str, ref_data: dict | None = None) -> html.Div | None:
+    """Hypothetical recovery-topography card: an editable per-segment admission worksheet (seeded
+    from the What-if reference patient's real exam) + the 30-field form drive the calibrated
+    P(milestone) body map.  Edit any segment's admission grade and watch the predicted discharge
+    topography shift.  No realized-outcome overlay (hypothetical).  Omitted when bundle absent."""
+    if TOPOGRAPHY_BUNDLE is None:
+        return None
+    seed: dict = {}
+    if ref_data and ref_data.get("key_record") is not None:
+        seed = topography_admission_grades(int(ref_data["key_record"]))
+    mod_opts = [
+        {"label": t(SCHEMA, "topo_modality_light_touch", lang), "value": "light_touch"},
+        {"label": t(SCHEMA, "topo_modality_pin_prick", lang), "value": "pin_prick"},
+    ]
+    return html.Div(
+        className="lm-card topo-card",
+        children=[
+            html.H2(t(SCHEMA, "topo_card_heading", lang), className="lm-card-heading"),
+            html.Div(t(SCHEMA, "topo_card_intro", lang), className="lm-card-intro"),
+            html.Div(t(SCHEMA, "topo_sim_worksheet_heading", lang), className="sim-section-title"),
+            html.Div(t(SCHEMA, "topo_sim_worksheet_note", lang), className="sim-caveat"),
+            html.Div(className="sim-input-actions", children=[
+                html.Button(t(SCHEMA, "topo_sim_seed", lang), id="sim-topo-seed",
+                            n_clicks=0, className="sim-action-btn"),
+                html.Button(t(SCHEMA, "topo_sim_clear", lang), id="sim-topo-clear",
+                            n_clicks=0, className="sim-action-btn sim-action-btn--ghost"),
+            ]),
+            _topo_worksheet(lang, seed),
+            html.Div(id="sim-topo-readout"),
+            html.Div(t(SCHEMA, "topo_atlas_heading", lang), className="sim-section-title"),
+            dcc.RadioItems(id="sim-topo-modality", options=mod_opts, value="light_touch",
+                           inline=True, style={"marginBottom": "4px", "fontSize": "13px"}),
+            dcc.Graph(id="sim-topo-graph", config={"displayModeBar": False}),
+            html.Div(t(SCHEMA, "topo_caption", lang), className="sim-caveat"),
         ],
     )
 
@@ -714,3 +799,55 @@ def simulate_independence(num_vals, cat_vals, lang, num_ids, cat_ids):
     if result is None:
         return independence_readout(None, lang), go.Figure()
     return independence_readout(result, lang), fig_independence_profile(result, lang)
+
+
+# ---------- recovery-topography callbacks ----------
+@callback(
+    Output({"type": "topo-seg", "seg": dash.ALL}, "value"),
+    Input("sim-topo-seed", "n_clicks"),
+    Input("sim-topo-clear", "n_clicks"),
+    State({"type": "topo-seg", "seg": dash.ALL}, "id"),
+    State("patient-ref", "data"),
+    prevent_initial_call=True,
+)
+def topo_seed_or_clear(_seed, _clear, seg_ids, ref_data):
+    """Seed the worksheet from the What-if reference patient's real admission exam, or clear it."""
+    if ctx.triggered_id == "sim-topo-clear":
+        return [None] * len(seg_ids)
+    adm: dict = {}
+    if ref_data and ref_data.get("key_record") is not None:
+        adm = topography_admission_grades(int(ref_data["key_record"]))
+    return [round(adm[i["seg"]]) if i["seg"] in adm else None for i in seg_ids]
+
+
+@callback(
+    Output("sim-topo-readout", "children"),
+    Output("sim-topo-graph", "figure"),
+    Input({"type": "num", "col": dash.ALL}, "value"),
+    Input({"type": "cat", "col": dash.ALL}, "value"),
+    Input({"type": "topo-seg", "seg": dash.ALL}, "value"),
+    Input("sim-topo-modality", "value"),
+    Input("lang-store", "data"),
+    State({"type": "num", "col": dash.ALL}, "id"),
+    State({"type": "cat", "col": dash.ALL}, "id"),
+    State({"type": "topo-seg", "seg": dash.ALL}, "id"),
+)
+def simulate_topography(num_vals, cat_vals, seg_vals, modality, lang, num_ids, cat_ids, seg_ids):
+    # The 30-field form supplies the shared admission features; the worksheet supplies each
+    # segment's own admission grade (adm_self — the dominant predictor).  Blanks stay NaN.  No
+    # realized-outcome overlay (hypothetical patient).
+    if not num_ids and not cat_ids:
+        return topography_readout(None, lang), go.Figure()
+    X = collect_sim_inputs(num_vals, num_ids, cat_vals, cat_ids)
+    adm = {
+        ident["seg"]: float(v)
+        for ident, v in zip(seg_ids, seg_vals, strict=False)
+        if v is not None and v != ""
+    }
+    result = predict_topography(X, adm)
+    if result is None:
+        return topography_readout(None, lang), go.Figure()
+    return (
+        topography_readout(result, lang),
+        fig_topography_bodymap(result, lang, sensory_modality=(modality or "light_touch")),
+    )

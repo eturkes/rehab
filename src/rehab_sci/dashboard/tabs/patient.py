@@ -29,11 +29,14 @@ from rehab_sci.dashboard.compute import (
     predict_landmark,
     predict_multistate,
     predict_phenotype_membership,
+    predict_topography,
     predict_trajectory,
     resolve_aps_q,
     resolve_conformal_q,
     shap_for_row_class,
     shap_for_row_regression,
+    topography_admission_grades,
+    topography_observed_discharge,
 )
 from rehab_sci.dashboard.figures import (
     ARCHETYPE_NAMES_EN,
@@ -54,10 +57,12 @@ from rehab_sci.dashboard.layout import (
     fig_multistate_conversion_personal,
     fig_multistate_trajectory,
     fig_shap_local,
+    fig_topography_bodymap,
     fig_voi_patient,
     independence_readout,
     landmark_readout,
     multistate_readout,
+    topography_readout,
     voi_readout,
 )
 from rehab_sci.dashboard.report import generate_patient_report
@@ -77,6 +82,7 @@ from rehab_sci.dashboard.state import (
     PHENOTYPE_DATA,
     SCHEMA,
     SCIM_TOTAL_BUNDLE,
+    TOPOGRAPHY_BUNDLE,
 )
 from rehab_sci.dashboard.theme import INK
 from rehab_sci.data.episodes import PATIENT_TIMELINE, patient_meta, patient_timeline
@@ -395,6 +401,31 @@ def _patient_independence_card(lang: str) -> html.Div | None:
     )
 
 
+def _patient_topography_card(lang: str) -> html.Div | None:
+    """Recovery-topography card: the patient's real admission ISNCSCI exam (per-segment own grade)
+    drives the calibrated P(milestone) body map (dermatome silhouette + motor myotome ladder); the
+    patient's OWN realized discharge milestones are overlaid where discharge grades exist.  Predicted
+    for everyone (no admission-grade gating).  Omitted entirely when the bundle is absent."""
+    if TOPOGRAPHY_BUNDLE is None:
+        return None
+    mod_opts = [
+        {"label": t(SCHEMA, "topo_modality_light_touch", lang), "value": "light_touch"},
+        {"label": t(SCHEMA, "topo_modality_pin_prick", lang), "value": "pin_prick"},
+    ]
+    return chart_card(
+        t(SCHEMA, "topo_card_heading", lang),
+        html.Div([
+            html.Div(t(SCHEMA, "topo_card_intro", lang), className="lm-card-intro"),
+            html.Div(id="patient-topo-readout"),
+            html.Div(t(SCHEMA, "topo_atlas_heading", lang), className="pheno-subtitle"),
+            dcc.RadioItems(id="patient-topo-modality", options=mod_opts, value="light_touch",
+                           inline=True, style={"marginBottom": "4px", "fontSize": "13px"}),
+            dcc.Graph(id="patient-topo-graph", config={"displayModeBar": False}),
+            html.Div(t(SCHEMA, "topo_caption", lang), className="sim-caveat"),
+        ]),
+    )
+
+
 # ---------- layout ----------
 def render_patient(lang: str) -> html.Div:
     default_pid = PATIENT_OPTIONS[0].id_number if PATIENT_OPTIONS else None
@@ -503,6 +534,9 @@ def render_patient(lang: str) -> html.Div:
     ind_card = _patient_independence_card(lang)
     if ind_card is not None:
         content_children.append(ind_card)
+    topo_card = _patient_topography_card(lang)
+    if topo_card is not None:
+        content_children.append(topo_card)
     content_children.append(similarity_card)
 
     return html.Div(
@@ -983,6 +1017,32 @@ def update_patient_independence(key_record, lang):
         return independence_readout(None, lang), go.Figure()
     obs = independence_observed_for_episode(key_record)
     return independence_readout(result, lang), fig_independence_profile(result, lang, observed=obs)
+
+
+# ---------- recovery-topography callback ----------
+@callback(
+    Output("patient-topo-readout", "children"),
+    Output("patient-topo-graph", "figure"),
+    Input("patient-episode-radio", "value"),
+    Input("patient-topo-modality", "value"),
+    Input("lang-store", "data"),
+)
+def update_patient_topography(key_record, modality, lang):
+    # No admission-grade gating — predicted for everyone; adm_self per segment comes from the
+    # patient's REAL admission ISNCSCI exam, and the realized discharge milestones are overlaid on
+    # the body map where discharge grades exist.
+    if TOPOGRAPHY_BUNDLE is None or key_record is None:
+        return topography_readout(None, lang), go.Figure()
+    key_record = int(key_record)
+    adm = topography_admission_grades(key_record)
+    result = predict_topography(episode_row_for_model(key_record), adm)
+    if result is None:
+        return topography_readout(None, lang), go.Figure()
+    obs = topography_observed_discharge(key_record)
+    return (
+        topography_readout(result, lang),
+        fig_topography_bodymap(result, lang, sensory_modality=(modality or "light_touch"), observed=obs),
+    )
 
 
 # ---------- PDF report callback ----------

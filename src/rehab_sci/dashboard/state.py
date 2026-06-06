@@ -163,5 +163,22 @@ INDEPENDENCE_BUNDLE: dict | None = (
     joblib.load(_independence_bundle_path) if _independence_bundle_path.exists() else None
 )
 
+# G8 recovery topography map. `topography_metrics.json` (tracked, identifier-free) drives the
+# Methods cohort atlas / per-modality calibration / per-segment scorecard + drivers + the
+# per-segment drilldown; `topography/bundle.joblib` (gitignored) holds the 132 calibrated
+# per-ISNCSCI-segment heads for per-row inference (compute.predict_topography).  Both absent until
+# `python -m rehab_sci.models.topography`; every topography surface degrades gracefully.
+_topography_path = MODELS_DIR / "topography_metrics.json"
+if _topography_path.exists():
+    with _topography_path.open(encoding="utf-8") as _f:
+        TOPOGRAPHY: dict | None = json.load(_f)
+else:
+    TOPOGRAPHY = None
+
+_topography_bundle_path = MODELS_DIR / "topography" / "bundle.joblib"
+TOPOGRAPHY_BUNDLE: dict | None = (
+    joblib.load(_topography_bundle_path) if _topography_bundle_path.exists() else None
+)
+
 PATIENT_OPTIONS = list_patient_options(EP)
 PATIENT_OPTIONS_BY_ID = {p.id_number: p for p in PATIENT_OPTIONS}

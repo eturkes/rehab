@@ -766,3 +766,32 @@ input[type="number"]:focus, input[type="text"]:focus, select:focus {
 .pheno-stat-label { font-size: 11.5px; color: var(--ink-500); }
 .pheno-stat-value { font-size: 15px; font-weight: 600; color: var(--ink-900); font-variant-numeric: tabular-nums; }
 .pheno-obs-count { font-size: 11.5px; color: var(--ink-500); font-style: italic; }
+
+/* --- G8 recovery topography map (patient + simulator + methods) --- */
+/* .topo-card is an unstyled hook on the simulator card, parallel to .ms-card / .ind-card.
+   The patient/methods surfaces reuse .lm-card / .conv-readout / .pheno-subtitle / .chart-card. */
+.topo-worksheet-scroll {
+  max-height: 340px;
+  overflow-y: auto;
+  border: 1px solid var(--ink-100);
+  border-radius: 6px;
+  margin: 4px 0 12px;
+}
+.topo-worksheet { border-collapse: collapse; width: 100%; font-size: 11.5px; }
+.topo-worksheet th {
+  position: sticky; top: 0; z-index: 1;
+  background: var(--ink-50); color: var(--ink-700);
+  font-weight: 600; padding: 4px 3px; text-align: center;
+  border-bottom: 1px solid var(--ink-200);
+}
+.topo-worksheet td { padding: 2px 3px; text-align: center; }
+.topo-worksheet tr:nth-child(even) { background: var(--ink-50); }
+.topo-ws-level {
+  font-weight: 600; color: var(--ink-700); text-align: right !important;
+  padding-right: 8px !important; font-variant-numeric: tabular-nums; white-space: nowrap;
+}
+.topo-ws-input {
+  width: 38px; padding: 2px 4px; text-align: center;
+  border: 1px solid var(--ink-200); border-radius: 4px; font-size: 11.5px;
+}
+.topo-ws-empty { background: repeating-linear-gradient(45deg, transparent, transparent 4px, var(--ink-50) 4px, var(--ink-50) 6px); }

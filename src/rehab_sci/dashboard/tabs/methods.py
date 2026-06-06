@@ -7,7 +7,9 @@ from dash import Input, Output, callback, dcc, html
 
 from rehab_sci.constants import AIS_ORD_TO_LETTER
 from rehab_sci.dashboard import figures as fg
+from rehab_sci.dashboard.compute import topography_cohort_atlas
 from rehab_sci.dashboard.i18n import col_label, t
+from rehab_sci.dashboard.layout import fig_topography_bodymap
 from rehab_sci.dashboard.state import (
     CONVERSION,
     DATAQUALITY,
@@ -18,6 +20,7 @@ from rehab_sci.dashboard.state import (
     OUTCOME_BUNDLES,
     SCHEMA,
     TEMPORAL,
+    TOPOGRAPHY,
 )
 from rehab_sci.dashboard.theme import INK
 from rehab_sci.models.outcomes import OUTCOMES, OutcomeSpec
@@ -560,6 +563,125 @@ def update_methods_independence_item(item_key, lang):
     return rel, shap
 
 
+def _topo_seg_label(entry: dict, lang: str) -> str:
+    """Compact 'modality · side · level' label for one topography segment."""
+    short = {"motor": ("運動", "Motor"), "light_touch": ("触覚", "LT"),
+             "pin_prick": ("痛覚", "PP")}[entry["modality"]][0 if lang == "ja" else 1]
+    side = t(SCHEMA, "topo_side_" + ("left" if entry["side"] == "Left" else "right"), lang)
+    return f"{short} · {side} · {entry['level']}"
+
+
+def _topography_block(lang: str) -> html.Div | None:
+    """G8 — recovery topography map: the cohort body-map atlas (modality-toggleable dermatome
+    silhouette + motor myotome ladder), pooled per-modality calibration, per-segment discrimination
+    scorecard, per-modality SHAP drivers, and the interactive per-segment drilldown."""
+    topo = TOPOGRAPHY
+    if not topo or not topo.get("segments"):
+        return None
+    summ = topo.get("modality_summary", {})
+    children: list = [
+        html.H3(t(SCHEMA, "methods_topography_heading", lang)),
+        html.P(t(SCHEMA, "methods_topography_def", lang)),
+    ]
+    aucs = [summ.get(m, {}).get("mean_auc") for m in ("motor", "light_touch", "pin_prick")]
+    if all(a is not None for a in aucs):
+        children.append(html.P(
+            f"132 {'セグメント' if lang == 'ja' else 'segments'}   "
+            f"{'平均 AUC' if lang == 'ja' else 'mean AUC'} "
+            f"{'運動' if lang == 'ja' else 'motor'}={aucs[0]:.2f} · "
+            f"{'触覚' if lang == 'ja' else 'LT'}={aucs[1]:.2f} · "
+            f"{'痛覚' if lang == 'ja' else 'PP'}={aucs[2]:.2f}",
+            style={"fontSize": "13px", "color": INK["700"]},
+        ))
+
+    def _fig_card(heading_key: str, caption_key: str, fig) -> html.Div | None:
+        if fig is None:
+            return None
+        return html.Div(className="methods-perf-card", children=[
+            html.H4(t(SCHEMA, heading_key, lang)),
+            dcc.Graph(figure=fig, config={"displayModeBar": False}),
+            html.P(t(SCHEMA, caption_key, lang), style={"fontSize": "12px", "color": INK["500"]}),
+        ])
+
+    # cohort body-map atlas (interactive sensory-modality toggle; motor ladder always shown)
+    mod_opts = [
+        {"label": t(SCHEMA, "topo_modality_light_touch", lang), "value": "light_touch"},
+        {"label": t(SCHEMA, "topo_modality_pin_prick", lang), "value": "pin_prick"},
+    ]
+    children.append(html.Div(className="methods-perf-card", children=[
+        html.H4(t(SCHEMA, "methods_topo_atlas_heading", lang)),
+        html.P(t(SCHEMA, "methods_topo_atlas_caption", lang),
+               style={"fontSize": "12px", "color": INK["500"]}),
+        dcc.RadioItems(id="methods-topo-atlas-modality", options=mod_opts, value="light_touch",
+                       inline=True, style={"marginBottom": "4px", "fontSize": "13px"}),
+        dcc.Graph(id="methods-topo-atlas-graph", config={"displayModeBar": False}),
+    ]))
+
+    children.extend(c for c in [
+        _fig_card("methods_topo_scorecard_heading", "methods_topo_scorecard_caption",
+                  fg.fig_topography_scorecard(topo, lang)),
+        _fig_card("methods_topo_calibration_heading", "methods_topo_calibration_caption",
+                  fg.fig_topography_calibration(topo, lang)),
+        _fig_card("methods_topo_drivers_heading", "methods_topo_drivers_caption",
+                  fg.fig_topography_drivers(topo, SCHEMA, lang)),
+    ] if c is not None)
+
+    # interactive per-segment drilldown (reuses the G4 conversion reliability + SHAP figures)
+    modelable = [s for s in topo["segments"] if not s.get("degenerate") and s.get("auc") is not None]
+    seg_opts = [{"label": _topo_seg_label(s, lang), "value": s["key"]} for s in modelable]
+    children.append(html.Div(className="methods-perf-card", children=[
+        html.H4(t(SCHEMA, "methods_topo_drilldown_heading", lang)),
+        html.P(t(SCHEMA, "methods_topo_drilldown_caption", lang),
+               style={"fontSize": "12px", "color": INK["500"]}),
+        dcc.Dropdown(id="methods-topo-seg", options=seg_opts,
+                     value=(seg_opts[0]["value"] if seg_opts else None), clearable=False,
+                     style={"maxWidth": "340px", "marginBottom": "8px"}),
+        html.Div(style={"display": "flex", "gap": "12px"}, children=[
+            dcc.Graph(id="methods-topo-rel-graph", config={"displayModeBar": False},
+                      style={"flex": "1", "minWidth": "0"}),
+            dcc.Graph(id="methods-topo-shap-graph", config={"displayModeBar": False},
+                      style={"flex": "1", "minWidth": "0"}),
+        ]),
+    ]))
+    children.append(html.P(t(SCHEMA, "topo_caption", lang),
+                           style={"fontSize": "12px", "color": INK["500"]}))
+    return html.Div(className="methods-block", children=children)
+
+
+@callback(
+    Output("methods-topo-atlas-graph", "figure"),
+    Input("methods-topo-atlas-modality", "value"),
+    Input("lang-store", "data"),
+)
+def update_methods_topography_atlas(modality, lang):
+    """Cohort recovery-topography atlas: the body map colored by each segment's observed cohort
+    milestone base rate, with the sensory silhouette toggled between light touch / pin prick."""
+    atlas = topography_cohort_atlas()
+    if atlas is None:
+        return go.Figure()
+    return fig_topography_bodymap(atlas, lang, sensory_modality=(modality or "light_touch"))
+
+
+@callback(
+    Output("methods-topo-rel-graph", "figure"),
+    Output("methods-topo-shap-graph", "figure"),
+    Input("methods-topo-seg", "value"),
+    Input("lang-store", "data"),
+)
+def update_methods_topography_segment(seg_key, lang):
+    """Per-segment drilldown: the selected segment head's raw-vs-Platt reliability curve and
+    in-sample SHAP drivers (reusing the G4 conversion reliability/SHAP figures)."""
+    if not TOPOGRAPHY or not seg_key:
+        return go.Figure(), go.Figure()
+    entry = next((s for s in TOPOGRAPHY["segments"] if s["key"] == seg_key), None)
+    if entry is None or entry.get("degenerate"):
+        return go.Figure(), go.Figure()
+    label = _topo_seg_label(entry, lang)
+    rel = fg.fig_conversion_reliability(entry, lang, label) or go.Figure()
+    shap = fg.fig_conversion_shap(entry, SCHEMA, lang) or go.Figure()
+    return rel, shap
+
+
 def _dataquality_block(lang: str) -> html.Div | None:
     dq = DATAQUALITY
     if not dq:
@@ -655,6 +777,9 @@ def render_methods(lang: str) -> html.Div:
     independence_block = _independence_block(lang)
     if independence_block is not None:
         md.append(independence_block)
+    topography_block = _topography_block(lang)
+    if topography_block is not None:
+        md.append(topography_block)
     dq_block = _dataquality_block(lang)
     if dq_block is not None:
         md.append(dq_block)

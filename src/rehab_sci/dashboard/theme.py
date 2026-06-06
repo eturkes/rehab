@@ -52,6 +52,23 @@ PALETTE_INDEPENDENCE_DOMAIN = {
     "ambulation": "#5b6f80",  # slate
 }
 
+# G8 recovery-topography body map: sequential P(functional milestone) scale, 0..1.
+# Clinically intuitive: low P (function unlikely to return) = muted crimson, mid = pale,
+# high P (milestone likely) = deep teal.  Shared by the dermatome silhouette + the myotome ladder.
+COLORSCALE_TOPOGRAPHY = [
+    [0.0, "#a3354e"],   # crimson — milestone unlikely
+    [0.25, "#d4773c"],  # warm orange
+    [0.5, "#f1cbb1"],   # pale
+    [0.75, "#5cabb8"],  # light teal
+    [1.0, "#117a8b"],   # deep teal — milestone likely
+]
+# G8 modality accents (legend swatches / readout chips).
+PALETTE_TOPOGRAPHY_MODALITY = {
+    "motor": "#117a8b",        # deep teal
+    "light_touch": "#d4773c",  # warm orange
+    "pin_prick": "#6d4f78",    # mauve
+}
+
 INK = {
     "900": "#0e1b2a",
     "700": "#1c3147",

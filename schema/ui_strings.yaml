@@ -857,3 +857,112 @@ methods_ind_drilldown_caption:
 methods_ind_item_label:
   ja: "SCIM 項目"
   en: "SCIM item"
+# --- G8 recovery topography map (per-ISNCSCI-segment functional-milestone atlas) ---
+topo_card_heading:
+  ja: "回復トポグラフィ地図 (退院時)"
+  en: "Recovery topography map (at discharge)"
+topo_card_intro:
+  ja: "ISNCSCI の全 132 セグメント (運動 20 + 触覚 56 + 痛覚 56) について、退院時に機能的マイルストーンへ到達する較正済み確率。運動は P(MMT≧3 = 抗重力)、感覚は P(≧1 = 保護的感覚)。集計スコアに埋もれたセグメント別の回復地図を可視化する。"
+  en: "Calibrated probability that each of the 132 ISNCSCI segments (20 motor + 56 light-touch + 56 pin-prick) reaches a functional milestone at discharge — motor P(grade ≥3 = antigravity), sensory P(grade ≥1 = protective sensation). A per-segment recovery map otherwise buried in the aggregate scores."
+topo_atlas_heading:
+  ja: "セグメント別 機能到達確率 (皮膚分節 + 筋分節)"
+  en: "Per-segment milestone probability (dermatomes + myotomes)"
+topo_prob_axis:
+  ja: "到達確率"
+  en: "P(milestone)"
+topo_base_rate:
+  ja: "コホート基準率"
+  en: "Cohort base rate"
+topo_adm_self:
+  ja: "入院時グレード"
+  en: "Admission grade"
+topo_modality_motor:
+  ja: "運動 (筋分節・抗重力)"
+  en: "Motor (myotome · antigravity)"
+topo_modality_light_touch:
+  ja: "触覚 (皮膚分節・保護的感覚)"
+  en: "Light touch (dermatome · protective)"
+topo_modality_pin_prick:
+  ja: "痛覚 (皮膚分節・保護的感覚)"
+  en: "Pin prick (dermatome · protective)"
+topo_modality_label:
+  ja: "感覚モダリティ"
+  en: "Sensory modality"
+topo_side_left:
+  ja: "左"
+  en: "L"
+topo_side_right:
+  ja: "右"
+  en: "R"
+topo_achieved:
+  ja: "実測: 到達"
+  en: "Observed: reached"
+topo_not_achieved:
+  ja: "実測: 未到達"
+  en: "Observed: not reached"
+topo_expected_motor:
+  ja: "抗重力到達が期待される筋数"
+  en: "Expected antigravity muscles"
+topo_expected_lt:
+  ja: "触覚保持 (期待)"
+  en: "Light-touch preserved (exp.)"
+topo_expected_pp:
+  ja: "痛覚保持 (期待)"
+  en: "Pin-prick preserved (exp.)"
+topo_strongest:
+  ja: "最も到達しやすい運動分節"
+  en: "Strongest motor segment"
+topo_weakest:
+  ja: "最も到達が難しい運動分節 (注目点)"
+  en: "Weakest motor segment (focus)"
+topo_caption:
+  ja: "132 個の独立した較正済み二値ヘッド (運動 20 + 触覚 56 + 痛覚 56)。各ヘッドは 30 の入院特徴 + 当該分節自身の入院時グレード (adm_self — 支配的予測因子) から予測し、患者群 5 分割 OOF + Platt 較正。高位頚髄の天井分節 12 個は較正不能のため一定の基準率を表示。APS なし (二値では退化)。"
+  en: "132 independent calibrated binary heads (20 motor + 56 light-touch + 56 pin-prick). Each predicts from the 30 admission features + the segment's own admission grade (adm_self — the dominant predictor), grouped 5-fold OOF + Platt calibration. The 12 high-cervical ceiling dermatomes are degenerate (constant base rate). No APS layer (binary sets degenerate)."
+methods_topography_heading:
+  ja: "回復トポグラフィ地図 (G8)"
+  en: "Recovery topography map (G8)"
+methods_topography_def:
+  ja: "退院時の機能をセグメント別に分解する 132 個の較正済み二値ヘッド。各セグメント (運動 20 筋分節 + 触覚 56 + 痛覚 56 皮膚分節) について、入院特徴 + 当該分節自身の入院時グレードから機能的マイルストーン到達確率を予測。集計の運動・感覚スコアが 5 つの合計値へ畳み込む 132 列のセグメント別信号を活用する。"
+  en: "132 calibrated binary heads decomposing discharge function by segment. For each segment (20 motor myotomes + 56 light-touch + 56 pin-prick dermatomes) it predicts the probability of reaching a functional milestone from admission features + that segment's own admission grade — mining the 132 per-segment signals the aggregate motor/sensory scores collapse into five totals."
+methods_topo_atlas_heading:
+  ja: "コホート回復トポグラフィ (実測基準率)"
+  en: "Cohort recovery topography (observed base rate)"
+methods_topo_atlas_caption:
+  ja: "全コホートで各セグメントが退院時にマイルストーンへ到達した実測割合。皮膚分節シルエット (触覚/痛覚を切替) + 筋分節ラダー。回復は AIS グレードではなく損傷レベルに支配される (抗重力到達数は AIS で非単調)。"
+  en: "Observed fraction of the whole cohort reaching each segment's milestone at discharge. Dermatome silhouette (toggle light touch / pin prick) + myotome ladder. Recovery is governed by injury level, not AIS grade (the antigravity count is non-monotone in admission AIS)."
+methods_topo_scorecard_heading:
+  ja: "セグメント別 判別性能 (モダリティ別分布)"
+  en: "Per-segment discrimination (distribution by modality)"
+methods_topo_scorecard_caption:
+  ja: "モデル化された約 120 ヘッドの OOF AUC と Brier スキルの分布 (点 = 各セグメント)。全モダリティで AUC≈0.85–0.97 と良好に判別。退化した高位頚髄天井分節 12 個は除外。"
+  en: "Distribution of OOF AUC and Brier skill across the ~120 modelable heads (points = individual segments). All modalities discriminate well (AUC≈0.85–0.97). The 12 degenerate high-cervical ceiling dermatomes are excluded."
+methods_topo_calibration_heading:
+  ja: "モダリティ別 信頼度曲線 (プール)"
+  en: "Pooled reliability by modality"
+methods_topo_calibration_caption:
+  ja: "各モダリティの全セグメント OOF 予測をプールした Platt 較正後の信頼度曲線。対角付近に乗り、較正が良好であることを示す。較正 MAE ≈0.01。"
+  en: "Platt-calibrated reliability curve pooling every segment's OOF predictions per modality. The near-diagonal fit shows good calibration (calibration MAE ≈0.01). Per-segment raw-vs-calibrated detail is in the drilldown."
+methods_topo_drivers_heading:
+  ja: "モダリティ別 寄与因子 (in-sample SHAP)"
+  en: "Drivers by modality (in-sample SHAP)"
+methods_topo_drivers_caption:
+  ja: "モダリティごとの上位入院特徴の平均 |SHAP|。当該分節自身の入院時グレード (adm_self) が全モダリティで支配的で、次いで LEMS/TotalMotor/UEMS など全体的重症度。記述的 (in-sample)。"
+  en: "Mean |SHAP| of the top admission features per modality. The segment's own admission grade (adm_self) dominates every modality, followed by global severity (LEMS/TotalMotor/UEMS). Descriptive (in-sample)."
+methods_topo_drilldown_heading:
+  ja: "セグメント別ドリルダウン (信頼度 + 寄与因子)"
+  en: "Per-segment drilldown (reliability + drivers)"
+methods_topo_drilldown_caption:
+  ja: "セグメントを選択すると、生 vs Platt 較正の信頼度曲線と in-sample SHAP 寄与因子を表示。adm_self = 当該分節自身の入院時グレード。"
+  en: "Select a segment to see its raw-vs-Platt-calibrated reliability curve and in-sample SHAP drivers. adm_self = that segment's own admission grade."
+topo_sim_worksheet_heading:
+  ja: "入院時 ISNCSCI ワークシート (セグメント別グレード)"
+  en: "Admission ISNCSCI worksheet (per-segment grades)"
+topo_sim_worksheet_note:
+  ja: "セグメント別の入院時グレードを編集 (運動 0–5、感覚 0–2)。当該分節自身のグレードが最も支配的な予測因子。参照患者から初期値を読込めます。空欄は不明 (NaN) として扱われます。"
+  en: "Edit each segment's admission grade (motor 0–5, sensory 0–2) — a segment's own grade is its most dominant predictor. Seed from a reference patient, or leave blanks (treated as unknown / NaN)."
+topo_sim_seed:
+  ja: "参照患者から読込"
+  en: "Seed from reference"
+topo_sim_clear:
+  ja: "ワークシートを消去"
+  en: "Clear worksheet"

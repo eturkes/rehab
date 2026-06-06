@@ -20,6 +20,8 @@ from rehab_sci.dashboard.state import (
     OUTCOME_BUNDLES,
     PHENOTYPE_DATA,
     SIM_DEFAULTS,
+    TOPOGRAPHY,
+    TOPOGRAPHY_BUNDLE,
     TRAJECTORY_BUNDLE,
 )
 from rehab_sci.data.episodes import episode_admission_features
@@ -848,4 +850,142 @@ def independence_observed_for_episode(key_record: int) -> dict[str, bool]:
         v = pd.to_numeric(pd.Series([row[it["col"]]]), errors="coerce").iloc[0]
         if pd.notna(v):
             out[it["key"]] = bool(v >= it["thr"])
+    return out
+
+
+# ----------------------------------------------------------------------------
+# G8 recovery topography map — per-ISNCSCI-segment discharge functional-milestone probabilities.
+# 132 independent calibrated binary heads (20 motor P(>=3 antigravity), 56 light-touch + 56
+# pin-prick P(>=1 protective sensation)).  Each modelable head is fed the 30 shared admission
+# features + the segment's OWN admission grade (`adm_self` — the dominant predictor, the per-segment
+# ISNCSCI the curated 30 omit); 12 degenerate high-cervical sensory-ceiling heads carry a constant
+# base-rate prob.  `adm_self` comes from the patient's real admission worksheet (Patient card) or
+# the seeded/edited Simulator worksheet — supplied via `adm_grades`.  `_apply_platt` is the same
+# Platt mirror used for conversion, so the dashboard never imports models.topography (shap via
+# conversion -> train).
+
+def _topography_input(X: pd.DataFrame) -> pd.DataFrame:
+    """One-row input over the 30 shared admission features, dtyped like training; every head adds
+    its own `adm_self` column at predict time (re-cast categoricals so LightGBM realigns levels)."""
+    b = TOPOGRAPHY_BUNDLE
+    base = X.iloc[0].to_dict() if len(X) else {}
+    cat = set(b["categorical_cols"])
+    Xc = pd.DataFrame([{c: base.get(c) for c in b["feature_cols"]}])
+    for c in b["feature_cols"]:
+        if c in cat:
+            Xc[c] = Xc[c].astype("category")
+        else:
+            Xc[c] = pd.to_numeric(Xc[c], errors="coerce")
+    return Xc
+
+
+def topography_admission_grades(key_record: int) -> dict[str, float]:
+    """The patient's real per-segment admission ISNCSCI grades: first non-null over the
+    admission-fallback timepoints, per segment (mirrors models.topography._admission_matrix /
+    build_episode_frame's admission backfill).  Keys = segment keys; a segment never observed at
+    admission is absent.  Drives the Patient card's `adm_self` + seeds the Simulator worksheet."""
+    if TOPOGRAPHY_BUNDLE is None:
+        return {}
+    b = TOPOGRAPHY_BUNDLE
+    sub = LONG[LONG["KeyRecordNumber"] == key_record]
+    if sub.empty:
+        return {}
+    by_tp = {tp: sub[sub["TIME_Name"] == tp] for tp in b["admission_fallback"]}
+    out: dict[str, float] = {}
+    for seg in b["segments"]:
+        key = seg["key"]
+        for tp in b["admission_fallback"]:
+            g = by_tp[tp]
+            if g.empty or key not in g.columns:
+                continue
+            v = pd.to_numeric(pd.Series([g.iloc[0][key]]), errors="coerce").iloc[0]
+            if pd.notna(v):
+                out[key] = float(v)
+                break
+    return out
+
+
+def predict_topography(X: pd.DataFrame, adm_grades: dict[str, float] | None = None) -> dict | None:
+    """Per-ISNCSCI-segment discharge functional-milestone probabilities for one admission row.
+
+    `X` carries the 30 shared admission features; `adm_grades` maps each segment key to that
+    segment's OWN admission grade (the dominant predictor).  A modelable head predicts P(milestone)
+    from [30 feats + adm_self]; a degenerate head returns its constant base rate.  A missing
+    `adm_self` passes as NaN (LightGBM native-missing, matching training where adm_self was itself
+    LOCF/NaN).  Returns per-segment records in body-map display order + per-modality
+    expected-milestone counts (Σ prob).  ``None`` when the bundle is absent.
+    """
+    if TOPOGRAPHY_BUNDLE is None:
+        return None
+    b = TOPOGRAPHY_BUNDLE
+    adm = adm_grades or {}
+    Xc = _topography_input(X)
+    segments: list[dict] = []
+    for seg in b["segments"]:
+        key = seg["key"]
+        head = b["heads"][key]
+        adm_self = adm.get(key, np.nan)
+        rec = {k: seg[k] for k in ("key", "modality", "side", "level", "cord_order", "thr")}
+        rec["base_rate"] = float(head["base_rate"])
+        rec["degenerate"] = bool(head.get("degenerate"))
+        rec["adm_self"] = None if pd.isna(adm_self) else float(adm_self)
+        if head.get("degenerate"):
+            rec["prob"] = float(head["base_rate"])
+        else:
+            row = Xc.copy()
+            row["adm_self"] = float(adm_self) if pd.notna(adm_self) else np.nan
+            raw = float(head["clf"].predict_proba(row[head["feature_cols"]])[0, 1])
+            rec["prob"] = _apply_platt(head["calibrator"], raw)
+        segments.append(rec)
+    by_modality: dict[str, dict] = {}
+    for m in ("motor", "light_touch", "pin_prick"):
+        ms = [s["prob"] for s in segments if s["modality"] == m]
+        by_modality[m] = {
+            "expected_count": float(sum(ms)),
+            "n_segments": len(ms),
+            "mean_prob": float(np.mean(ms)) if ms else 0.0,
+        }
+    return {"segments": segments, "by_modality": by_modality}
+
+
+def topography_cohort_atlas() -> dict | None:
+    """Cohort base-rate atlas in the predict_topography result shape: every segment's `prob` is its
+    observed cohort milestone frequency (base_rate from the metrics), so the shared body-map figure
+    renders the *typical* recovery topography across the whole cohort (no per-patient inference).
+    Reads ``topography_metrics.json``; ``None`` when absent."""
+    if TOPOGRAPHY is None:
+        return None
+    segments: list[dict] = []
+    for s in TOPOGRAPHY.get("segments", []):
+        rec = {k: s[k] for k in ("key", "modality", "side", "level", "cord_order", "thr")}
+        rec.update({"base_rate": float(s["base_rate"]), "degenerate": bool(s["degenerate"]),
+                    "adm_self": None, "prob": float(s["base_rate"])})
+        segments.append(rec)
+    by_modality: dict[str, dict] = {}
+    for m in ("motor", "light_touch", "pin_prick"):
+        ps = [s["prob"] for s in segments if s["modality"] == m]
+        by_modality[m] = {"expected_count": float(sum(ps)), "n_segments": len(ps),
+                          "mean_prob": float(np.mean(ps)) if ps else 0.0}
+    return {"segments": segments, "by_modality": by_modality}
+
+
+def topography_observed_discharge(key_record: int) -> dict[str, bool]:
+    """Realized discharge milestone per segment (discharge grade >= the segment threshold) for the
+    patient-card achieved-vs-predicted overlay.  Only segments with an observed discharge grade
+    appear; empty when the episode has no discharge record."""
+    if TOPOGRAPHY_BUNDLE is None:
+        return {}
+    b = TOPOGRAPHY_BUNDLE
+    sub = LONG[(LONG["KeyRecordNumber"] == key_record) & (LONG["TIME_Name"] == b["discharge_timepoint"])]
+    if sub.empty:
+        return {}
+    row = sub.iloc[0]
+    out: dict[str, bool] = {}
+    for seg in b["segments"]:
+        key = seg["key"]
+        if key not in sub.columns:
+            continue
+        v = pd.to_numeric(pd.Series([row[key]]), errors="coerce").iloc[0]
+        if pd.notna(v):
+            out[key] = bool(v >= seg["thr"])
     return out

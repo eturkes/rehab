@@ -6,12 +6,14 @@ import numpy as np
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 
+from rehab_sci.dashboard.figures._common import _hex_to_rgba
 from rehab_sci.dashboard.i18n import col_label, level_label, t
 from rehab_sci.dashboard.theme import (
     INK,
     PALETTE_AIS,
     PALETTE_CATEGORICAL,
     PALETTE_INDEPENDENCE_DOMAIN,
+    PALETTE_TOPOGRAPHY_MODALITY,
 )
 from rehab_sci.schema import Schema
 
@@ -996,5 +998,127 @@ def fig_independence_landscape(ind: dict, schema: Schema, lang: str) -> go.Figur
         height=26 * len(items) + 140, margin=dict(l=212, r=20, t=22, b=46),
         xaxis=dict(title=adm_lbl, side="bottom"),
         yaxis=dict(autorange="reversed", tickfont=dict(size=10.5)),
+    )
+    return fig
+
+
+# ----------------------------------------------------------------------------
+# G8 recovery topography map — cohort-dynamics Methods figures.  The cohort body-map atlas itself
+# is the shared layout.fig_topography_bodymap (driven from the tab via compute.topography_cohort_atlas);
+# here live the per-modality pooled calibration, the per-segment discrimination scorecard, and the
+# per-modality SHAP drivers.  The per-segment drilldown reuses fig_conversion_{reliability,shap}.
+
+_TOPO_MODS = ("motor", "light_touch", "pin_prick")
+
+
+def _topo_short_modality(mod: str, lang: str) -> str:
+    ja = {"motor": "運動", "light_touch": "触覚", "pin_prick": "痛覚"}
+    en = {"motor": "Motor", "light_touch": "Light touch", "pin_prick": "Pin prick"}
+    return (ja if lang == "ja" else en)[mod]
+
+
+def _topo_modelable(topo: dict) -> list[dict]:
+    """Non-degenerate per-segment metric records (those carrying auc/calibration/shap_top)."""
+    return [s for s in (topo or {}).get("segments", []) if not s.get("degenerate") and s.get("auc") is not None]
+
+
+def fig_topography_calibration(topo: dict, lang: str) -> go.Figure | None:
+    """Pooled per-modality reliability: each modality's Platt-calibrated curve (all its segments'
+    OOF predictions pooled) against the diagonal.  Reads ``topography_metrics.json[modality_summary]``."""
+    summ = (topo or {}).get("modality_summary")
+    if not summ:
+        return None
+    conf_lbl = "予測確率" if lang == "ja" else "Predicted probability"
+    obs_lbl = "実測頻度" if lang == "ja" else "Observed frequency"
+    fig = go.Figure()
+    fig.add_trace(go.Scatter(
+        x=[0, 1], y=[0, 1], mode="lines",
+        line=dict(color=INK["200"], dash="dash", width=1.5), showlegend=False, hoverinfo="skip",
+    ))
+    for mod in _TOPO_MODS:
+        cal = (summ.get(mod) or {}).get("calibration")
+        if not cal:
+            continue
+        fig.add_trace(go.Scatter(
+            x=cal["pred_mean"], y=cal["obs_freq"], mode="lines+markers",
+            name=_topo_short_modality(mod, lang),
+            line=dict(color=PALETTE_TOPOGRAPHY_MODALITY[mod], width=2),
+            marker=dict(size=6, color=PALETTE_TOPOGRAPHY_MODALITY[mod]),
+            hovertemplate=conf_lbl + "=%{x:.2f}<br>" + obs_lbl + "=%{y:.2f}<extra></extra>",
+        ))
+    fig.update_layout(
+        height=340, margin=dict(l=54, r=20, t=18, b=46),
+        xaxis=dict(title=conf_lbl, range=[0, 1]),
+        yaxis=dict(title=obs_lbl, range=[0, 1]),
+        legend=dict(x=0.02, y=0.98, xanchor="left", yanchor="top",
+                    bgcolor="rgba(255,255,255,0.8)", font=dict(size=10)),
+    )
+    return fig
+
+
+def fig_topography_scorecard(topo: dict, lang: str) -> go.Figure | None:
+    """Per-segment discrimination spread by modality: a horizontal box of the per-segment OOF AUC
+    (left) and Brier skill score 1 - Brier/baseline (right), one box per modality, points = the
+    individual segment heads.  Surfaces that all ~120 modelable heads discriminate well.  Reads
+    ``topography_metrics.json``."""
+    segs = _topo_modelable(topo)
+    if not segs:
+        return None
+    auc_lbl = "判別 (AUC)" if lang == "ja" else "Discrimination (AUC)"
+    skill_lbl = "Brier スキル" if lang == "ja" else "Brier skill"
+    fig = make_subplots(rows=1, cols=2, shared_yaxes=True, horizontal_spacing=0.04,
+                        subplot_titles=[auc_lbl, skill_lbl])
+    for mod in _TOPO_MODS:
+        ms = [s for s in segs if s["modality"] == mod]
+        if not ms:
+            continue
+        name = _topo_short_modality(mod, lang)
+        col = PALETTE_TOPOGRAPHY_MODALITY[mod]
+        aucs = [s["auc"] for s in ms]
+        skill = [1.0 - s["brier"] / s["brier_baseline"] if s["brier_baseline"] > 0 else 0.0 for s in ms]
+        labels = [f"{_topo_short_modality(mod, lang)} {s['side'][0]}·{s['level']}" for s in ms]
+        fig.add_trace(go.Box(
+            x=aucs, y=[name] * len(aucs), name=name, orientation="h", marker=dict(color=col),
+            line=dict(color=col), boxpoints="all", jitter=0.5, pointpos=0, fillcolor=_hex_to_rgba(col, 0.25),
+            marker_size=4, text=labels, hovertemplate="%{text}<br>AUC=%{x:.3f}<extra></extra>", showlegend=False,
+        ), row=1, col=1)
+        fig.add_trace(go.Box(
+            x=skill, y=[name] * len(skill), name=name, orientation="h", marker=dict(color=col),
+            line=dict(color=col), boxpoints="all", jitter=0.5, pointpos=0, fillcolor=_hex_to_rgba(col, 0.25),
+            marker_size=4, text=labels, hovertemplate="%{text}<br>skill=%{x:.3f}<extra></extra>", showlegend=False,
+        ), row=1, col=2)
+    fig.update_xaxes(range=[0.5, 1.0], tickformat=".2f", row=1, col=1)
+    fig.update_xaxes(range=[0, 1.0], tickformat=".2f", row=1, col=2)
+    fig.update_layout(height=300, margin=dict(l=86, r=24, t=46, b=36),
+                      yaxis=dict(tickfont=dict(size=11)))
+    return fig
+
+
+def fig_topography_drivers(topo: dict, schema: Schema, lang: str) -> go.Figure | None:
+    """Per-modality SHAP drivers: grouped horizontal bars of the top admission features by mean
+    |SHAP|, one bar group per feature with a bar per modality.  ``adm_self`` (the segment's own
+    admission grade) dominates every modality.  Reads ``topography_metrics.json[drivers_by_modality]``."""
+    drv = (topo or {}).get("drivers_by_modality")
+    if not drv:
+        return None
+    adm_lbl = "当該分節の入院時グレード" if lang == "ja" else "Own admission grade"
+    per_mod = {m: {r["feature"]: r["mean_abs"] for r in (drv.get(m) or [])} for m in _TOPO_MODS}
+    peak: dict[str, float] = {}
+    for d in per_mod.values():
+        for f, v in d.items():
+            peak[f] = max(peak.get(f, 0.0), v)
+    feats = [f for f, _ in sorted(peak.items(), key=lambda kv: kv[1], reverse=True)[:8]][::-1]
+    names = [adm_lbl if f == "adm_self" else col_label(schema, f, lang) for f in feats]
+    fig = go.Figure()
+    for mod in _TOPO_MODS:
+        fig.add_trace(go.Bar(
+            y=names, x=[per_mod[mod].get(f, 0.0) for f in feats], orientation="h",
+            name=_topo_short_modality(mod, lang), marker=dict(color=PALETTE_TOPOGRAPHY_MODALITY[mod]),
+            hovertemplate="%{y}<br>|SHAP|=%{x:.3f}<extra></extra>",
+        ))
+    fig.update_layout(
+        height=30 * len(feats) + 96, margin=dict(l=210, r=20, t=40, b=40), barmode="group",
+        xaxis_title="mean(|SHAP|)",
+        legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1, font=dict(size=10)),
     )
     return fig

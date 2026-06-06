@@ -8,12 +8,14 @@ from __future__ import annotations
 import numpy as np
 import plotly.graph_objects as go
 from dash import dcc, html
+from plotly.subplots import make_subplots
 
 from rehab_sci.constants import AIS_ORD_TO_LETTER
 from rehab_sci.dashboard.compute import format_value, mag_short_label
 from rehab_sci.dashboard.i18n import col_label, level_label, t
 from rehab_sci.dashboard.state import FEATURE_SPEC, SCHEMA, SIM_DEFAULTS
 from rehab_sci.dashboard.theme import (
+    COLORSCALE_TOPOGRAPHY,
     INK,
     PALETTE_AIS,
     PALETTE_CATEGORICAL,
@@ -799,4 +801,225 @@ def independence_readout(result: dict, lang: str) -> html.Div:
         f"  ·  {t(SCHEMA, 'ind_least_likely', lang)}: {col_label(SCHEMA, least['col'], lang)} {least['prob']:.0%}",
         className="lm-readout-line lm-readout-delta",
     ))
+    return html.Div(lines, className="lm-readout conv-readout")
+
+
+# ---------- G8 recovery-topography body map ----------
+# Anatomical (x, y) for each sensory dermatome on a stylised front-view body, RIGHT side only
+# (x > 0); the Left side mirrors to -x.  Coordinate frame: x in [-62, 62], y in [0, 205] (feet=0,
+# head-top~205).  Approximate, not a clinical dermatome atlas — the markers carry the data; the
+# silhouette + rostro-caudal placement orient the reader (neck cluster, two arms, a torso column,
+# two legs, perineal sacral cluster).  Hover gives the exact level/side/probability.
+_DERMATOME_XY = {
+    "C2": (7, 184), "C3": (10, 176), "C4": (14, 167),         # neck
+    "C5": (33, 150), "T1": (30, 132), "C6": (40, 114),         # arm (C5 lateral, T1 medial)
+    "C7": (40, 96), "C8": (35, 93),                            # hand
+    "T2": (19, 153), "T3": (18, 145), "T4": (18, 137),         # chest (T4 ~ nipple)
+    "T5": (18, 129), "T6": (18, 121), "T7": (18, 113),
+    "T8": (18, 106), "T9": (18, 99), "T10": (18, 92),          # T10 ~ umbilicus
+    "T11": (18, 86), "T12": (19, 81), "L1": (20, 75),          # L1 ~ groin
+    "L2": (20, 64), "L3": (18, 48), "L4": (16, 34),            # thigh -> leg
+    "L5": (14, 20), "S1": (20, 10),                            # foot (L5 dorsum, S1 lateral/sole)
+    "S2": (10, 55), "S3": (8, 66), "S45": (6, 74),             # sacral / perineal cluster
+}
+
+
+def _poly_path(pts: list[tuple[float, float]]) -> str:
+    """SVG path string for a closed polygon from (x, y) vertices."""
+    head = f"M {pts[0][0]},{pts[0][1]}"
+    rest = " ".join(f"L {x},{y}" for x, y in pts[1:])
+    return f"{head} {rest} Z"
+
+
+def _topo_body_shapes() -> list[dict]:
+    """Stylised front-view humanoid silhouette as a list of add_shape kwargs (data coords)."""
+    skin = dict(fillcolor=INK["50"], line=dict(color=INK["200"], width=1.2), layer="below")
+    torso = [(-36, 160), (36, 160), (32, 138), (26, 96), (30, 84),
+             (-30, 84), (-26, 96), (-32, 138)]
+    r_arm = [(34, 159), (41, 157), (37, 88), (30, 93)]
+    l_arm = [(-x, y) for x, y in r_arm]
+    r_leg = [(5, 84), (28, 84), (21, 4), (11, 4)]
+    l_leg = [(-x, y) for x, y in r_leg]
+    return [
+        dict(type="circle", x0=-15, y0=170, x1=15, y1=202, **skin),          # head
+        dict(type="rect", x0=-7, y0=159, x1=7, y1=172, **skin),              # neck
+        dict(type="path", path=_poly_path(torso), **skin),                  # torso
+        dict(type="path", path=_poly_path(r_arm), **skin),                  # right arm
+        dict(type="path", path=_poly_path(l_arm), **skin),                  # left arm
+        dict(type="path", path=_poly_path(r_leg), **skin),                  # right leg
+        dict(type="path", path=_poly_path(l_leg), **skin),                  # left leg
+    ]
+
+
+def _topo_segment_lookup(result: dict, modality: str) -> dict[tuple[str, str], dict]:
+    """{(level, side): segment-record} for one modality from a predict_topography result."""
+    return {(s["level"], s["side"]): s for s in result["segments"] if s["modality"] == modality}
+
+
+def fig_topography_bodymap(
+    result: dict,
+    lang: str,
+    sensory_modality: str = "light_touch",
+    observed: dict | None = None,
+    title: str | None = None,
+) -> go.Figure:
+    """The recovery-topography atlas: a stylised front-view dermatome silhouette (the chosen
+    sensory modality, light-touch or pin-prick) beside a motor myotome ladder, every segment shaded
+    by P(functional milestone) on the shared topography colorscale.  When ``observed`` (realized
+    discharge milestones per segment) is supplied (patient card), achieved / not-achieved segments
+    get a green / crimson ring.  Empty figure when ``result`` is missing."""
+    if not (result or {}).get("segments"):
+        return go.Figure()
+    cs, ink = COLORSCALE_TOPOGRAPHY, INK
+    side_word = {"Left": t(SCHEMA, "topo_side_left", lang), "Right": t(SCHEMA, "topo_side_right", lang)}
+    p_word = t(SCHEMA, "topo_prob_axis", lang)
+    base_word = t(SCHEMA, "topo_base_rate", lang)
+    adm_word = t(SCHEMA, "topo_adm_self", lang)
+    body_title = t(SCHEMA, f"topo_modality_{sensory_modality}", lang)
+    ladder_title = t(SCHEMA, "topo_modality_motor", lang)
+
+    fig = make_subplots(
+        rows=1, cols=2, column_widths=[0.6, 0.4], horizontal_spacing=0.06,
+        subplot_titles=(body_title, ladder_title),
+    )
+    for sh in _topo_body_shapes():
+        fig.add_shape(**sh, row=1, col=1)
+
+    def _hover(rec: dict) -> str:
+        adm = "—" if rec["adm_self"] is None else f"{rec['adm_self']:g}"
+        return (f"{side_word[rec['side']]} {rec['level']}<br>{p_word}: {rec['prob']:.0%}"
+                f"<br>{base_word}: {rec['base_rate']:.0%}<br>{adm_word}: {adm}")
+
+    # ---- sensory dermatome silhouette (col 1) ----
+    sx, sy, sc, scustom = [], [], [], []
+    for s in (x for x in result["segments"] if x["modality"] == sensory_modality):
+        xy = _DERMATOME_XY.get(s["level"])
+        if xy is None:
+            continue
+        x = xy[0] if s["side"] == "Right" else -xy[0]
+        sx.append(x)
+        sy.append(xy[1])
+        sc.append(s["prob"])
+        scustom.append(_hover(s))
+    fig.add_trace(go.Scatter(
+        x=sx, y=sy, mode="markers", showlegend=False,
+        marker=dict(size=11, color=sc, colorscale=cs, cmin=0, cmax=1,
+                    line=dict(color="#fff", width=1),
+                    colorbar=dict(title=dict(text=p_word, side="top"), orientation="h",
+                                  y=-0.07, x=0.28, xanchor="center", len=0.5, thickness=11,
+                                  tickformat=".0%", tickfont=dict(size=9), outlinewidth=0)),
+        customdata=scustom, hovertemplate="%{customdata}<extra></extra>",
+    ), row=1, col=1)
+    # L / R orientation anchors
+    fig.add_trace(go.Scatter(
+        x=[-46, 46], y=[200, 200], mode="text", text=["L", "R"], showlegend=False,
+        textfont=dict(size=13, color=ink["300"]), hoverinfo="skip",
+    ), row=1, col=1)
+
+    # ---- motor myotome ladder (col 2) ----
+    motor = _topo_segment_lookup(result, "motor")
+    levels = list(dict.fromkeys(s["level"] for s in result["segments"] if s["modality"] == "motor"))
+    lx, ly, lc, ltext, lcustom = [], [], [], [], []
+    for i, lv in enumerate(levels):
+        yy = len(levels) - 1 - i  # C5 at top
+        for col_x, sd in ((0, "Left"), (1, "Right")):
+            rec = motor.get((lv, sd))
+            if rec is None:
+                continue
+            lx.append(col_x)
+            ly.append(yy)
+            lc.append(rec["prob"])
+            ltext.append(f"{rec['prob']:.0%}")
+            lcustom.append(_hover(rec))
+    fig.add_trace(go.Scatter(
+        x=lx, y=ly, mode="markers+text", showlegend=False,
+        marker=dict(size=30, symbol="square", color=lc, colorscale=cs, cmin=0, cmax=1,
+                    line=dict(color="#fff", width=1.5)),
+        text=ltext, textposition="middle center", textfont=dict(size=8.5, color=ink["900"]),
+        customdata=lcustom, hovertemplate="%{customdata}<extra></extra>",
+    ), row=1, col=2)
+
+    # ---- observed achieved / not-achieved rings ----
+    if observed:
+        def _rings(pred, xs, ys, keys, col):
+            ach_x = [x for x, k in zip(xs, keys, strict=True) if observed.get(k) is True]
+            ach_y = [y for y, k in zip(ys, keys, strict=True) if observed.get(k) is True]
+            mis_x = [x for x, k in zip(xs, keys, strict=True) if observed.get(k) is False]
+            mis_y = [y for y, k in zip(ys, keys, strict=True) if observed.get(k) is False]
+            size = 16 if col == 1 else 38
+            lw = 1.8 if col == 1 else 2.6
+            if ach_x:
+                fig.add_trace(go.Scatter(
+                    x=ach_x, y=ach_y, mode="markers", name=t(SCHEMA, "topo_achieved", lang),
+                    marker=dict(size=size, symbol="circle-open", color="#2c8a6b", line=dict(width=lw)),
+                    hoverinfo="skip", legendgroup="ach", showlegend=(col == 1),
+                ), row=1, col=col)
+            if mis_x:
+                fig.add_trace(go.Scatter(
+                    x=mis_x, y=mis_y, mode="markers", name=t(SCHEMA, "topo_not_achieved", lang),
+                    marker=dict(size=size, symbol="circle-open", color="#a3354e", line=dict(width=lw)),
+                    hoverinfo="skip", legendgroup="mis", showlegend=(col == 1),
+                ), row=1, col=col)
+        # segment keys aligned to the plotted marker order, per panel
+        sens_keys = [s["key"] for s in result["segments"]
+                     if s["modality"] == sensory_modality and _DERMATOME_XY.get(s["level"])]
+        _rings(sensory_modality, sx, sy, sens_keys, 1)
+        mot_keys = []
+        for lv in levels:
+            for sd in ("Left", "Right"):
+                rec = motor.get((lv, sd))
+                if rec is not None:
+                    mot_keys.append(rec["key"])
+        _rings("motor", lx, ly, mot_keys, 2)
+
+    fig.update_xaxes(visible=False, range=[-62, 62], row=1, col=1)
+    fig.update_yaxes(visible=False, range=[-6, 210], row=1, col=1)
+    fig.update_xaxes(range=[-0.7, 1.7], tickvals=[0, 1], ticktext=["L", "R"],
+                     tickfont=dict(size=11, color=ink["500"]), showgrid=False, zeroline=False, row=1, col=2)
+    fig.update_yaxes(range=[-0.7, len(levels) - 0.3], tickvals=list(range(len(levels))),
+                     ticktext=levels[::-1], tickfont=dict(size=10, color=ink["500"]),
+                     showgrid=False, zeroline=False, row=1, col=2)
+    fig.update_layout(
+        height=500, margin=dict(l=8, r=8, t=40, b=58),
+        legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1, font=dict(size=10)),
+    )
+    if title:
+        fig.update_layout(title=dict(text=title, x=0.5, font=dict(size=13, color=ink["900"])),
+                          margin=dict(t=64))
+    for a in fig.layout.annotations:  # subplot titles
+        a.font = dict(size=12.5, color=ink["700"])
+    return fig
+
+
+def topography_readout(result: dict, lang: str) -> html.Div:
+    """Text summary of the topography atlas: expected count of muscles reaching antigravity (of 20)
+    and dermatomes preserving protective sensation (light touch / pin prick, of 56 each), plus the
+    strongest / weakest motor segment.  Prompt when no result."""
+    segs = (result or {}).get("segments")
+    if not segs:
+        return html.Div(t(SCHEMA, "topo_card_intro", lang), className="lm-prompt")
+    bm = result["by_modality"]
+    side_word = {"Left": t(SCHEMA, "topo_side_left", lang), "Right": t(SCHEMA, "topo_side_right", lang)}
+    lines: list = [html.Div(
+        f"{t(SCHEMA, 'topo_expected_motor', lang)}: "
+        f"{bm['motor']['expected_count']:.1f} / {bm['motor']['n_segments']}",
+        className="conv-readout-grade",
+    )]
+    lines.append(html.Div(
+        f"{t(SCHEMA, 'topo_expected_lt', lang)}: {bm['light_touch']['expected_count']:.0f}"
+        f" / {bm['light_touch']['n_segments']}"
+        f"  ·  {t(SCHEMA, 'topo_expected_pp', lang)}: {bm['pin_prick']['expected_count']:.0f}"
+        f" / {bm['pin_prick']['n_segments']}",
+        className="lm-readout-line",
+    ))
+    motor = sorted((s for s in segs if s["modality"] == "motor"), key=lambda s: s["prob"])
+    if motor:
+        weak, strong = motor[0], motor[-1]
+        lines.append(html.Div(
+            f"{t(SCHEMA, 'topo_strongest', lang)}: {side_word[strong['side']]} {strong['level']}"
+            f" {strong['prob']:.0%}"
+            f"  ·  {t(SCHEMA, 'topo_weakest', lang)}: {side_word[weak['side']]} {weak['level']}"
+            f" {weak['prob']:.0%}",
+            className="lm-readout-line lm-readout-delta",
+        ))
     return html.Div(lines, className="lm-readout conv-readout")

@@ -36,11 +36,12 @@ superseded, duplicated elsewhere, or has gone stale.
   session; prune duplication per the inclusion rule above.
 * **Default-work pool: §8 backlog.**  F1–F25 + G1 (s29/s30) + G2 (s31) + G3
   observed-trajectory phenotyping (s32/s33) + G4 AIS-grade conversion (s34/s35) + G6 AIS
-  multi-state recovery (s36/s37) + G7 functional-independence profile (s38/s39) fully shipped, and
-  G8 recovery topography map **Part 1** (s40, model + metrics) shipped (see §7).  **G8 Part 2
-  (body-map dashboard surfaces) is the mid-flight next item — start there unless redirected.**  Also
-  open: F26 test harness · F27 dep refresh · a new G-series idea (data is exhausted of NEW field
-  families — see §8; any new G must reuse the existing ISNCSCI/SCIM/AIS signal).
+  multi-state recovery (s36/s37) + G7 functional-independence profile (s38/s39) + G8 recovery
+  topography map (s40 model + s41 body-map dashboard) **all fully shipped** (see §7).  **No G-series
+  item is mid-flight — pick the next from §8.**  Open: F26 test harness · F27 dep refresh · a new
+  G-series idea (data is exhausted of NEW field families — see §8; any new G must reuse the existing
+  ISNCSCI/SCIM/AIS signal — e.g. NLI/motor-level descent or ΔUEMS/ΔLEMS score-recovery as
+  conformal-PI outcomes).
   The user steers toward *insightful* (clinical/scientific) features over infra/maintenance, so
   lead with those.
 
@@ -676,11 +677,37 @@ superseded, duplicated elsewhere, or has gone stale.
   `models/topography_metrics.json` + git-ignored `models/topography/bundle.joblib`; **production
   `train.py` artifacts untouched (empty `training_metrics.json` diff)**.  Bundle/metrics shape
   documented inline at the top of `topography.py`; mirror `_apply_platt` inline in compute.py for
-  Part 2 (never import this module — it pulls shap via conversion→train).  **Part 1 shipped (s40):
-  model + tracked metrics + validation.  Part 2 (body-map dashboard surfaces) PENDING** — and it
-  needs **per-segment admission inputs**: the Patient card uses the patient's real admission exam
-  (looked up by KeyRecordNumber), but the Simulator will need an ISNCSCI-worksheet-style input grid
-  (or be patient-card-primary) since the 132 own-admission grades cannot come from the 30-field form.
+  Part 2 (never import this module — it pulls shap via conversion→train).  **Fully shipped: model +
+  tracked metrics (s40) + dashboard surfaces (s41).**
+  **Dashboard contract (s41):** the user chose the *richest* atlas (anatomical dermatome **silhouette + motor
+  myotome ladder**) and a *seeded Simulator worksheet*.  Pure `compute.predict_topography(X, adm_grades)` (inline
+  `_apply_platt` mirror over the 132 heads; degenerate→`base_rate`; a missing `adm_self`→NaN, LightGBM-native, matching
+  training) + `topography_admission_grades(key_record)` (the patient's real per-segment admission exam via the SAME
+  ADMISSION_FALLBACK LOCF the trainer used — aligns by KeyRecordNumber) + `topography_observed_discharge` (realized
+  discharge milestones for the patient overlay) + `topography_cohort_atlas` (per-segment base-rate map for Methods, no
+  inference) + `state.TOPOGRAPHY`/`TOPOGRAPHY_BUNDLE` loaders.  Shared
+  `layout.fig_topography_bodymap(result, lang, sensory_modality, observed, title)` = a `make_subplots` composite — a
+  stylised front-view humanoid (`_topo_body_shapes` SVG paths) with dermatome markers at hand-placed `_DERMATOME_XY`
+  (28 levels × L/R, the toggled LT **or** PP modality) + a motor myotome ladder (10 levels × L/R squares), shaded by
+  `theme.COLORSCALE_TOPOGRAPHY` (crimson→teal); `observed` rings achieved/not-achieved segments green/crimson.
+  `topography_readout` = expected antigravity / LT / PP counts + strongest/weakest motor segment.  Methods-only figs in
+  `figures/methods.py`: `fig_topography_{calibration` (pooled per-modality reliability), `scorecard` (per-segment
+  AUC/Brier-skill box per modality), `drivers` (per-modality SHAP grouped bars, `adm_self`-dominant)`}`; the cohort
+  atlas reuses `fig_topography_bodymap`(`topography_cohort_atlas`) and the per-segment drilldown reuses
+  `fig_conversion_{reliability,shap}` **verbatim** (each modelable segment's metrics entry carries
+  `calibration`/`calibration_raw`/`shap_top`).  Surfaces: Methods cohort atlas (LT/PP radio) + calibration + scorecard
+  + drivers + per-segment-dropdown drilldown (**2 Methods `@callback`s** — the 2nd/3rd ever); Patient card (real exam →
+  predicted map + achieved-vs-predicted overlay, LT/PP toggle, **NOT grade-gated ⇒ no real-grade override**, like G7);
+  Simulator card with an editable **132-cell ISNCSCI worksheet** (`{type:topo-seg,seg:<key>}` debounced number inputs,
+  motor 0–5 / sensory 0–2, absent cells blanked) **seeded from the What-if `patient-ref`** (its real admission exam,
+  via `render_simulator(ref_data)` + a Seed/Clear value-Output callback), the worksheet `adm_self` + the 30-field form
+  driving the body map (blanks→NaN, no overlay).  Bilingual `topo_*`/`methods_topo_*`; new
+  `theme.{COLORSCALE_TOPOGRAPHY,PALETTE_TOPOGRAPHY_MODALITY}`; CSS reuses `.lm-card`/`.sim-*`/`.pheno-subtitle` + new
+  `.topo-worksheet*` (sticky-header scroll table); `.topo-card` unstyled hook.  +5 callbacks (34→39); production
+  byte-repro preserved (dashboard-only diff).  **CRUX — the cohort atlas (base rate) is mostly teal for light touch
+  (LT preserved ~87% cohort-wide, near ceiling) and the antigravity count is injury-LEVEL- not AIS-driven (G8 Part 1);
+  the personalization shows on the *patient/sim* map, where the segment's own admission grade dominates — a severe
+  injury reds out the affected region (real AIS-A mean motor P≈0.25 vs AIS-D ≈0.95).**
 
 ## 4. Dashboard conventions
 
@@ -815,6 +842,22 @@ bgcmd 'exit()'; rm -rf "$BGCMDDIR"               # stop + clean
 
 One line per session; full detail is in Git history (`git log`, diffs).
 
+* **s41** — G8 recovery topography map, **Part 2** (dashboard surfaces across Methods + Patient +
+  Simulator; user chose the *richest* atlas — anatomical dermatome **silhouette + motor myotome ladder** — and a
+  *seeded Simulator worksheet*).  New `compute.predict_topography` (inline `_apply_platt` mirror over the 132 heads;
+  degenerate→base_rate; missing adm_self→NaN) + `topography_admission_grades` (real per-segment admission exam via
+  ADMISSION_FALLBACK LOCF) + `topography_observed_discharge` (patient overlay) + `topography_cohort_atlas` (Methods
+  base-rate map) + `state.TOPOGRAPHY`/`TOPOGRAPHY_BUNDLE` loaders.  Shared `layout.fig_topography_bodymap` (humanoid
+  silhouette from `_topo_body_shapes` SVG paths + `_DERMATOME_XY` markers + motor ladder, `theme.COLORSCALE_TOPOGRAPHY`,
+  optional achieved/not-achieved rings) + `topography_readout`.  Methods figs `fig_topography_{calibration,scorecard,
+  drivers}` + cohort-atlas reuse + per-segment drilldown reusing `fig_conversion_{reliability,shap}` via 2 new Methods
+  `@callback`s.  Patient card (real exam→map+overlay, LT/PP toggle, not grade-gated) + Simulator card (editable 132-cell
+  ISNCSCI worksheet seeded from the What-if `patient-ref` + Seed/Clear, worksheet adm_self + 30-field form → map).
+  Visually iterated the body silhouette to a clean humanoid (PNG inspection via kaleido/Chrome).  Bilingual
+  `topo_*`/`methods_topo_*`; `theme.{COLORSCALE_TOPOGRAPHY,PALETTE_TOPOGRAPHY_MODALITY}`; `.topo-worksheet*` CSS.
+  Verified: behavioral personalization (real AIS-A motor P≈0.25 vs AIS-D ≈0.95); all 3 tabs render both langs; all 5
+  new callbacks invoked directly; boots 200 with 39 callbacks (34→39); full lint clean; MAP regenerated; production
+  artifacts untouched (dashboard-only diff).
 * **s40** — G8 recovery topography map, **Part 1** (model + tracked metrics; user chose all-132
   segments, the P(≥3 motor antigravity)/P(≥1 sensory protective) milestones, and — after a
   diagnostic invalidated the originally-chosen joint low-rank model — **independent per-segment
@@ -1081,10 +1124,10 @@ One line per session; full detail is in Git history (`git log`, diffs).
 
 ## 8. Feature backlog (default-work pool)
 
-Propose from here unless the user redirects.  **Items F1–F25 + G1–G4 + G6 + G7 are
-fully shipped; G8 recovery topography map Part 1 (model + metrics) shipped, G8 Part 2 (body-map
-dashboard surfaces) is MID-FLIGHT (the next item)** — see §7 for the session each landed in, and Git
-history for implementation detail.
+Propose from here unless the user redirects.  **Items F1–F25 + G1–G4 + G6 + G7 + G8 (recovery
+topography map, s40 model + s41 body-map dashboard) are all fully shipped** — see §7 for the session
+each landed in, and Git history for implementation detail.  No item is mid-flight; the next pick is
+F26 / F27 / a new G-series idea.
 The user steers toward *insightful* (clinical/scientific) features over
 infra/maintenance.
 Shipped ledger (terse, by feature number):
@@ -1146,36 +1189,26 @@ Shipped ledger (terse, by feature number):
   + shared `layout` profile fig/readout + 4 Methods cohort figs + first-ever Methods drilldown
   callback + Methods/Patient/Simulator surfaces (`ind_*`/`methods_ind_*` strings).  See §3 for the
   model + dashboard contract (incl. the AIS-alone-is-flat invariant) and §7.  Fully shipped.
-* **G8 recovery topography map** (s40 Part 1 model + tracked metrics; **Part 2 dashboard PENDING —
-  the mid-flight next item**): `models/topography.py` — 132 independent calibrated
-  per-ISNCSCI-segment binary heads predicting P(functional milestone at discharge): motor
-  P(≥3 antigravity), sensory P(≥1 protective sensation).  The impairment/neurology complement to
-  G7; mines the largest unused signal (the 132 per-segment columns).  **The user's first-choice
-  joint low-rank structured model was diagnosed mismatched and abandoned** in favour of independent
-  heads each fed the segment's OWN admission grade (`adm_self`) — the dominant predictor (the 30
-  aggregates predict a specific segment near-chance).  Reuses conversion.py binary plumbing; no APS
-  (binary degenerate).  mean OOF AUC 0.94/0.93/0.91, calibration MAE ~0.01.  See §3 for the model
-  contract (incl. the architecture CRUX, the level-not-AIS count caveat) + the §0b KeyRecordNumber
-  alignment lesson, and §7.  **Part 2 (body-map Methods/Patient/Simulator surfaces) needs
-  per-segment admission inputs: the Patient card pulls the patient's real admission exam (by
-  KeyRecordNumber); the Simulator needs an ISNCSCI-worksheet-style input grid (or be
-  patient-primary) since the 132 own-admission grades cannot come from the 30-field form.**
+* **G8 recovery topography map** (s40 model + tracked metrics; s41 body-map dashboard): `models/topography.py` —
+  132 independent calibrated per-ISNCSCI-segment binary heads predicting P(functional milestone at discharge): motor
+  P(≥3 antigravity), sensory P(≥1 protective sensation).  The impairment/neurology complement to G7; mines the largest
+  unused signal (the 132 per-segment columns).  **The user's first-choice joint low-rank structured model was
+  diagnosed mismatched and abandoned** in favour of independent heads each fed the segment's OWN admission grade
+  (`adm_self`) — the dominant predictor (the 30 aggregates predict a specific segment near-chance).  Reuses
+  conversion.py binary plumbing; no APS (binary degenerate).  mean OOF AUC 0.94/0.93/0.91, calibration MAE ~0.01.
+  Dashboard (s41): `compute.predict_topography` + an anatomical **dermatome silhouette + motor myotome ladder** body
+  map (`layout.fig_topography_bodymap`), cohort base-rate atlas + per-modality calibration/scorecard/drivers + a
+  per-segment drilldown (reusing `fig_conversion_{reliability,shap}`) on Methods, a real-exam patient card with an
+  achieved-vs-predicted overlay, and a **seeded 132-cell ISNCSCI worksheet** on the Simulator (seeded from the What-if
+  reference patient).  See §3 for the full model + dashboard contract (incl. the architecture CRUX, the
+  level-not-AIS count caveat, the cohort-teal-vs-personalized CRUX) + the §0b KeyRecordNumber alignment lesson, and §7.
+  Fully shipped.
 
 **F23 (shipped s26): data-quality / clinical-consistency report** — see §7 and
 `data/quality.py`; durable data facts it surfaced live in §0b/§1, and the
 regenerated `models/dataquality_summary.json` holds the per-rule scorecard.
 
 **Ready candidates (pick the next unless redirected):**
-* **G8 Part 2 — recovery topography body-map surfaces** (the mid-flight next item; the user prefers
-  this insightful work over the infra items below).  Build pure `compute.predict_topography`
-  (inline `_apply_platt` mirror over the 132 heads; `adm_self` per segment from the patient's
-  admission exam; degenerate heads → constant base-rate) + a **body-map atlas figure** (per-segment
-  P(milestone) on a cord/dermatome layout) + the per-segment reliability/SHAP drilldown (reuse
-  `fig_conversion_{reliability,shap}` — the metrics carry per-segment `calibration`/`shap_top`) +
-  Methods/Patient/Simulator surfaces + `state.TOPOGRAPHY`/`TOPOGRAPHY_BUNDLE` loaders + bilingual
-  `topo_*`/`methods_topo_*` strings.  **Resolve the Simulator per-segment-admission input FIRST**
-  (an ISNCSCI-worksheet input grid vs patient-card-primary — ask the user).  Files: `compute.py`,
-  `layout.py`, `figures/*`, `tabs/*`, `ui_strings.yaml`, `assets/style.css`, `state.py`.
 * **F26 invariant test harness** — narrow pytest enforcing §1 data + model
   invariants + a smoke test (incl. a headless `render_{methods,patient,simulator}` per the §0b
   lesson, which would have caught the s31 `INK["600"]` crash; and a topography-style row-alignment +
