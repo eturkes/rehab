@@ -9,10 +9,11 @@ import numpy as np
 import plotly.graph_objects as go
 from dash import dcc, html
 
+from rehab_sci.constants import AIS_ORD_TO_LETTER
 from rehab_sci.dashboard.compute import format_value, mag_short_label
 from rehab_sci.dashboard.i18n import col_label, level_label, t
 from rehab_sci.dashboard.state import FEATURE_SPEC, SCHEMA, SIM_DEFAULTS
-from rehab_sci.dashboard.theme import INK, PALETTE_CATEGORICAL
+from rehab_sci.dashboard.theme import INK, PALETTE_AIS, PALETTE_CATEGORICAL
 from rehab_sci.models.outcomes import OutcomeSpec
 
 
@@ -551,5 +552,145 @@ def conversion_readout(result: dict, lang: str) -> html.Div:
             f"{t(SCHEMA, 'conv_most_likely', lang)} {pred_lbl} {unit} · "
             f"{t(SCHEMA, 'conv_aps_set', lang)} {{{set_lbl}}}",
             className="lm-readout-line lm-readout-delta",
+        ))
+    return html.Div(lines, className="lm-readout conv-readout")
+
+
+# ---------- AIS multi-state recovery (G6) ----------
+_MS_TICK_VALS = [1, 2, 3, 4, 5]
+
+
+def _ms_target_curves(result: dict) -> dict[int, list[float]]:
+    """Map the available first-passage curves to DISTINCT target grades.  ``improve`` is
+    P(reach >= admission+1); ``ge_C`` / ``ge_D`` are P(reach >=C / >=D).  For a B or C admission the
+    improvement target coincides with >=C / >=D, so deduplicate by target grade (those curves are
+    then identical)."""
+    adm = result["ais_ord"]
+    conv = result.get("conversion", {})
+    out: dict[int, list[float]] = {}
+    if "improve" in conv:
+        out[adm + 1] = conv["improve"]
+    if "ge_C" in conv:
+        out.setdefault(3, conv["ge_C"])
+    if "ge_D" in conv:
+        out.setdefault(4, conv["ge_D"])
+    return dict(sorted(out.items()))
+
+
+def fig_multistate_trajectory(result: dict, lang: str, patient_obs=None) -> go.Figure:
+    """Expected AIS-grade trajectory for the admission grade's cohort (occupancy-weighted mean +
+    inter-quartile grade band), optionally overlaid with one patient's OWN observed grades.  y =
+    AIS grade A..E.  The band is COHORT dynamics (identical for any patient of that admission
+    grade); the overlay is the individual.  Empty when nothing applies."""
+    if not result.get("applicable"):
+        return go.Figure()
+    occ = np.asarray(result["occupancy"], dtype=float)  # (T, 5)
+    x = [level_label(SCHEMA, "time_name", tp, lang) for tp in result["window"]]
+    grades = np.arange(1, 6)
+    exp = occ @ grades
+    cdf = np.cumsum(occ, axis=1)
+    lo = (cdf >= 0.25).argmax(axis=1) + 1
+    hi = (cdf >= 0.75).argmax(axis=1) + 1
+    band_word = "コホート四分位範囲" if lang == "ja" else "Cohort IQR"
+    exp_word = "コホート期待グレード" if lang == "ja" else "Cohort expected grade"
+    grade_word = "AIS グレード" if lang == "ja" else "AIS grade"
+    fig = go.Figure()
+    fig.add_trace(go.Scatter(x=x, y=hi, mode="lines", line=dict(width=0),
+                             showlegend=False, hoverinfo="skip"))
+    fig.add_trace(go.Scatter(x=x, y=lo, mode="lines", line=dict(width=0), fill="tonexty",
+                             fillcolor="rgba(17,122,139,0.12)", name=band_word, hoverinfo="skip"))
+    fig.add_trace(go.Scatter(x=x, y=exp, mode="lines+markers", name=exp_word,
+                             line=dict(color=PALETTE_CATEGORICAL[0], width=2.6),
+                             marker=dict(size=6),
+                             hovertemplate="%{x}<br>" + exp_word + ": %{y:.2f}<extra></extra>"))
+    if patient_obs:
+        pat_word = "本症例 (実測)" if lang == "ja" else "This patient (observed)"
+        px = [level_label(SCHEMA, "time_name", tp, lang) for tp, _ in patient_obs]
+        py = [g for _, g in patient_obs]
+        fig.add_trace(go.Scatter(
+            x=px, y=py, mode="lines+markers", name=pat_word,
+            line=dict(color=INK["900"], width=2, dash="dot"),
+            marker=dict(size=11, color=INK["900"], symbol="diamond", line=dict(color="white", width=1.5)),
+            customdata=[AIS_ORD_TO_LETTER[g] for _, g in patient_obs],
+            hovertemplate="%{x}<br>AIS %{customdata}<extra></extra>",
+        ))
+    fig.update_layout(
+        height=320, margin=dict(l=46, r=16, t=20, b=64),
+        yaxis=dict(title=grade_word, range=[0.7, 5.3], tickvals=_MS_TICK_VALS,
+                   ticktext=[AIS_ORD_TO_LETTER[v] for v in _MS_TICK_VALS]),
+        xaxis=dict(tickangle=-45),
+        legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1),
+    )
+    return fig
+
+
+def fig_multistate_conversion_personal(result: dict, lang: str) -> go.Figure:
+    """First-passage conversion curves for the admission grade: P(reach each higher AIS threshold
+    by time t), monotone non-decreasing.  y = probability; the y=0.5 line marks the median
+    crossing.  Empty for an at-ceiling (AIS E) admission."""
+    if not result.get("applicable"):
+        return go.Figure()
+    targets = _ms_target_curves(result)
+    if not targets:
+        return go.Figure()
+    x = [level_label(SCHEMA, "time_name", tp, lang) for tp in result["window"]]
+    reach_word = "到達確率" if lang == "ja" else "Reach probability"
+    fig = go.Figure()
+    for tgt, curve in targets.items():
+        letter = AIS_ORD_TO_LETTER[tgt]
+        fig.add_trace(go.Scatter(
+            x=x, y=curve, mode="lines+markers", name=f"≥{letter}",
+            line=dict(color=PALETTE_AIS[letter], width=2.4), marker=dict(size=5),
+            hovertemplate=f"≥AIS {letter} · %{{x}}<br>%{{y:.0%}}<extra></extra>",
+        ))
+    fig.add_hline(y=0.5, line=dict(color=INK["200"], dash="dot", width=1))
+    fig.update_layout(
+        height=300, margin=dict(l=48, r=16, t=18, b=64),
+        yaxis=dict(title=reach_word, range=[0, 1.02], tickformat=".0%"),
+        xaxis=dict(tickangle=-45),
+        legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1),
+    )
+    return fig
+
+
+def multistate_readout(result: dict, lang: str) -> html.Div:
+    """Text summary of the multi-state panel: admission grade, the calibrated improve-by-6m
+    probability (with cohort base-rate lift; framed as reach-AIS-E for a D admission), the median
+    day to first improvement, and the expected days in the top states.  Renders a 'needs admission
+    grade' / 'at ceiling' note when nothing applies."""
+    if result.get("ais_ord") is None:
+        return html.Div(t(SCHEMA, "ms_need_ais", lang), className="lm-prompt")
+    lines: list = [html.Div(
+        f"{t(SCHEMA, 'conv_adm_grade', lang)}: AIS {result['adm_letter']}",
+        className="conv-readout-grade",
+    )]
+    if result.get("at_ceiling"):
+        lines.append(html.Div(t(SCHEMA, "ms_at_ceiling", lang), className="lm-readout-line"))
+        return html.Div(lines, className="lm-readout conv-readout")
+    imp = result.get("improve") or {}
+    pp_word = "pt" if lang == "ja" else "pp"
+    if imp.get("applicable") and imp.get("prob") is not None:
+        lift = (imp["prob"] - imp["base_rate"]) * 100
+        label = t(SCHEMA, "ms_improve_to_e", lang) if imp.get("to_e") else t(SCHEMA, "ms_improve_any", lang)
+        lines.append(html.Div(
+            f"{label}: {imp['prob']:.0%} "
+            f"({t(SCHEMA, 'conv_base', lang)} {imp['base_rate']:.0%}, {lift:+.0f}{pp_word})",
+            className="lm-readout-line lm-readout-delta",
+        ))
+    mdi = result.get("median_day_to_improve")
+    unit = "日" if lang == "ja" else "d"
+    if mdi is not None:
+        lines.append(html.Div(
+            f"{t(SCHEMA, 'ms_median_day', lang)}: {mdi:.0f}{unit}",
+            className="lm-readout-line",
+        ))
+    soj = result.get("sojourn") or []
+    if soj:
+        states = result["state_labels"]
+        order = np.argsort(soj)[::-1][:2]
+        parts = ", ".join(f"AIS {states[i]} {soj[i]:.0f}{unit}" for i in order)
+        lines.append(html.Div(
+            f"{t(SCHEMA, 'ms_sojourn', lang)}: {parts}",
+            className="lm-readout-line",
         ))
     return html.Div(lines, className="lm-readout conv-readout")

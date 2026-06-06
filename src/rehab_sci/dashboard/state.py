@@ -128,5 +128,23 @@ CONVERSION_BUNDLE: dict | None = (
     joblib.load(_conversion_bundle_path) if _conversion_bundle_path.exists() else None
 )
 
+# G6 AIS multi-state recovery. `multistate_metrics.json` (tracked, identifier-free) drives the
+# Methods cohort-dynamics panels (occupancy / first-passage conversion / transition / sojourn +
+# the improve-head calibration & drivers); `multistate/bundle.joblib` (gitignored) holds the
+# per-admission-grade Markov curves + the calibrated improve-by-6m head for per-row inference
+# (compute.predict_multistate).  Both absent until `python -m rehab_sci.models.multistate`; every
+# multi-state surface degrades gracefully.
+_multistate_path = MODELS_DIR / "multistate_metrics.json"
+if _multistate_path.exists():
+    with _multistate_path.open(encoding="utf-8") as _f:
+        MULTISTATE: dict | None = json.load(_f)
+else:
+    MULTISTATE = None
+
+_multistate_bundle_path = MODELS_DIR / "multistate" / "bundle.joblib"
+MULTISTATE_BUNDLE: dict | None = (
+    joblib.load(_multistate_bundle_path) if _multistate_bundle_path.exists() else None
+)
+
 PATIENT_OPTIONS = list_patient_options(EP)
 PATIENT_OPTIONS_BY_ID = {p.id_number: p for p in PATIENT_OPTIONS}

@@ -688,3 +688,83 @@ overview_filter_age:
 overview_filter_archetype:
   ja: "回復アーキタイプ"
   en: "Recovery archetype"
+
+# --- G6 AIS multi-state recovery ---
+ms_card_heading:
+  ja: "AIS 多状態回復ダイナミクス"
+  en: "AIS multi-state recovery dynamics"
+ms_card_intro:
+  ja: "入院時 AIS から始まる退院までの AIS グレード推移を、コホートの多状態マルコフ過程として示す。期待グレード軌道と各上位グレードへの到達確率は入院グレードで層別したコホート動態 (同一入院グレードの全症例で共通) であり、個別化されるのは較正済みの6か月改善確率のみ。"
+  en: "AIS-grade trajectory from admission, as a cohort multi-state Markov process. The expected-grade trajectory and the probability of reaching each higher grade are cohort dynamics stratified by admission grade (shared by every patient of that grade); only the calibrated 6-month improvement probability is individualized."
+ms_trajectory_heading:
+  ja: "期待 AIS グレード軌道 (コホート ± 四分位)"
+  en: "Expected AIS-grade trajectory (cohort ± IQR)"
+ms_conversion_heading:
+  ja: "上位グレードへの到達確率 (初到達)"
+  en: "Probability of reaching higher grades (first-passage)"
+ms_cohort_caption:
+  ja: "軌道帯と到達確率は入院グレード層のコホート動態。AIS の再評価・評価者間変動により後退方向の遷移も含まれ、これは実データを忠実に反映したもの。"
+  en: "The trajectory band and reach probabilities are cohort dynamics for the admission-grade stratum. Backward transitions (AIS re-assessment / inter-rater variation) are present and faithfully reflect the data."
+ms_caption:
+  ja: "母集団多状態マルコフ (組ごと完全観測で推定) + 較正済み改善ヘッド。診断・推論層であり本番モデルとは別。"
+  en: "Population multi-state Markov (pairwise-complete estimation) + a calibrated improvement head. Diagnostic + inference layer, distinct from the production models."
+ms_need_ais:
+  ja: "入院時 AIS グレードを入力すると多状態回復ダイナミクスが表示されます。"
+  en: "Enter the admission AIS grade to see the multi-state recovery dynamics."
+ms_at_ceiling:
+  ja: "入院時 AIS E (天井) — 改善エンドポイントは適用されません (コホートの占有ドリフトのみ表示)。"
+  en: "Admission AIS E (ceiling) — no improvement endpoint applies (only cohort occupancy drift is shown)."
+ms_improve_any:
+  ja: "6か月以内の ≥1段階改善"
+  en: "≥1-grade improvement by 6m"
+ms_improve_to_e:
+  ja: "6か月以内の AIS E 到達 (D→E)"
+  en: "Reach AIS E by 6m (D→E)"
+ms_median_day:
+  ja: "初回改善までの中央値"
+  en: "Median day to first improvement"
+ms_sojourn:
+  ja: "状態別期待日数 (上位)"
+  en: "Expected days by state (top)"
+methods_multistate_heading:
+  ja: "AIS 多状態回復モデル (G6)"
+  en: "AIS multi-state recovery modeling (G6)"
+methods_multistate_def:
+  ja: "AIS グレードが早期回復グリッド (0day–6m) をどう推移するかを、時間非斉次の離散時間マルコフ連鎖としてモデル化する (G4 の入院→退院エンドポイントを補完)。各ステップの遷移行列は両隣の時点で観測が揃う症例から推定し、入院グレードからの前進積で占有曲線・初到達曲線・状態別期待日数を導く。加えて、入院特徴から6か月改善を予測する較正済み二値ヘッドを併設する。"
+  en: "Models how the AIS grade moves across the early-recovery grid (0day–6m) as a time-inhomogeneous discrete-time Markov chain (complementing G4's admission→discharge endpoint). Each step's transition matrix is estimated from episodes observed at both adjacent timepoints; forward-multiplying from the admission grade yields occupancy curves, first-passage curves and expected days per state. A calibrated binary head additionally predicts 6-month improvement from admission features."
+methods_ms_occupancy_heading:
+  ja: "状態占有曲線 (入院グレード別)"
+  en: "State-occupancy curves (by admission grade)"
+methods_ms_occupancy_caption:
+  ja: "各入院グレードの集団が時間とともに各 AIS 状態にどう分布するか (積み上げ面、合計=100%)。"
+  en: "How each admission-grade cohort distributes across AIS states over time (stacked area, summing to 100%)."
+methods_ms_conversion_heading:
+  ja: "初到達 (転換) 曲線"
+  en: "First-passage (conversion) curves"
+methods_ms_conversion_caption:
+  ja: "閾値以上の状態を吸収状態として、各入院グレードから各閾値に到達する確率 (単調非減少)。点線 y=0.5 が中央到達時点。"
+  en: "Probability of reaching each threshold from each admission grade, with states ≥threshold made absorbing (monotone non-decreasing). The dotted y=0.5 line marks the median crossing."
+methods_ms_transition_heading:
+  ja: "1ステップ遷移行列 (時間平均)"
+  en: "One-step transition matrix (time-averaged)"
+methods_ms_transition_caption:
+  ja: "行=遷移元、列=遷移先。対角は維持、対角の右上は改善、左下は後退。後退方向の質量は AIS の再評価・評価者間変動による実在のもので、忠実に表示している。"
+  en: "Rows = from-state, columns = to-state. The diagonal is persistence; upper-right of it is improvement, lower-left is regression. Backward mass is real (AIS re-assessment / inter-rater variation) and shown faithfully."
+methods_ms_sojourn_heading:
+  ja: "状態別期待日数 (入院グレード別)"
+  en: "Expected days per state (by admission grade)"
+methods_ms_sojourn_caption:
+  ja: "0day–6m の窓で各入院グレードが各 AIS 状態に滞在する期待日数 (積み上げ、合計≈窓長)。"
+  en: "Expected days each admission grade spends in each AIS state over the 0day–6m window (stacked, summing to ≈the window length)."
+methods_ms_improve_heading:
+  ja: "6か月改善ヘッド (較正済み・共変量)"
+  en: "6-month improvement head (calibrated, covariate)"
+methods_ms_improve_caption:
+  ja: "入院特徴から ≥1段階改善を予測する二値ヘッド (A–D)。改善基準率は入院グレードで非単調 (B>C>A≫D): D の「改善」は AIS E 到達 (完全正常) を意味するため低い。"
+  en: "Binary head predicting ≥1-grade improvement from admission features (A–D). The base rate is non-monotone in admission grade (B>C>A≫D): for a D admission, 'improvement' means reaching AIS E (full-normal), hence the low rate."
+methods_ms_calibration_heading:
+  ja: "信頼度曲線 (Platt 較正 vs 生)"
+  en: "Reliability curve (Platt-calibrated vs raw)"
+methods_ms_drivers_heading:
+  ja: "改善ヘッドの寄与因子 (in-sample SHAP)"
+  en: "Improvement-head drivers (in-sample SHAP)"

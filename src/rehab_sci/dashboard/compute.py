@@ -15,6 +15,7 @@ from rehab_sci.dashboard.state import (
     FEATURE_SPEC,
     LANDMARK_BUNDLE,
     LONG,
+    MULTISTATE_BUNDLE,
     OUTCOME_BUNDLES,
     PHENOTYPE_DATA,
     SIM_DEFAULTS,
@@ -667,3 +668,99 @@ def predict_conversion(X: pd.DataFrame) -> dict | None:
         "endpoints": endpoints,
         "magnitude": magnitude,
     }
+
+
+# ---------- AIS multi-state recovery (G6) ----------
+# AIS-grade *trajectory* inference over the 0day-6m grid (complement to G4's admission->discharge
+# endpoint).  Two layers: (1) population multi-state Markov curves — occupancy, first-passage
+# conversion, sojourn, median-day-to-improve — looked up by ADMISSION GRADE alone (pure cohort
+# dynamics, identical for any patient of that grade); (2) the calibrated improve-by-6m covariate
+# head — the one feature-driven quantity, so only it personalizes.  `_apply_platt` is the same
+# Platt mirror used for conversion, so the dashboard never imports models.multistate (pulls shap).
+
+# Threshold ordinal -> first-passage curve label (admission grade < threshold => curve is informative).
+_MS_THRESH_ORD = {"ge_C": 3, "ge_D": 4}
+
+
+def _multistate_input(X: pd.DataFrame) -> pd.DataFrame:
+    """One-row improve-head input over the multi-state bundle's feature universe, dtyped like
+    training (the 30 admission features; re-cast so LightGBM realigns category levels by value)."""
+    b = MULTISTATE_BUNDLE
+    base = X.iloc[0].to_dict() if len(X) else {}
+    cat = set(b["categorical_cols"])
+    Xc = pd.DataFrame([{c: base.get(c) for c in b["feature_cols"]}])
+    for c in b["feature_cols"]:
+        if c in cat:
+            Xc[c] = Xc[c].astype("category")
+        else:
+            Xc[c] = pd.to_numeric(Xc[c], errors="coerce")
+    return Xc
+
+
+def multistate_observed_grades(key_record: int) -> list[tuple[str, int]]:
+    """This episode's observed AIS grade (ordinal 1=A..5=E) at each window timepoint, in
+    chronological window order.  Drives the patient-card overlay of the individual's *own*
+    trajectory atop the admission-grade cohort dynamics.  Empty when AIS is never recorded."""
+    if MULTISTATE_BUNDLE is None:
+        return []
+    col = MULTISTATE_BUNDLE["adm_col"]
+    order = {tp: i for i, tp in enumerate(WINDOW)}
+    sub = LONG[(LONG["KeyRecordNumber"] == key_record) & (LONG["TIME_Name"].isin(WINDOW))]
+    if col not in sub.columns:
+        return []
+    rows = sub[["TIME_Name", col]].dropna(subset=[col])
+    pairs = [(str(tp), round(float(v))) for tp, v in zip(rows["TIME_Name"], rows[col], strict=True)]
+    return sorted(pairs, key=lambda pv: order.get(pv[0], 99))
+
+
+def predict_multistate(X: pd.DataFrame) -> dict | None:
+    """AIS multi-state recovery for one admission row (see header).
+
+    Returns ``None`` when the bundle is absent.  Requires the admission grade (``AIS_ord``) —
+    multi-state membership is otherwise undefined; ``ais_ord=None`` yields an ``applicable=False``
+    result the surfaces render as a "needs admission grade" prompt.  The occupancy / conversion /
+    sojourn / median-day curves are looked up by admission grade (cohort dynamics, not
+    personalized); only ``improve`` (P(>=1-grade improvement by 6m), calibrated) is feature-driven
+    and applies on the A-D room-to-improve cohort.  For an AIS-D admission the improvement endpoint
+    is specifically P(reach AIS E) — the surfaces frame it accordingly.
+    """
+    if MULTISTATE_BUNDLE is None:
+        return None
+    b = MULTISTATE_BUNDLE
+    ais_raw = X.iloc[0].get(b["adm_col"]) if len(X) else None
+    ais_ord = None if ais_raw is None or pd.isna(ais_raw) else int(ais_raw)
+    result: dict = {
+        "ais_ord": ais_ord,
+        "adm_letter": AIS_ORD_TO_LETTER.get(ais_ord) if ais_ord is not None else None,
+        "window": list(b["window"]),
+        "window_days": [int(b["window_days"][w]) for w in b["window"]],
+        "state_labels": list(b["state_labels"]),
+        "applicable": ais_ord is not None and ais_ord in b["occupancy_by_adm"],
+    }
+    if not result["applicable"]:
+        return result
+    result["occupancy"] = np.asarray(b["occupancy_by_adm"][ais_ord], dtype=float).tolist()
+    # Only first-passage curves above the admission grade are informative (a threshold at/below the
+    # admission grade is trivially already-reached); always surface the any-improvement curve.  An
+    # AIS-E admission is the ceiling: its conversion dict is empty (no improvement possible), so the
+    # surfaces show the cohort occupancy drift but flag the absent improvement endpoint.
+    conv = b["conversion_by_adm"][ais_ord]
+    result["at_ceiling"] = "improve" not in conv
+    result["conversion"] = {
+        lab: [float(x) for x in conv[lab]]
+        for lab in ("improve", "ge_C", "ge_D")
+        if lab in conv and (lab == "improve" or _MS_THRESH_ORD[lab] > ais_ord)
+    }
+    result["sojourn"] = [float(x) for x in b["sojourn_by_adm"][ais_ord]]
+    mdi = b["median_day_to_improve"].get(ais_ord)
+    result["median_day_to_improve"] = None if mdi is None else float(mdi)
+
+    ih = b["improve_head"]
+    imp: dict = {"applicable": ais_ord in ih["adm_grades"], "base_rate": float(ih["base_rate"])}
+    if imp["applicable"]:
+        Xc = _multistate_input(X)
+        raw = float(ih["clf"].predict_proba(Xc[ih["feature_cols"]])[0, 1])
+        imp["prob"] = _apply_platt(ih["calibrator"], raw)
+        imp["to_e"] = ais_ord == 4  # admission D -> "improvement" means reaching AIS E
+    result["improve"] = imp
+    return result

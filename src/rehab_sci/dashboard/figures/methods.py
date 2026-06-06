@@ -4,8 +4,9 @@ from __future__ import annotations
 
 import numpy as np
 import plotly.graph_objects as go
+from plotly.subplots import make_subplots
 
-from rehab_sci.dashboard.i18n import col_label
+from rehab_sci.dashboard.i18n import col_label, level_label
 from rehab_sci.dashboard.theme import INK, PALETTE_AIS, PALETTE_CATEGORICAL
 from rehab_sci.schema import Schema
 
@@ -632,4 +633,154 @@ def fig_conversion_confusion(mag: dict, lang: str) -> go.Figure | None:
         xaxis=dict(title=pred_lbl, side="bottom"),
         yaxis=dict(title=actual_lbl, autorange="reversed"),
     )
+    return fig
+
+
+# ----------------------------- AIS multi-state recovery (G6) ----------------------------
+def _ms_xlabels(ms: dict, schema: Schema, lang: str) -> list[str]:
+    return [level_label(schema, "time_name", tp, lang) for tp in ms["window"]]
+
+
+def fig_multistate_occupancy(ms: dict, schema: Schema, lang: str) -> go.Figure | None:
+    """State-occupancy (prevalence) curves P(in AIS state g at time t), as a stacked area per
+    admission grade (A-D; E is the trivial ceiling).  Reads ``multistate_metrics.json``."""
+    occ = (ms or {}).get("occupancy_by_adm")
+    if not occ:
+        return None
+    states = ms["state_labels"]
+    x = _ms_xlabels(ms, schema, lang)
+    grades = [g for g in ("A", "B", "C", "D") if g in occ]
+    titles = [(f"入院時 AIS {g}" if lang == "ja" else f"Admission AIS {g}") for g in grades]
+    fig = make_subplots(rows=2, cols=2, shared_yaxes=True, vertical_spacing=0.14,
+                        horizontal_spacing=0.07, subplot_titles=titles)
+    for gi, g in enumerate(grades):
+        r, c = gi // 2 + 1, gi % 2 + 1
+        m = np.asarray(occ[g], dtype=float)
+        for si, s in enumerate(states):
+            fig.add_trace(go.Scatter(
+                x=x, y=m[:, si], mode="lines", name=f"AIS {s}",
+                legendgroup=s, showlegend=(gi == 0),
+                line=dict(width=0.5, color=PALETTE_AIS[s]),
+                stackgroup=f"occ{g}", fillcolor=PALETTE_AIS[s],
+                hovertemplate=f"AIS {s} · %{{x}}<br>%{{y:.0%}}<extra></extra>",
+            ), row=r, col=c)
+    fig.update_yaxes(range=[0, 1], tickformat=".0%")
+    fig.update_xaxes(tickangle=-45)
+    fig.update_layout(height=560, margin=dict(l=46, r=16, t=46, b=70),
+                      legend=dict(orientation="h", yanchor="bottom", y=1.06, xanchor="right", x=1))
+    return fig
+
+
+def fig_multistate_conversion(ms: dict, schema: Schema, lang: str) -> go.Figure | None:
+    """First-passage conversion curves P(reached threshold by time t) from each admission grade,
+    one panel per threshold (≥1-grade improvement / ≥C / ≥D).  States ≥threshold are made
+    absorbing so each curve is monotone; the y=0.5 line marks the median crossing.  Reads
+    ``multistate_metrics.json``."""
+    conv = (ms or {}).get("conversion_by_adm")
+    if not conv:
+        return None
+    x = _ms_xlabels(ms, schema, lang)
+    thr_labels = {
+        "improve": ("≥1段階改善" if lang == "ja" else "≥1-grade improvement"),
+        "ge_C": ("≥C (運動不全)" if lang == "ja" else "≥C (motor-incomplete)"),
+        "ge_D": ("≥D (歩行可能)" if lang == "ja" else "≥D (ambulatory)"),
+    }
+    thresholds = ["improve", "ge_C", "ge_D"]
+    fig = make_subplots(rows=1, cols=3, shared_yaxes=True, horizontal_spacing=0.05,
+                        subplot_titles=[thr_labels[k] for k in thresholds])
+    for ti, k in enumerate(thresholds):
+        for g in ("A", "B", "C", "D"):
+            curve = conv.get(g, {}).get(k)
+            if curve is None:
+                continue
+            fig.add_trace(go.Scatter(
+                x=x, y=curve, mode="lines+markers", name=f"AIS {g}",
+                legendgroup=g, showlegend=(ti == 0),
+                line=dict(color=PALETTE_AIS[g], width=2.2), marker=dict(size=5),
+                hovertemplate=f"AIS {g} · %{{x}}<br>%{{y:.0%}}<extra></extra>",
+            ), row=1, col=ti + 1)
+        fig.add_hline(y=0.5, line=dict(color=INK["200"], dash="dot", width=1), row=1, col=ti + 1)
+    fig.update_yaxes(range=[0, 1.02], tickformat=".0%")
+    fig.update_xaxes(tickangle=-45)
+    fig.update_layout(height=320, margin=dict(l=46, r=16, t=48, b=70),
+                      legend=dict(orientation="h", yanchor="bottom", y=1.14, xanchor="right", x=1))
+    return fig
+
+
+def fig_multistate_transition(ms: dict, lang: str) -> go.Figure | None:
+    """Pooled one-step AIS transition matrix (time-averaged over the grid).  Rows = from-state,
+    cols = to-state; the upper-right of the diagonal is improvement, the lower-left is regression
+    (real AIS re-assessment / inter-rater mass, surfaced honestly per the §3 caveat).  Cell text =
+    P, hover adds the observed count.  Reads ``multistate_metrics.json['transition']``."""
+    tr = (ms or {}).get("transition") or {}
+    P = tr.get("P_pooled")
+    if not P:
+        return None
+    P = np.asarray(P, dtype=float)
+    N = np.asarray(tr.get("P_pooled_n", np.zeros_like(P)), dtype=float)
+    states = ms["state_labels"]
+    from_lbl = "遷移元 (時点 k)" if lang == "ja" else "From state (t)"
+    to_lbl = "遷移先 (時点 k+1)" if lang == "ja" else "To state (t+1)"
+    text = [[f"{P[i, j]:.0%}" if P[i, j] >= 0.005 else "" for j in range(P.shape[1])]
+            for i in range(P.shape[0])]
+    fig = go.Figure(go.Heatmap(
+        z=P, x=[f"AIS {s}" for s in states], y=[f"AIS {s}" for s in states],
+        customdata=N, text=text, texttemplate="%{text}", textfont=dict(size=12),
+        colorscale=[[0, INK["paper"]], [1, PALETTE_CATEGORICAL[0]]], zmin=0, zmax=1,
+        colorbar=dict(title="P", tickformat=".0%", thickness=12, len=0.8),
+        hovertemplate=f"{from_lbl}: %{{y}}<br>{to_lbl}: %{{x}}<br>P=%{{z:.1%}}<br>n=%{{customdata:.0f}}<extra></extra>",
+    ))
+    fig.update_layout(height=380, margin=dict(l=82, r=20, t=18, b=56),
+                      xaxis=dict(title=to_lbl, side="bottom"),
+                      yaxis=dict(title=from_lbl, autorange="reversed"))
+    return fig
+
+
+def fig_multistate_sojourn(ms: dict, lang: str) -> go.Figure | None:
+    """Expected days spent in each AIS state over the 0day-6m window, per admission grade (stacked
+    horizontal bars summing to the window length).  Reads ``multistate_metrics.json``."""
+    soj = (ms or {}).get("sojourn_by_adm")
+    if not soj:
+        return None
+    states = ms["state_labels"]
+    grades = [g for g in ("A", "B", "C", "D", "E") if g in soj]
+    unit = "日" if lang == "ja" else "d"
+    days_lbl = "期待日数" if lang == "ja" else "Expected days"
+    adm_lbl = "入院時 AIS" if lang == "ja" else "Admission AIS"
+    fig = go.Figure()
+    for si, s in enumerate(states):
+        fig.add_trace(go.Bar(
+            y=[f"AIS {g}" for g in grades], x=[float(soj[g][si]) for g in grades],
+            name=f"AIS {s}", orientation="h", marker=dict(color=PALETTE_AIS[s]),
+            hovertemplate=f"%{{y}} · AIS {s}: %{{x:.0f}}{unit}<extra></extra>",
+        ))
+    fig.update_layout(barmode="stack", height=300, margin=dict(l=70, r=20, t=20, b=44),
+                      xaxis=dict(title=days_lbl), yaxis=dict(title=adm_lbl, autorange="reversed"),
+                      legend=dict(orientation="h", yanchor="bottom", y=1.04, xanchor="right", x=1))
+    return fig
+
+
+def fig_multistate_improve_base(ms: dict, lang: str) -> go.Figure | None:
+    """Observed ≥1-grade improvement rate by admission grade — the non-monotone base rate
+    (B > C > A ≫ D) the covariate head must respect.  For an AIS-D admission "improvement" means
+    reaching AIS E (full-normal), hence the low rate.  Reads
+    ``multistate_metrics.json['improve_head']['rate_by_admission_grade']``."""
+    by_grade = (ms or {}).get("improve_head", {}).get("rate_by_admission_grade")
+    if not by_grade:
+        return None
+    grades = [g for g in ("A", "B", "C", "D") if g in by_grade]
+    rates = [by_grade[g]["rate"] for g in grades]
+    ns = [by_grade[g]["n"] for g in grades]
+    rate_lbl = "改善率 (≥1段階)" if lang == "ja" else "Improvement rate (≥1 grade)"
+    adm_lbl = "入院時 AIS" if lang == "ja" else "Admission AIS"
+    labels = [f"AIS {g}" + ("→E" if g == "D" else "") for g in grades]
+    fig = go.Figure(go.Bar(
+        x=labels, y=rates, marker=dict(color=[PALETTE_AIS[g] for g in grades]),
+        text=[f"{r:.0%}<br>(n={n})" for r, n in zip(rates, ns, strict=True)],
+        textposition="outside", textfont=dict(size=11),
+        hovertemplate="%{x}<br>" + rate_lbl + ": %{y:.0%}<extra></extra>", showlegend=False,
+    ))
+    fig.update_layout(height=280, margin=dict(l=54, r=20, t=20, b=40),
+                      xaxis=dict(title=adm_lbl),
+                      yaxis=dict(range=[0, 1.08], tickformat=".0%", title=rate_lbl))
     return fig

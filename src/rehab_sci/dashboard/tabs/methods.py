@@ -12,6 +12,7 @@ from rehab_sci.dashboard.state import (
     DATAQUALITY,
     LANDMARK,
     METRICS,
+    MULTISTATE,
     OUTCOME_BUNDLES,
     SCHEMA,
     TEMPORAL,
@@ -401,6 +402,75 @@ def _conversion_block(lang: str) -> html.Div | None:
     return html.Div(className="methods-block", children=children)
 
 
+def _multistate_block(lang: str) -> html.Div | None:
+    """G6 — AIS multi-state recovery: cohort dynamics (occupancy / first-passage / transition /
+    sojourn) + the calibrated improve-by-6m covariate head (per-grade base rate + calibration +
+    drivers)."""
+    ms = MULTISTATE
+    if not ms or not ms.get("occupancy_by_adm"):
+        return None
+    children: list = [
+        html.H3(t(SCHEMA, "methods_multistate_heading", lang)),
+        html.P(t(SCHEMA, "methods_multistate_def", lang)),
+    ]
+
+    def _fig_card(heading_key: str, caption_key: str, fig) -> html.Div | None:
+        if fig is None:
+            return None
+        return html.Div(className="methods-perf-card", children=[
+            html.H4(t(SCHEMA, heading_key, lang)),
+            dcc.Graph(figure=fig, config={"displayModeBar": False}),
+            html.P(t(SCHEMA, caption_key, lang), style={"fontSize": "12px", "color": INK["500"]}),
+        ])
+
+    cohort_cards = [
+        _fig_card("methods_ms_occupancy_heading", "methods_ms_occupancy_caption",
+                  fg.fig_multistate_occupancy(ms, SCHEMA, lang)),
+        _fig_card("methods_ms_conversion_heading", "methods_ms_conversion_caption",
+                  fg.fig_multistate_conversion(ms, SCHEMA, lang)),
+        _fig_card("methods_ms_transition_heading", "methods_ms_transition_caption",
+                  fg.fig_multistate_transition(ms, lang)),
+        _fig_card("methods_ms_sojourn_heading", "methods_ms_sojourn_caption",
+                  fg.fig_multistate_sojourn(ms, lang)),
+    ]
+    children.extend(c for c in cohort_cards if c is not None)
+
+    # --- covariate improve head: per-grade base rate + calibration + drivers ---
+    ih = ms.get("improve_head")
+    if ih:
+        metrics_line = (
+            f"AUC={ih['auc']:.3f}   "
+            f"{t(SCHEMA, 'conv_brier', lang)}={ih['brier']:.3f} / {ih['brier_baseline']:.3f}   "
+            f"n={ih['n']} (+{ih['n_pos']}, base={ih['base_rate']:.0%})"
+        )
+        imp_children: list = [
+            html.H4(t(SCHEMA, "methods_ms_improve_heading", lang)),
+            html.P(metrics_line, style={"fontSize": "13px", "color": INK["700"]}),
+            html.P(t(SCHEMA, "methods_ms_improve_caption", lang),
+                   style={"fontSize": "12px", "color": INK["500"]}),
+        ]
+        base = fg.fig_multistate_improve_base(ms, lang)
+        if base is not None:
+            imp_children.append(dcc.Graph(figure=base, config={"displayModeBar": False}))
+        rel = fg.fig_conversion_reliability(ih, lang, t(SCHEMA, "methods_ms_calibration_heading", lang))
+        shap = fg.fig_conversion_shap(ih, SCHEMA, lang)
+        if rel is not None and shap is not None:
+            imp_children.append(html.Div(
+                style={"display": "flex", "gap": "12px", "marginTop": "8px"},
+                children=[
+                    dcc.Graph(figure=rel, config={"displayModeBar": False}, style={"flex": "1", "minWidth": "0"}),
+                    dcc.Graph(figure=shap, config={"displayModeBar": False}, style={"flex": "1", "minWidth": "0"}),
+                ],
+            ))
+        children.append(html.Div(className="methods-perf-card", children=imp_children))
+
+    children.append(html.P(
+        t(SCHEMA, "ms_caption", lang),
+        style={"fontSize": "12px", "color": INK["500"]},
+    ))
+    return html.Div(className="methods-block", children=children)
+
+
 def _dataquality_block(lang: str) -> html.Div | None:
     dq = DATAQUALITY
     if not dq:
@@ -490,6 +560,9 @@ def render_methods(lang: str) -> html.Div:
     conversion_block = _conversion_block(lang)
     if conversion_block is not None:
         md.append(conversion_block)
+    multistate_block = _multistate_block(lang)
+    if multistate_block is not None:
+        md.append(multistate_block)
     dq_block = _dataquality_block(lang)
     if dq_block is not None:
         md.append(dq_block)
