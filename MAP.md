@@ -3,7 +3,7 @@
 Regenerate after structural changes: `uv run python scripts/gen_map.py`.
 Line numbers are 1-indexed — slice with `Read(path, offset, limit)` instead of
 reading whole files.  Sources: src/rehab_sci, scripts.
-Index: 47 files, 13789 source lines.
+Index: 47 files, 13909 source lines.
 
 ## scripts
 
@@ -291,48 +291,52 @@ Overview tab — cohort KPIs, demographic charts, archetype curves with interact
 - L103 `_filtered_archetype_summaries(ep_f)` — Rebuild per-archetype summaries on the filtered episode subset.
 - L141 `update_overview_content(ais, para, age_range, arch, lang)` [callback]
 
-### patient.py (954 lines)
+### patient.py (1016 lines)
 Patient explorer tab — real-patient predictions, similarity, PDF report.
-- L77 `_patient_picker_options(lang)`
-- L100 `_episode_options_for_patient(id_number, lang)`
-- L110 `_meta_strip(meta, lang)`
-- L163 `_isncsci_table(long_df, key_record, lang)`
-- L206 `_landmark_obs_note(observed, landmark, lang)` — One-line summary of the real early-recovery scores feeding the landmark predicti…
-- L221 `_patient_landmark_card(lang)` — Real-data dynamic-prediction card: at a chosen landmark the patient's own observ…
-- L258 `_phenotype_readout(res, lang)` — Dominant phenotype + membership-weighted conditioned prognosis for one patient.
-- L295 `_patient_phenotype_card(lang)` — Observed-trajectory phenotype card: the patient's own early SCIM/motor curve is …
-- L326 `_patient_conversion_card(lang)` — AIS-grade conversion card: the patient's admission row drives the calibrated end…
-- L347 `render_patient(lang)`
-- L460 `_patient_regression(bundle, X, key_record, lang)`
-- L516 `_patient_multiclass(bundle, X, key_record, lang)`
-- L558 `_build_similarity_section(key_record, bundle, X, lang)`
-- L647 `_compute_patient_tab(key_record, strata, outcome_key, lang)`
-- L714 `update_patient_picker(id_number, lang)` [callback]
-- L723 `reset_episode_on_patient_change(id_number, current)` [callback]
-- L747 `update_patient_tab(key_record, strata, outcome_key, lang)` [callback]
-- L757 `update_patient_landmark_options(key_record)` [callback] — Offer only the landmarks this episode is still-admitted-eligible for; default to…
-- L777 `update_patient_landmark(landmark, key_record, outcome_key, lang)` [callback]
-- L810 `update_patient_phenotype_options(key_record, lang)` [callback] — Offer each observation-cutoff this episode is eligible for; default to the full …
-- L827 `update_patient_phenotype(cutoff, key_record, lang)` [callback]
-- L855 `update_patient_conversion(key_record, lang)` [callback]
-- L889 `download_report(n_clicks, key_record, id_number, strata, lang)` [callback]
+- L83 `_patient_picker_options(lang)`
+- L106 `_episode_options_for_patient(id_number, lang)`
+- L116 `_meta_strip(meta, lang)`
+- L169 `_isncsci_table(long_df, key_record, lang)`
+- L212 `_landmark_obs_note(observed, landmark, lang)` — One-line summary of the real early-recovery scores feeding the landmark predicti…
+- L227 `_patient_landmark_card(lang)` — Real-data dynamic-prediction card: at a chosen landmark the patient's own observ…
+- L264 `_phenotype_readout(res, lang)` — Dominant phenotype + membership-weighted conditioned prognosis for one patient.
+- L301 `_patient_phenotype_card(lang)` — Observed-trajectory phenotype card: the patient's own early SCIM/motor curve is …
+- L332 `_patient_conversion_card(lang)` — AIS-grade conversion card: the patient's admission row drives the calibrated end…
+- L352 `_patient_multistate_card(lang)` — AIS multi-state recovery card: the patient's admission grade drives the cohort m…
+- L375 `render_patient(lang)`
+- L491 `_patient_regression(bundle, X, key_record, lang)`
+- L547 `_patient_multiclass(bundle, X, key_record, lang)`
+- L589 `_build_similarity_section(key_record, bundle, X, lang)`
+- L678 `_compute_patient_tab(key_record, strata, outcome_key, lang)`
+- L745 `update_patient_picker(id_number, lang)` [callback]
+- L754 `reset_episode_on_patient_change(id_number, current)` [callback]
+- L778 `update_patient_tab(key_record, strata, outcome_key, lang)` [callback]
+- L788 `update_patient_landmark_options(key_record)` [callback] — Offer only the landmarks this episode is still-admitted-eligible for; default to…
+- L808 `update_patient_landmark(landmark, key_record, outcome_key, lang)` [callback]
+- L841 `update_patient_phenotype_options(key_record, lang)` [callback] — Offer each observation-cutoff this episode is eligible for; default to the full …
+- L858 `update_patient_phenotype(cutoff, key_record, lang)` [callback]
+- L886 `update_patient_conversion(key_record, lang)` [callback]
+- L918 `update_patient_multistate(key_record, lang)` [callback]
+- L951 `download_report(n_clicks, key_record, id_number, strata, lang)` [callback]
 
-### simulator.py (609 lines)
+### simulator.py (667 lines)
 Simulator tab — hypothetical patient prediction + What-if counterfactual.
-- L60 `render_simulator(lang, ref_data)`
-- L169 `_conversion_card(lang)` — Hypothetical AIS-grade conversion card driven by the simulator's admission input…
-- L191 `_lm_obs_input(measure, lang)`
-- L204 `_landmark_card(lang)` — Hypothetical dynamic-prediction card: pick a landmark, enter observed scores, se…
-- L241 `_simulate_regression(bundle, X, lang)`
-- L276 `_simulate_multiclass(bundle, X, lang)`
-- L305 `_reliability_badge(a, lang)`
-- L368 `simulate(num_vals, cat_vals, num_ids, cat_ids, outcome_key, lang, ref_data)` [callback]
-- L456 `launch_whatif(n_clicks, key_record, id_number)` [callback]
-- L505 `update_whatif_banner(ref_data, lang)` [callback]
-- L529 `clear_whatif(_n)` [callback]
-- L543 `fill_or_clear(_fill, _clear, num_ids, cat_ids)` [callback] — Fill every field with the cohort default, or clear all to blank (NaN).
-- L567 `simulate_landmark(landmark, obs_vals, num_vals, cat_vals, outcome_key, lang, obs_ids, num_ids, cat_ids)` [callback]
-- L598 `simulate_conversion(num_vals, cat_vals, lang, num_ids, cat_ids)` [callback]
+- L65 `render_simulator(lang, ref_data)`
+- L177 `_conversion_card(lang)` — Hypothetical AIS-grade conversion card driven by the simulator's admission input…
+- L199 `_multistate_card(lang)` — Hypothetical AIS multi-state recovery card driven by the simulator's admission i…
+- L223 `_lm_obs_input(measure, lang)`
+- L236 `_landmark_card(lang)` — Hypothetical dynamic-prediction card: pick a landmark, enter observed scores, se…
+- L273 `_simulate_regression(bundle, X, lang)`
+- L308 `_simulate_multiclass(bundle, X, lang)`
+- L337 `_reliability_badge(a, lang)`
+- L400 `simulate(num_vals, cat_vals, num_ids, cat_ids, outcome_key, lang, ref_data)` [callback]
+- L488 `launch_whatif(n_clicks, key_record, id_number)` [callback]
+- L537 `update_whatif_banner(ref_data, lang)` [callback]
+- L561 `clear_whatif(_n)` [callback]
+- L575 `fill_or_clear(_fill, _clear, num_ids, cat_ids)` [callback] — Fill every field with the cohort default, or clear all to blank (NaN).
+- L599 `simulate_landmark(landmark, obs_vals, num_vals, cat_vals, outcome_key, lang, obs_ids, num_ids, cat_ids)` [callback]
+- L630 `simulate_conversion(num_vals, cat_vals, lang, num_ids, cat_ids)` [callback]
+- L655 `simulate_multistate(num_vals, cat_vals, lang, num_ids, cat_ids)` [callback]
 
 ## src/rehab_sci/data
 

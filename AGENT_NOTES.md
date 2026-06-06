@@ -35,11 +35,11 @@ superseded, duplicated elsewhere, or has gone stale.
 * This file — agent-facing scratchpad.  Read before planning; update after each
   session; prune duplication per the inclusion rule above.
 * **Default-work pool: §8 backlog.**  F1–F25 + G1 (s29/s30) + G2 (s31) + G3
-  observed-trajectory phenotyping (s32/s33) + G4 AIS-grade conversion (s34/s35) fully shipped
-  (see §7).  **G6 AIS multi-state recovery — Part 1 shipped (s36: `models/multistate.py` model +
-  metrics); Part 2 (dashboard surfaces) is the immediate next work — backlog tasks 5–8.**  Other
-  open: F26 test harness · F27 dep refresh.  The user steers toward *insightful* (clinical/
-  scientific) features over infra/maintenance — propose those (G-series) first unless redirected.
+  observed-trajectory phenotyping (s32/s33) + G4 AIS-grade conversion (s34/s35) + G6 AIS
+  multi-state recovery (s36 model + s37 dashboard) fully shipped (see §7).  Other
+  open: F26 test harness · F27 dep refresh.  **No G-series feature is mid-flight — propose a NEW
+  insightful G-series idea (see §8 candidates) unless redirected.**  The user steers toward
+  *insightful* (clinical/scientific) features over infra/maintenance, so lead with those.
 
 ## 0b. Lessons & mistakes (append; prune when superseded)
 
@@ -524,9 +524,36 @@ superseded, duplicated elsewhere, or has gone stale.
   the dashboard never imports this module (it pulls shap via `train.py`).  Diagnostic + inference
   layer like landmark/conversion/temporal: tracked identifier-free `models/multistate_metrics.json`
   + git-ignored `models/multistate/bundle.joblib`; **production `train.py` artifacts untouched
-  (byte-repro verified)**.  Bundle shape documented inline at the top of `multistate.py`.  **Part 1
-  shipped (s36): model + tracked metrics.  Dashboard surfaces (Methods cohort-dynamics + Patient
-  personalized + Simulator hypothetical) PENDING — resume at backlog tasks 5–8.**
+  (byte-repro verified)**.  Bundle shape documented inline at the top of `multistate.py`.  **Fully
+  shipped: model + tracked metrics (s36) + dashboard surfaces (s37).**
+  **Dashboard contract (s37):** pure `compute.predict_multistate(X_row)` (inline `_apply_platt`
+  mirror — never import `models.multistate`, it pulls shap) is admission-grade gated (`AIS_ord`
+  required; `None` ⇒ `applicable=False` "needs-grade" prompt) and returns the per-admission-grade
+  cohort Markov curves (occupancy, the available first-passage `conversion` labels, `sojourn`,
+  `median_day_to_improve`) **looked up by admission grade alone — NOT personalized** + the one
+  feature-driven quantity, the calibrated `improve` prob (A–D only; `to_e=True` for a D admission ⇒
+  the UI frames it P(D→E)).  An AIS-E admission is flagged `at_ceiling` (empty `conversion`, no
+  improve head) but still carries occupancy (the honest downward re-assessment drift).
+  `multistate_observed_grades(key_record)` reads `LONG` for the patient's own observed AIS-ordinal
+  trajectory (the Patient overlay).  **CRUX — the personalized cards are mostly a COHORT object:**
+  occupancy/conversion/sojourn depend only on admission grade, so for two patients of the same
+  grade only the `improve` prob and the own-trajectory overlay differ — surface the curves as
+  "cohort for this admission grade" (the `ms_cohort_caption` string), not as individualized
+  prediction.  **First-passage dedup invariant:** `layout._ms_target_curves` maps the raw
+  `improve`/`ge_C`/`ge_D` curves to DISTINCT target grades, because `improve` (=reach adm+1)
+  coincides with `≥C`/`≥D` for a B/C admission (those curves are then identical) — so the personal
+  conversion fig shows one line per reachable grade, not redundant duplicates.  Shared inference
+  figs live in `layout.py` (`fig_multistate_trajectory` cohort expected-grade IQR band + optional
+  own-observed overlay; `fig_multistate_conversion_personal` deduped first-passage curves;
+  `multistate_readout`), Methods-only cohort-dynamics figs in `figures/methods.py`
+  (`fig_multistate_{occupancy,conversion,transition,sojourn,improve_base}`).  The improve head's
+  **calibration + SHAP reuse `fig_conversion_{reliability,shap}`** verbatim (same `em`-dict shape —
+  `calibration`/`calibration_raw`/`shap_top`).  Surfaces: Methods cohort-dynamics centerpiece (all
+  4 figs + per-grade base-rate + calibration/drivers); Patient personalized card (real-grade
+  override before inference, mirroring the conversion-card invariant, + own-trajectory overlay);
+  Simulator hypothetical card (admission inputs, blanks stay NaN ⇒ natural prompt).  Bilingual
+  `ms_*`/`methods_ms_*` strings; the surfaces reuse the `.lm-card`/`.conv-readout`/`.sim-*` CSS
+  (`.ms-card` is an unstyled hook like `.conv-card`).
 
 ## 4. Dashboard conventions
 
@@ -659,6 +686,21 @@ bgcmd 'exit()'; rm -rf "$BGCMDDIR"               # stop + clean
 
 One line per session; full detail is in Git history (`git log`, diffs).
 
+* **s37** — G6 AIS multi-state recovery, **Part 2** (dashboard surfaces across Methods + Patient +
+  Simulator; user chose all 4 cohort-dynamics visuals + all-three-surfaces with a Methods
+  checkpoint commit).  Pure `compute.predict_multistate` (inline `_apply_platt` mirror;
+  admission-grade gated; E→`at_ceiling`; D-improve→`to_e`/P(D→E)) + `multistate_observed_grades`
+  (LONG overlay) + `state.MULTISTATE`/`MULTISTATE_BUNDLE` loaders.  Methods cohort-dynamics
+  centerpiece — `fig_multistate_{occupancy,conversion,transition,sojourn,improve_base}` (occupancy
+  stacked-area per grade, deduped first-passage curves, pooled transition heatmap, sojourn bars,
+  non-monotone improve base rate) + the improve head's calibration/drivers **reusing
+  `fig_conversion_{reliability,shap}`**.  Shared `layout` figs `fig_multistate_trajectory`
+  (cohort expected-grade IQR band + own-observed overlay) / `fig_multistate_conversion_personal`
+  (target-grade-deduped) / `multistate_readout`; Patient card (real-grade override) + Simulator
+  card (blanks-NaN) + callbacks.  Bilingual `ms_*`/`methods_ms_*`; CSS reused (`.ms-card` hook).
+  Documented the cohort-not-personalized CRUX + the first-passage dedup invariant in §3.  Lint +
+  F-gate clean; all 3 tabs render both langs; dashboard boots 200 with the 2 new callbacks
+  registered; production + multistate artifacts untouched (no retrain).
 * **s36** — G6 AIS multi-state recovery, **Part 1** (model + tracked metrics; user chose approach A
   empirical Markov + covariate head · Methods+Patient+Simulator surfaces).  New
   `models/multistate.py`: a time-inhomogeneous discrete-time Markov chain over AIS A–E on the
@@ -669,8 +711,8 @@ One line per session; full detail is in Git history (`git log`, diffs).
   git-ignored bundle; production byte-repro verified (empty `training_metrics.json` diff).
   Validated: occupancy mass-conserving, conversion monotone, transitions row-stochastic, per-grade
   calibration holds.  Surfaced the non-monotone improve base rate (B>C>A>>D, D="reach E") and the
-  faithful apparent-regression caveat.  Lint + F-gate clean; MAP regenerated.  **Dashboard surfaces
-  (compute inference + figures + 3 tabs + bilingual + CSS) PENDING — resume at backlog tasks 5–8.**
+  faithful apparent-regression caveat.  Lint + F-gate clean; MAP regenerated.  Dashboard surfaces
+  shipped in s37.
 * **s35** — G4 AIS-grade conversion, **Part 2** (dashboard surfaces across Methods + Patient +
   Simulator).  Pure `compute.predict_conversion` (inline `_apply_platt` mirror; admission-grade
   gating; real-grade override on the Patient card) + `state.CONVERSION`/`CONVERSION_BUNDLE`
@@ -861,10 +903,11 @@ One line per session; full detail is in Git history (`git log`, diffs).
 
 ## 8. Feature backlog (default-work pool)
 
-Propose from here unless the user redirects.  **Items F1–F25 + G1–G4 are
+Propose from here unless the user redirects.  **Items F1–F25 + G1–G4 + G6 are
 shipped** — see §7 for the session each landed in, and Git history for
 implementation detail.  The user steers toward *insightful* (clinical/
-scientific) features over infra/maintenance — lead with the **G-series**.
+scientific) features over infra/maintenance — so **propose a NEW G-series idea**
+(see candidates below); no G feature is mid-flight.
 Shipped ledger (terse, by feature number):
 
 * F1 patient explorer · F2 multi-outcome prediction · F3 Mondrian conformal ·
@@ -902,14 +945,16 @@ Shipped ledger (terse, by feature number):
   Methods/Patient/Simulator surfaces (`conv_*` strings, `.conv-*` CSS).  See §3 for the model
   + dashboard contract (incl. the binary-vs-magnitude non-comparability CRUX and the patient
   real-grade gating invariant) and §7.  Fully shipped.
-* **G6 AIS multi-state recovery** (s36, Part 1): `models/multistate.py` — population multi-state
-  Markov (per-admission-grade state-occupancy / first-passage conversion-to-≥X / median-day-to-
-  improve / sojourn on the 0day–6m grid) + a binary improve-by-6m covariate head with SHAP
-  drivers.  Complement to G4 (trajectory *between*, not the admission→discharge endpoint).  See §3
-  for the model contract (pairwise-complete/identity-fallback estimation, absorbing-above monotone
-  first-passage, the faithful apparent-regression caveat, the non-monotone improve base rate) and
-  §7.  **Part 2 (dashboard: Methods cohort-dynamics + Patient personalized + Simulator hypothetical)
-  PENDING — backlog tasks 5–8.**
+* **G6 AIS multi-state recovery** (s36 model + s37 dashboard): `models/multistate.py` — population
+  multi-state Markov (per-admission-grade state-occupancy / first-passage conversion-to-≥X /
+  median-day-to-improve / sojourn on the 0day–6m grid) + a binary improve-by-6m covariate head with
+  SHAP drivers.  Complement to G4 (trajectory *between*, not the admission→discharge endpoint).
+  `compute.predict_multistate` + Methods cohort-dynamics centerpiece (4 figs + calibration/drivers)
+  + Patient personalized (own-trajectory overlay) + Simulator hypothetical cards (`ms_*` strings).
+  See §3 for the model + dashboard contract (pairwise-complete/identity-fallback estimation,
+  absorbing-above monotone first-passage, the faithful apparent-regression caveat, the non-monotone
+  improve base rate, the cohort-not-personalized CRUX + first-passage dedup invariant) and §7.
+  Fully shipped.
 
 **F23 (shipped s26): data-quality / clinical-consistency report** — see §7 and
 `data/quality.py`; durable data facts it surfaced live in §0b/§1, and the

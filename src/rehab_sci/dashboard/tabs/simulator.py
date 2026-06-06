@@ -20,6 +20,7 @@ from rehab_sci.dashboard.compute import (
     inv_transform_scalar,
     predict_conversion,
     predict_landmark,
+    predict_multistate,
     predict_trajectory,
     resolve_aps_q,
     resolve_conformal_q,
@@ -34,9 +35,12 @@ from rehab_sci.dashboard.layout import (
     fig_conversion_endpoints,
     fig_conversion_magnitude,
     fig_landmark_compare,
+    fig_multistate_conversion_personal,
+    fig_multistate_trajectory,
     fig_prediction_interval,
     fig_shap_local,
     landmark_readout,
+    multistate_readout,
     number_input_for,
 )
 from rehab_sci.dashboard.reliability import assess_input
@@ -46,6 +50,7 @@ from rehab_sci.dashboard.state import (
     EP,
     FEATURE_SPEC,
     LANDMARK_BUNDLE,
+    MULTISTATE_BUNDLE,
     OUTCOME_BUNDLES,
     SCHEMA,
     SCIM_TOTAL_BUNDLE,
@@ -162,6 +167,9 @@ def render_simulator(lang: str, ref_data: dict | None = None) -> html.Div:
     conv_card = _conversion_card(lang)
     if conv_card is not None:
         children.append(conv_card)
+    ms_card = _multistate_card(lang)
+    if ms_card is not None:
+        children.append(ms_card)
     return html.Div(children)
 
 
@@ -183,6 +191,30 @@ def _conversion_card(lang: str) -> html.Div | None:
             dcc.Graph(id="sim-conv-mag-graph", config={"displayModeBar": False}),
             html.Div(t(SCHEMA, "conv_mag_caption", lang), className="sim-caveat"),
             html.Div(t(SCHEMA, "conv_caption", lang), className="sim-caveat"),
+        ],
+    )
+
+
+# ---------- AIS multi-state recovery card ----------
+def _multistate_card(lang: str) -> html.Div | None:
+    """Hypothetical AIS multi-state recovery card driven by the simulator's admission inputs.
+    The trajectory band + first-passage curves are cohort dynamics for the entered admission
+    grade; only the improve-by-6m probability tracks the feature inputs.  Omitted entirely when
+    the multi-state bundle is absent."""
+    if MULTISTATE_BUNDLE is None:
+        return None
+    return html.Div(
+        className="lm-card ms-card",
+        children=[
+            html.H2(t(SCHEMA, "ms_card_heading", lang), className="lm-card-heading"),
+            html.Div(t(SCHEMA, "ms_card_intro", lang), className="lm-card-intro"),
+            html.Div(id="sim-ms-readout"),
+            html.Div(t(SCHEMA, "ms_trajectory_heading", lang), className="sim-section-title"),
+            dcc.Graph(id="sim-ms-traj-graph", config={"displayModeBar": False}),
+            html.Div(t(SCHEMA, "ms_conversion_heading", lang), className="sim-section-title"),
+            dcc.Graph(id="sim-ms-conv-graph", config={"displayModeBar": False}),
+            html.Div(t(SCHEMA, "ms_cohort_caption", lang), className="sim-caveat"),
+            html.Div(t(SCHEMA, "ms_caption", lang), className="sim-caveat"),
         ],
     )
 
@@ -606,4 +638,30 @@ def simulate_conversion(num_vals, cat_vals, lang, num_ids, cat_ids):
         conversion_readout(result, lang),
         fig_conversion_endpoints(result, lang),
         fig_conversion_magnitude(result, lang),
+    )
+
+
+# ---------- AIS multi-state recovery callback ----------
+@callback(
+    Output("sim-ms-readout", "children"),
+    Output("sim-ms-traj-graph", "figure"),
+    Output("sim-ms-conv-graph", "figure"),
+    Input({"type": "num", "col": dash.ALL}, "value"),
+    Input({"type": "cat", "col": dash.ALL}, "value"),
+    Input("lang-store", "data"),
+    State({"type": "num", "col": dash.ALL}, "id"),
+    State({"type": "cat", "col": dash.ALL}, "id"),
+)
+def simulate_multistate(num_vals, cat_vals, lang, num_ids, cat_ids):
+    empty = go.Figure()
+    if not num_ids and not cat_ids:
+        return html.Div(t(SCHEMA, "ms_need_ais", lang), className="lm-prompt"), empty, empty
+    X = collect_sim_inputs(num_vals, num_ids, cat_vals, cat_ids)
+    result = predict_multistate(X)
+    if result is None:
+        return html.Div(t(SCHEMA, "ms_need_ais", lang), className="lm-prompt"), empty, empty
+    return (
+        multistate_readout(result, lang),
+        fig_multistate_trajectory(result, lang),
+        fig_multistate_conversion_personal(result, lang),
     )

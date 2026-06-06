@@ -21,9 +21,11 @@ from rehab_sci.dashboard.compute import (
     inv_transform_scalar,
     landmark_observed_for_episode,
     landmark_voi,
+    multistate_observed_grades,
     phenotype_cutoff_options,
     predict_conversion,
     predict_landmark,
+    predict_multistate,
     predict_phenotype_membership,
     predict_trajectory,
     resolve_aps_q,
@@ -46,9 +48,12 @@ from rehab_sci.dashboard.layout import (
     fig_conversion_endpoints,
     fig_conversion_magnitude,
     fig_landmark_compare,
+    fig_multistate_conversion_personal,
+    fig_multistate_trajectory,
     fig_shap_local,
     fig_voi_patient,
     landmark_readout,
+    multistate_readout,
     voi_readout,
 )
 from rehab_sci.dashboard.report import generate_patient_report
@@ -60,6 +65,7 @@ from rehab_sci.dashboard.state import (
     FEATURE_SPEC,
     LANDMARK_BUNDLE,
     LONG,
+    MULTISTATE_BUNDLE,
     OUTCOME_BUNDLES,
     PATIENT_OPTIONS,
     PATIENT_OPTIONS_BY_ID,
@@ -343,6 +349,28 @@ def _patient_conversion_card(lang: str) -> html.Div | None:
     )
 
 
+def _patient_multistate_card(lang: str) -> html.Div | None:
+    """AIS multi-state recovery card: the patient's admission grade drives the cohort multi-state
+    dynamics (expected-grade trajectory + first-passage curves) and the calibrated improve-by-6m
+    probability; the patient's OWN observed AIS grades are overlaid on the trajectory.  Omitted
+    entirely when the multi-state bundle is absent."""
+    if MULTISTATE_BUNDLE is None:
+        return None
+    return chart_card(
+        t(SCHEMA, "ms_card_heading", lang),
+        html.Div([
+            html.Div(t(SCHEMA, "ms_card_intro", lang), className="lm-card-intro"),
+            html.Div(id="patient-ms-readout"),
+            html.Div(t(SCHEMA, "ms_trajectory_heading", lang), className="pheno-subtitle"),
+            dcc.Graph(id="patient-ms-traj-graph", config={"displayModeBar": False}),
+            html.Div(t(SCHEMA, "ms_conversion_heading", lang), className="pheno-subtitle"),
+            dcc.Graph(id="patient-ms-conv-graph", config={"displayModeBar": False}),
+            html.Div(t(SCHEMA, "ms_cohort_caption", lang), className="sim-caveat"),
+            html.Div(t(SCHEMA, "ms_caption", lang), className="sim-caveat"),
+        ]),
+    )
+
+
 # ---------- layout ----------
 def render_patient(lang: str) -> html.Div:
     default_pid = PATIENT_OPTIONS[0].id_number if PATIENT_OPTIONS else None
@@ -445,6 +473,9 @@ def render_patient(lang: str) -> html.Div:
     conv_card = _patient_conversion_card(lang)
     if conv_card is not None:
         content_children.append(conv_card)
+    ms_card = _patient_multistate_card(lang)
+    if ms_card is not None:
+        content_children.append(ms_card)
     content_children.append(similarity_card)
 
     return html.Div(
@@ -873,6 +904,37 @@ def update_patient_conversion(key_record, lang):
         conversion_readout(result, lang),
         fig_conversion_endpoints(result, lang),
         fig_conversion_magnitude(result, lang),
+    )
+
+
+# ---------- AIS multi-state recovery callback ----------
+@callback(
+    Output("patient-ms-readout", "children"),
+    Output("patient-ms-traj-graph", "figure"),
+    Output("patient-ms-conv-graph", "figure"),
+    Input("patient-episode-radio", "value"),
+    Input("lang-store", "data"),
+)
+def update_patient_multistate(key_record, lang):
+    empty = go.Figure()
+    if MULTISTATE_BUNDLE is None or key_record is None:
+        return html.Div(t(SCHEMA, "ms_need_ais", lang), className="lm-prompt"), empty, empty
+    key_record = int(key_record)
+    if not episode_has_admission(key_record):
+        return html.Div(t(SCHEMA, "ms_need_ais", lang), className="lm-prompt"), empty, empty
+    X = episode_row_for_model(key_record).copy()
+    # Gate on the REAL admission grade (override episode_row_for_model's cohort-default imputation);
+    # multi-state membership is undefined when AIS is unrecorded -> the readout shows the prompt.
+    raw_ais = EP.loc[EP["KeyRecordNumber"] == key_record, "AIS_ord"]
+    X["AIS_ord"] = float(raw_ais.iloc[0]) if (not raw_ais.empty and pd.notna(raw_ais.iloc[0])) else float("nan")
+    result = predict_multistate(X)
+    if result is None:
+        return html.Div(t(SCHEMA, "ms_need_ais", lang), className="lm-prompt"), empty, empty
+    obs = multistate_observed_grades(key_record)
+    return (
+        multistate_readout(result, lang),
+        fig_multistate_trajectory(result, lang, patient_obs=obs),
+        fig_multistate_conversion_personal(result, lang),
     )
 
 
