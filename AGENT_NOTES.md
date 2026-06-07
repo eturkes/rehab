@@ -28,10 +28,21 @@ superseded, duplicated elsewhere, or has gone stale.
 * `./compaction.sh` — manual context gauge (`pct used/window`); run via Bash to
   read own usage from the transcript.  The user's global statusline
   (`$HOME/.claude/compaction.sh`, byte-identical) already covers this repo, so
-  `.claude/settings.json` stays empty (resist re-adding `statusLine`); keep the
-  two copies in sync.  Dual-mode keyed on `CLAUDE_CODE_SESSION_ID` (set ⇒
+  `.claude/settings.json` needs **no** `statusLine` (resist re-adding it; the
+  file now holds only `permissions.deny` Read rules — see next bullet); keep the
+  two `compaction.sh` copies in sync.  Dual-mode keyed on `CLAUDE_CODE_SESSION_ID` (set ⇒
   manual/transcript; unset ⇒ statusline/stdin) — any edit must keep both.  Per
   CLAUDE.md, wrap to a clean boundary at ≥80 % for a manual `/compact`.
+* `.claude/settings.json` — `permissions.deny` `Read()` rules (CLAUDE.md policy)
+  that hide low-benefit paths from the Read tool, Grep/Glob, and `cat`/`head`/
+  `sed`: the venv, `.git`, caches, raw `ALL_SCIDATA.csv`, `uv.lock`, every
+  `*.joblib` (+ `*.pkl/.npy/.npz/.parquet`), and the 3 oversized generated dumps
+  `models/subgroups.json`, `models/dataquality_report.json`,
+  `schema/raw_profile.json`.  Deny does **not** touch `python`/`jq`/`ls`/`git`,
+  so query a denied JSON with `jq` and confirm artifacts via `ls`/`git
+  ls-files`.  The canonical `models/*_metrics.json` stay readable on purpose
+  (model-performance source of truth).  Rules reload live; inspect with
+  `/permissions`; grow the list as new low-value paths appear.
 * This file — agent-facing scratchpad.  Read before planning; update after each
   session; prune duplication per the inclusion rule above.
 * **Default-work pool: §8 backlog.**  F1–F25 + G1 (s29/s30) + G2 (s31) + G3
@@ -170,6 +181,18 @@ superseded, duplicated elsewhere, or has gone stale.
   30 features then contribute correctly).  **Catch a co-misaligned feature+label with a BEHAVIORAL
   sanity check, not AUC**: a max-admission-motor patient must predict P(antigravity)≈1 and a
   zero-motor complete injury ≈0 (mean |ΔP|≈0.9); the scrambled model gave a flat ~0.68/0.96.
+* **Claude Code deny-`Read()` rules are gitignore-style, and a `dir/*/**` pattern
+  over-denies — verify every rule empirically.**  `Read(/models/*/**)` (meant for
+  the binary per-outcome subdirs) silently *also* denied the direct-child
+  `models/*_metrics.json` files, because the matcher lets `*` match a filename and
+  `/**` match zero trailing segments.  The failure mode is silent in *both*
+  directions — a mistyped pattern can protect nothing, or over-protect a file you
+  need.  After any edit (rules reload live), attempt a `Read` on a path that MUST
+  be blocked AND one that MUST stay readable.  Prefer extension globs
+  (`**/*.joblib`) for binary trees + exact file rules for individual dumps; a
+  single leading `/` anchors to the project root (`//` = filesystem-absolute), a
+  bare name matches at any depth, and deny still leaves `python`/`jq`/`ls`/`git`
+  working (so query a denied JSON with `jq`).
 
 ## 1. Data invariants (do not rediscover)
 
