@@ -3,7 +3,7 @@
 Regenerate after structural changes: `uv run python scripts/gen_map.py`.
 Line numbers are 1-indexed — slice with `Read(path, offset, limit)` instead of
 reading whole files.  Sources: src/rehab_sci, scripts.
-Index: 49 files, 15997 source lines.
+Index: 49 files, 16085 source lines.
 
 ## scripts
 
@@ -113,7 +113,7 @@ Bilingual translation helpers used by every dashboard component.
 - L25 `all_levels_in_order(schema, level_key, lang)` — Return (display, ja-or-en label) pairs in their YAML declaration order.
 - L36 `level_key_for_column(schema, raw)`
 
-### layout.py (1025 lines)
+### layout.py (1032 lines)
 Shared layout components: topbar, cards, sliders, prediction figures.
 - L28 `topbar(lang)`
 - L56 `kpi_card(label, value, sub)`
@@ -123,27 +123,27 @@ Shared layout components: topbar, cards, sliders, prediction figures.
 - L104 `dropdown_for(feature, lang, defaults)`
 - L133 `fig_shap_local(values, X, base, lang)`
 - L162 `fig_prediction_interval(pred, lo, hi, spec, lang)`
-- L196 `fig_class_probabilities(proba, class_labels, spec, lang, conformal_set)`
-- L232 `fig_landmark_compare(result, spec, lang, landmark_label)` — Paired admission-only vs landmark prediction for one outcome (see compute.predic…
-- L300 `landmark_readout(result, spec, lang)` — Two-line baseline→landmark summary shared by the simulator and patient dynamic c…
-- L335 `_voi_label(measure, lang)`
-- L339 `fig_voi_patient(voi, spec, lang)` — Per-patient value-of-information bars (see compute.landmark_voi).
-- L405 `voi_readout(voi, spec, lang)` — One/two-line prescription: the most valuable next measure to obtain (+ best alre…
-- L447 `_conversion_endpoint_label(key, letter, lang)` — Clinical endpoint name + its discharge threshold, e.g. 'Motor-incomplete (≥C)'.
-- L452 `fig_conversion_endpoints(result, lang)` — Calibrated conversion probabilities for the applicable binary endpoints (see
-- L489 `fig_conversion_magnitude(result, lang)` — Ordinal improvement-magnitude head shown AS its 80% APS set / most-likely class …
-- L523 `conversion_readout(result, lang)` — Text summary of the conversion panel: admission grade, each applicable calibrate…
-- L570 `_ms_target_curves(result)` — Map the available first-passage curves to DISTINCT target grades.  ``improve`` i…
-- L587 `fig_multistate_trajectory(result, lang, patient_obs)` — Expected AIS-grade trajectory for the admission grade's cohort (occupancy-weight…
-- L634 `fig_multistate_conversion_personal(result, lang)` — First-passage conversion curves for the admission grade: P(reach each higher AIS…
-- L663 `multistate_readout(result, lang)` — Text summary of the multi-state panel: admission grade, the calibrated improve-b…
-- L707 `fig_independence_profile(result, lang, observed)` — Per-SCIM-item discharge functional-independence profile: one horizontal bar = ca…
-- L771 `independence_readout(result, lang)` — Text summary of the independence profile: the expected number of independent fun…
-- L827 `_poly_path(pts)` — SVG path string for a closed polygon from (x, y) vertices.
-- L834 `_topo_body_shapes()` — Stylised front-view humanoid silhouette as a list of add_shape kwargs (data coor…
-- L854 `_topo_segment_lookup(result, modality)` — {(level, side): segment-record} for one modality from a predict_topography resul…
-- L859 `fig_topography_bodymap(result, lang, sensory_modality, observed, title)` — The recovery-topography atlas: a stylised front-view dermatome silhouette (the c…
-- L994 `topography_readout(result, lang)` — Text summary of the topography atlas: expected count of muscles reaching antigra…
+- L203 `fig_class_probabilities(proba, class_labels, spec, lang, conformal_set)`
+- L239 `fig_landmark_compare(result, spec, lang, landmark_label)` — Paired admission-only vs landmark prediction for one outcome (see compute.predic…
+- L307 `landmark_readout(result, spec, lang)` — Two-line baseline→landmark summary shared by the simulator and patient dynamic c…
+- L342 `_voi_label(measure, lang)`
+- L346 `fig_voi_patient(voi, spec, lang)` — Per-patient value-of-information bars (see compute.landmark_voi).
+- L412 `voi_readout(voi, spec, lang)` — One/two-line prescription: the most valuable next measure to obtain (+ best alre…
+- L454 `_conversion_endpoint_label(key, letter, lang)` — Clinical endpoint name + its discharge threshold, e.g. 'Motor-incomplete (≥C)'.
+- L459 `fig_conversion_endpoints(result, lang)` — Calibrated conversion probabilities for the applicable binary endpoints (see
+- L496 `fig_conversion_magnitude(result, lang)` — Ordinal improvement-magnitude head shown AS its 80% APS set / most-likely class …
+- L530 `conversion_readout(result, lang)` — Text summary of the conversion panel: admission grade, each applicable calibrate…
+- L577 `_ms_target_curves(result)` — Map the available first-passage curves to DISTINCT target grades.  ``improve`` i…
+- L594 `fig_multistate_trajectory(result, lang, patient_obs)` — Expected AIS-grade trajectory for the admission grade's cohort (occupancy-weight…
+- L641 `fig_multistate_conversion_personal(result, lang)` — First-passage conversion curves for the admission grade: P(reach each higher AIS…
+- L670 `multistate_readout(result, lang)` — Text summary of the multi-state panel: admission grade, the calibrated improve-b…
+- L714 `fig_independence_profile(result, lang, observed)` — Per-SCIM-item discharge functional-independence profile: one horizontal bar = ca…
+- L778 `independence_readout(result, lang)` — Text summary of the independence profile: the expected number of independent fun…
+- L834 `_poly_path(pts)` — SVG path string for a closed polygon from (x, y) vertices.
+- L841 `_topo_body_shapes()` — Stylised front-view humanoid silhouette as a list of add_shape kwargs (data coor…
+- L861 `_topo_segment_lookup(result, modality)` — {(level, side): segment-record} for one modality from a predict_topography resul…
+- L866 `fig_topography_bodymap(result, lang, sensory_modality, observed, title)` — The recovery-topography atlas: a stylised front-view dermatome silhouette (the c…
+- L1001 `topography_readout(result, lang)` — Text summary of the topography atlas: expected count of muscles reaching antigra…
 
 ### reliability.py (141 lines)
 Input reliability + out-of-distribution assessment for the simulator.
@@ -361,7 +361,7 @@ Patient explorer tab — real-patient predictions, similarity, PDF report.
 - L1030 `update_patient_topography(key_record, modality, lang)` [callback]
 - L1058 `download_report(n_clicks, key_record, id_number, strata, lang)` [callback]
 
-### simulator.py (853 lines)
+### simulator.py (862 lines)
 Simulator tab — hypothetical patient prediction + What-if counterfactual.
 - L74 `render_simulator(lang, ref_data)`
 - L192 `_conversion_card(lang)` — Hypothetical AIS-grade conversion card driven by the simulator's admission input…
@@ -372,19 +372,19 @@ Simulator tab — hypothetical patient prediction + What-if counterfactual.
 - L335 `_lm_obs_input(measure, lang)`
 - L348 `_landmark_card(lang)` — Hypothetical dynamic-prediction card: pick a landmark, enter observed scores, se…
 - L385 `_simulate_regression(bundle, X, lang)`
-- L420 `_simulate_multiclass(bundle, X, lang)`
-- L449 `_reliability_badge(a, lang)`
-- L512 `simulate(num_vals, cat_vals, num_ids, cat_ids, outcome_key, lang, ref_data)` [callback]
-- L600 `launch_whatif(n_clicks, key_record, id_number)` [callback]
-- L649 `update_whatif_banner(ref_data, lang)` [callback]
-- L673 `clear_whatif(_n)` [callback]
-- L687 `fill_or_clear(_fill, _clear, num_ids, cat_ids)` [callback] — Fill every field with the cohort default, or clear all to blank (NaN).
-- L711 `simulate_landmark(landmark, obs_vals, num_vals, cat_vals, outcome_key, lang, obs_ids, num_ids, cat_ids)` [callback]
-- L742 `simulate_conversion(num_vals, cat_vals, lang, num_ids, cat_ids)` [callback]
-- L767 `simulate_multistate(num_vals, cat_vals, lang, num_ids, cat_ids)` [callback]
-- L792 `simulate_independence(num_vals, cat_vals, lang, num_ids, cat_ids)` [callback]
-- L813 `topo_seed_or_clear(_seed, _clear, seg_ids, ref_data)` [callback] — Seed the worksheet from the What-if reference patient's real admission exam, or …
-- L835 `simulate_topography(num_vals, cat_vals, seg_vals, modality, lang, num_ids, cat_ids, seg_ids)` [callback]
+- L429 `_simulate_multiclass(bundle, X, lang)`
+- L458 `_reliability_badge(a, lang)`
+- L521 `simulate(num_vals, cat_vals, num_ids, cat_ids, outcome_key, lang, ref_data)` [callback]
+- L609 `launch_whatif(n_clicks, key_record, id_number)` [callback]
+- L658 `update_whatif_banner(ref_data, lang)` [callback]
+- L682 `clear_whatif(_n)` [callback]
+- L696 `fill_or_clear(_fill, _clear, num_ids, cat_ids)` [callback] — Fill every field with the cohort default, or clear all to blank (NaN).
+- L720 `simulate_landmark(landmark, obs_vals, num_vals, cat_vals, outcome_key, lang, obs_ids, num_ids, cat_ids)` [callback]
+- L751 `simulate_conversion(num_vals, cat_vals, lang, num_ids, cat_ids)` [callback]
+- L776 `simulate_multistate(num_vals, cat_vals, lang, num_ids, cat_ids)` [callback]
+- L801 `simulate_independence(num_vals, cat_vals, lang, num_ids, cat_ids)` [callback]
+- L822 `topo_seed_or_clear(_seed, _clear, seg_ids, ref_data)` [callback] — Seed the worksheet from the What-if reference patient's real admission exam, or …
+- L844 `simulate_topography(num_vals, cat_vals, seg_vals, modality, lang, num_ids, cat_ids, seg_ids)` [callback]
 
 ## src/rehab_sci/data
 
@@ -401,7 +401,7 @@ Recovery archetype discovery via k-means clustering on predicted trajectories.
 - L138 `archetype_summary(ep_eligible, labels)` — Compute per-archetype demographics and outcome summary.
 - L182 `assign_single(X_row, trajectory_bundle, discharge_model, scaler, centroids_std)` — Assign a single patient (one-row DataFrame) to the nearest archetype.
 
-### dataset.py (238 lines)
+### dataset.py (255 lines)
 Construct the analysis-ready frame: one row per patient-episode.
 - L29 `ADMISSION_FALLBACK` (const)
 - L32 `ADMISSION_FEATURES` (const)
@@ -410,9 +410,9 @@ Construct the analysis-ready frame: one row per patient-episode.
 - L107 `class AnalysisFrame`
 - L117 `_first_non_null(group, col, order)`
 - L126 `build_episode_frame(longitudinal)` — Collapse the long longitudinal frame to one row per episode (KeyRecordNumber).
-- L196 `_identify_ghost_episodes(ep, admission_features)` — Return KeyRecordNumbers of pure placeholder episodes.
-- L213 `build_analysis_dataset()`
-- L235 `_replace_nan_to_none(o)`
+- L213 `_identify_ghost_episodes(ep, admission_features)` — Return KeyRecordNumbers of pure placeholder episodes.
+- L230 `build_analysis_dataset()`
+- L252 `_replace_nan_to_none(o)`
 
 ### episodes.py (201 lines)
 Per-episode views used by the dashboard's Patient explorer tab.
@@ -640,11 +640,11 @@ AIS multi-state recovery modeling (G6) — neurological-grade *dynamics* over ea
 - L362 `_by_letter(d)`
 - L368 `main()`
 
-### outcomes.py (109 lines)
+### outcomes.py (164 lines)
 Outcome registry — the source of truth for what `train.py` predicts.
-- L33 `class OutcomeSpec`
-- L46 `OUTCOMES` (const)
-- L105 `get(key)`
+- L40 `class OutcomeSpec`
+- L53 `OUTCOMES` (const)
+- L160 `get(key)`
 
 ### phenotypes.py (210 lines)
 Observed-trajectory phenotyping (G3) — fit + persist a growth mixture model.

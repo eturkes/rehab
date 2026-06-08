@@ -405,14 +405,23 @@ def _simulate_regression(bundle: dict, X: pd.DataFrame, lang: str):
     label = t(SCHEMA, spec.display_key, lang)
     unit = t(SCHEMA, spec.unit_key, lang) if spec.unit_key else ""
     pi_label = t(SCHEMA, "sim_prediction_interval", lang)
+    # Δ (change) outcomes: show a signed value (+11 = gain, −3 = decline) and drop the
+    # "/ max" suffix — a recovery has no "out of ceiling" reading.  clip_min < 0 uniquely
+    # flags the Δ heads (no absolute-score outcome has a negative floor).
+    is_delta = spec.clip_min is not None and spec.clip_min < 0
     range_suffix = ""
-    if spec.clip_max is not None and spec.clip_min is not None:
+    if not is_delta and spec.clip_max is not None and spec.clip_min is not None:
         range_suffix = f"/ {spec.clip_max:.0f}"
+    pred_str = f"{pred:+.0f}" if is_delta else f"{pred:.0f}"
+    pi_str = (
+        f"{pi_label} : {lo:+.0f} – {hi:+.0f}" if is_delta
+        else f"{pi_label} : {lo:.0f} – {hi:.0f}"
+    )
     readout = [
         html.Div(label, style={"color": INK["500"], "fontSize": "13px"}),
-        html.Div(f"{pred:.0f}", className="pred"),
+        html.Div(pred_str, className="pred"),
         html.Div(f"{range_suffix}  {unit}".strip(), className="pred-unit"),
-        html.Div(f"{pi_label} : {lo:.0f} – {hi:.0f}", className="pi"),
+        html.Div(pi_str, className="pi"),
     ]
     return readout, fig_prediction_interval(pred, lo, hi, spec, lang), fig_shap_local(shap_vals, X, base, lang)
 

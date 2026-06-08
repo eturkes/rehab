@@ -326,6 +326,21 @@ outcome_ais_discharge:
 outcome_los_days:
   ja: "在院日数"
   en: "Length of stay"
+outcome_delta_uems:
+  ja: "ΔUEMS 上肢運動スコア変化 (入院→退院)"
+  en: "ΔUEMS upper-limb motor change (adm→discharge)"
+outcome_delta_lems:
+  ja: "ΔLEMS 下肢運動スコア変化 (入院→退院)"
+  en: "ΔLEMS lower-limb motor change (adm→discharge)"
+outcome_delta_totalmotor:
+  ja: "Δ総運動スコア変化 (入院→退院)"
+  en: "ΔTotal-motor change (adm→discharge)"
+outcome_delta_lighttouch:
+  ja: "Δ触覚スコア変化 (入院→退院)"
+  en: "ΔLight-touch change (adm→discharge)"
+outcome_delta_pinprick:
+  ja: "Δ痛覚スコア変化 (入院→退院)"
+  en: "ΔPin-prick change (adm→discharge)"
 sim_outcome_label:
   ja: "予測対象"
   en: "Predicted outcome"

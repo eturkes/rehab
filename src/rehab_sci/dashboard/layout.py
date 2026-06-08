@@ -184,12 +184,19 @@ def fig_prediction_interval(
     x_lo = float(spec.clip_min) if spec.clip_min is not None else min(0.0, lo)
     x_hi = float(spec.clip_max) if spec.clip_max is not None else float(max(hi, pred) * 1.1 + 1.0)
     axis_title = f"{label} ({unit})" if unit else label
+    is_delta = spec.clip_min is not None and spec.clip_min < 0  # Δ (change) outcome
     fig.update_layout(
         height=120,
-        margin=dict(l=110, r=20, t=10, b=30),
+        margin=dict(l=110, r=20, t=22 if is_delta else 10, b=30),
         xaxis=dict(range=[x_lo, x_hi], title=axis_title),
         yaxis=dict(showticklabels=True, tickfont=dict(size=12), showgrid=False),
     )
+    if is_delta:  # mark the "no change" line so a PI crossing 0 reads as uncertain recovery
+        fig.add_vline(
+            x=0, line=dict(color=INK["300"], width=1.2, dash="dot"),
+            annotation_text=("変化なし" if lang == "ja" else "no change"),
+            annotation_position="top", annotation_font=dict(size=10, color=INK["500"]),
+        )
     return fig
 
 

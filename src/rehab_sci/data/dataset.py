@@ -175,6 +175,23 @@ def build_episode_frame(longitudinal: pd.DataFrame) -> pd.DataFrame:
     feat["y_discharge_scim_mobility"] = discharge["SCIM_mobility"].reindex(episode_idx)
     feat["y_discharge_ais"] = discharge["AIS_ord"].reindex(episode_idx)
     feat["y_discharge_wisci"] = discharge["WalkingIndex"].reindex(episode_idx)
+
+    # Δ score-recovery outcomes (G9): admission→discharge change in each ISNCSCI
+    # summary score (the canonical SCI-trial primary endpoint).  Admission baseline =
+    # the same first-non-null admission feature the model already sees (feat[col]);
+    # discharge = the discharge slot.  NaN on either side → NaN target (dropped by
+    # train._prep).  No leakage — the discharge score is never a feature.
+    for _score_col, _delta_key in (
+        ("UEMS", "y_delta_uems"),
+        ("LEMS", "y_delta_lems"),
+        ("TotalMotor", "y_delta_totalmotor"),
+        ("LightTouchTotal", "y_delta_lighttouch"),
+        ("PinPrickTotal", "y_delta_pinprick"),
+    ):
+        _adm = pd.to_numeric(feat[_score_col], errors="coerce")
+        _dis = pd.to_numeric(discharge[_score_col].reindex(episode_idx), errors="coerce")
+        feat[_delta_key] = _dis - _adm
+
     max_scim = grouped["SCIM_total"].max().reindex(episode_idx)
     feat["y_max_scim"] = max_scim
     last_scim_idx = (

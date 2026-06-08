@@ -48,11 +48,11 @@ superseded, duplicated elsewhere, or has gone stale.
 * **Default-work pool: §8 backlog.**  F1–F25 + G1 (s29/s30) + G2 (s31) + G3
   observed-trajectory phenotyping (s32/s33) + G4 AIS-grade conversion (s34/s35) + G6 AIS
   multi-state recovery (s36/s37) + G7 functional-independence profile (s38/s39) + G8 recovery
-  topography map (s40 model + s41 body-map dashboard) **all fully shipped** (see §7).  **No G-series
-  item is mid-flight — pick the next from §8.**  Open: F26 test harness · F27 dep refresh · a new
-  G-series idea (data is exhausted of NEW field families — see §8; any new G must reuse the existing
-  ISNCSCI/SCIM/AIS signal — e.g. NLI/motor-level descent or ΔUEMS/ΔLEMS score-recovery as
-  conformal-PI outcomes).
+  topography map (s40 model + s41 body-map dashboard) + G9 Δ score-recovery prediction (s42)
+  **all fully shipped** (see §7).  **No G-series item is mid-flight — pick the next from §8.**
+  Open: F26 test harness · F27 dep refresh · a new G-series idea (data is exhausted of NEW field
+  families — see §8; any new G must reuse the existing ISNCSCI/SCIM/AIS signal — e.g.
+  NLI/motor-level (neurological-level) descent or calibration-drift monitoring).
   The user steers toward *insightful* (clinical/scientific) features over infra/maintenance, so
   lead with those.
 
@@ -296,10 +296,13 @@ superseded, duplicated elsewhere, or has gone stale.
 * **Group split** by `IDNumber` (patient), never by row — prevents same-patient
   leakage.
 * **Outcome registry** — `models/outcomes.py::OUTCOMES` is the ordered tuple of
-  `OutcomeSpec` records (6 outcomes).  `train.py` iterates it; the dashboard
-  imports the same list so simulator/Methods stay in lockstep.  To add an
-  outcome: extend `OUTCOMES`, ensure its target column is on the episode frame,
-  add a `ui_strings.yaml` `outcome_{key}` entry.
+  `OutcomeSpec` records — the 6 production heads (4 SCIM + AIS + LOS) plus the 5
+  G9 Δ score-recovery heads (see the G9 bullet below).  `train.py` iterates it;
+  the dashboard imports the same list so simulator/Methods stay in lockstep.  To
+  add an outcome: extend `OUTCOMES`, ensure its target column is on the episode
+  frame, add a `ui_strings.yaml` `outcome_{key}` entry — **everything else
+  (training, conformal, SHAP, the simulator/patient/insights/Methods cards)
+  extends automatically; no new code or callbacks** (G9 added zero callbacks).
 * **Per-outcome artifact layout** — `models/{spec.key}/` holds
   `lgbm_median/p10/p90.joblib` (regression) or `lgbm_multiclass.joblib` (AIS),
   plus `feature_spec.joblib` (with `conformal_q_*`, `transform`, `clip_min/max`)
@@ -732,6 +735,40 @@ superseded, duplicated elsewhere, or has gone stale.
   the personalization shows on the *patient/sim* map, where the segment's own admission grade dominates — a severe
   injury reds out the affected region (real AIS-A mean motor P≈0.25 vs AIS-D ≈0.95).**
 
+* **Δ score-recovery prediction (G9 — `outcomes.py` registry, NOT a standalone module)** —
+  predicts the admission→discharge *change* in each ISNCSCI summary score: **ΔUEMS, ΔLEMS,
+  Δtotal-motor, Δlight-touch, Δpin-prick** (keys `delta_{uems,lems,totalmotor,lighttouch,pinprick}`),
+  the canonical SCI-trial primary endpoint.  These five scores already feed the model as admission
+  *inputs* (they are in `ADMISSION_FEATURES`); G9 re-targets their *recovery*.  **Unlike G1-G8
+  (standalone diagnostic modules with their own metrics files), G9 is a pure PRODUCTION-registry
+  extension** — only two code edits: (1) five `OutcomeSpec`s appended to `OUTCOMES`; (2) five Δ
+  targets in `build_episode_frame` — `y_delta_*` = discharge-slot score − the same first-non-null
+  admission feature `feat[col]` the model already sees (NaN on either side ⇒ NaN target, dropped by
+  `train._prep`'s `dropna`).  `train.py` is **untouched** (fully generic over `OutcomeSpec`); the Δ
+  heads reuse the SCIM regression machinery verbatim — LightGBM median/p10/p90 + Mondrian
+  split-conformal 80 % PI + TreeSHAP, identity `transform=None`.  **No leakage:** only the *delta* is
+  the label, never the discharge score itself.  **Negative-range invariant:** `clip_min < 0` (±50
+  motor / ±100 total-motor / ±112 sensory) so a predicted/observed **deterioration** is representable
+  (re-assessment noise + genuine decline); `np.clip` already supports it, so the production clip path
+  needed no change.  `clip_min < 0` is also the UI's **unique flag for a Δ head** (no absolute-score
+  outcome has a negative floor): the simulator shows a **signed** point/PI (`+11`, `−3`) and **drops
+  the "/ max" suffix** (a recovery has no ceiling reading), and `layout.fig_prediction_interval`
+  draws a dotted **"no change" zero-line** with the axis spanning the full ±range so 0 is always
+  visible.  **Auto-extension:** the registry drives the simulator/patient/insights/Methods
+  outcome-selector with **zero new callbacks**.  **Scope boundary — the heavier diagnostic Methods
+  surfaces (temporal F24, landmark/VOI G1/G2) do NOT cover the Δ heads:** those modules carry
+  pre-computed bundles keyed to the original 6 outcomes and their loops **gracefully skip** an absent
+  outcome (`if not info: continue` / `SUBGROUPS.get(key, {})`), so a Δ selection simply shows no
+  temporal/landmark panel — an accepted boundary, not a bug (re-running those for Δ was out of scope).
+  **Findings (qualitative — numbers live in `training_metrics.json`): motor recovery is more
+  predictable than sensory** (ΔUEMS/ΔLEMS/Δtotal-motor R² > Δlight-touch > Δpin-prick), and the
+  dominant SHAP interaction shifts from the SCIM heads' *age × motor* to **`mFrankel_ord × <the
+  matching baseline score>`** (admission severity × the baseline of the very score whose change is
+  predicted).  **Behavioral gate (the right check, not R²):** a max-admission-motor patient (at the
+  neurological ceiling) must predict Δ≈0 and a high-headroom episode a large +Δ — verified (ΔUEMS
+  at-ceiling +1.2 vs room +29.1; Δtotal-motor +2.2 vs +56.3), confirming the model learned the
+  ceiling/room structure rather than a flat cohort mean.
+
 ## 4. Dashboard conventions
 
 * **Module layout** (`src/rehab_sci/dashboard/`) — `MAP.md` is the authoritative
@@ -865,6 +902,22 @@ bgcmd 'exit()'; rm -rf "$BGCMDDIR"               # stop + clean
 
 One line per session; full detail is in Git history (`git log`, diffs).
 
+* **s42** — G9 Δ score-recovery prediction (admission→discharge change in each ISNCSCI summary
+  score: ΔUEMS/ΔLEMS/Δtotal-motor/Δlight-touch/Δpin-prick — the canonical SCI-trial primary
+  endpoint; user chose the **production OUTCOMES-registry** integration over a standalone module).
+  Two-line code surface: 5 `OutcomeSpec`s appended to `OUTCOMES` + 5 `y_delta_*` targets in
+  `build_episode_frame` (discharge slot − the first-non-null admission feature the model already
+  sees; no leakage).  `train.py` untouched (generic over `OutcomeSpec`; the Δ heads reuse the SCIM
+  regression + Mondrian-conformal + SHAP machinery verbatim).  Δ-specific UI keyed on `clip_min<0`
+  (signed point/PI, dropped "/ max" suffix, dotted "no change" zero-line on
+  `fig_prediction_interval`).  Registry auto-extends the simulator/patient/insights/Methods selector
+  with **zero new callbacks** (boot count unchanged at 39).  Findings: motor recovery more
+  predictable than sensory; dominant SHAP interaction shifts to mFrankel × the matching baseline
+  score; behavioral ceiling/room gate passes (at-ceiling Δ≈0 vs large-headroom large +Δ).  Full
+  retrain: existing 6 outcomes byte-identical (`training_metrics.json` diff = the 5 added Δ blocks;
+  `subgroups.json` additions-only; archetypes-centroid churn reverted).  Lint + F-gate clean; MAP
+  regenerated; all 3 tabs render both langs; boots 200.  Scope boundary documented: temporal/landmark
+  Methods panels gracefully skip the Δ heads (separate diagnostic bundles).
 * **s41** — G8 recovery topography map, **Part 2** (dashboard surfaces across Methods + Patient +
   Simulator; user chose the *richest* atlas — anatomical dermatome **silhouette + motor myotome ladder** — and a
   *seeded Simulator worksheet*).  New `compute.predict_topography` (inline `_apply_platt` mirror over the 132 heads;
@@ -1148,9 +1201,9 @@ One line per session; full detail is in Git history (`git log`, diffs).
 ## 8. Feature backlog (default-work pool)
 
 Propose from here unless the user redirects.  **Items F1–F25 + G1–G4 + G6 + G7 + G8 (recovery
-topography map, s40 model + s41 body-map dashboard) are all fully shipped** — see §7 for the session
-each landed in, and Git history for implementation detail.  No item is mid-flight; the next pick is
-F26 / F27 / a new G-series idea.
+topography map) + G9 (Δ score-recovery prediction, s42) are all fully shipped** — see §7 for the
+session each landed in, and Git history for implementation detail.  No item is mid-flight; the next
+pick is F26 / F27 / a new G-series idea.
 The user steers toward *insightful* (clinical/scientific) features over
 infra/maintenance.
 Shipped ledger (terse, by feature number):
@@ -1226,6 +1279,16 @@ Shipped ledger (terse, by feature number):
   reference patient).  See §3 for the full model + dashboard contract (incl. the architecture CRUX, the
   level-not-AIS count caveat, the cohort-teal-vs-personalized CRUX) + the §0b KeyRecordNumber alignment lesson, and §7.
   Fully shipped.
+* **G9 Δ score-recovery prediction** (s42 — pure production-registry extension, no new module or
+  dashboard code): five `OutcomeSpec` regression heads predicting the admission→discharge change in
+  each ISNCSCI summary score (ΔUEMS/ΔLEMS/Δtotal-motor/Δlight-touch/Δpin-prick), the canonical
+  SCI-trial primary endpoint.  The five scores feed the model as admission inputs; G9 re-targets
+  their *recovery*.  Only edits: 5 specs in `OUTCOMES` + 5 `y_delta_*` columns in
+  `build_episode_frame`; `train.py` and every dashboard tab extend automatically via the registry
+  (identity transform, `clip_min<0` allows deterioration + drives the signed/zero-line Δ UI, zero
+  new callbacks).  See §3 for the full contract (registry-not-module, no-leakage Δ construction,
+  negative-clip invariant, the temporal/landmark scope boundary, the
+  motor-more-predictable-than-sensory + ceiling/room behavioral findings) and §7.  Fully shipped.
 
 **F23 (shipped s26): data-quality / clinical-consistency report** — see §7 and
 `data/quality.py`; durable data facts it surfaced live in §0b/§1, and the
@@ -1248,6 +1311,6 @@ regenerated `models/dataquality_summary.json` holds the per-rule scorecard.
   only `LOS_days` duration + `BusinessYear`); complications / comorbidities; treatment-lever
   counterfactuals (zero clinician-modifiable variables); pain / QoL / psychosocial.**  Any new G
   must reuse the existing ISNCSCI/SCIM/AIS signal — e.g. neurological-level / motor-level recovery
-  (NLI/ZPP descent); ΔUEMS/ΔLEMS/ΔTotalMotor/ΔLightTouch/ΔPinPrick score recovery as conformal-PI
-  outcomes (the standard SCI-trial endpoint, currently inputs not outcomes); calibration-drift
-  monitoring (infra).  Scope **what / why / effort / files / data dependency** before starting.
+  (NLI/ZPP descent — the remaining standard SCI endpoint; **Δ-score recovery already shipped as
+  G9**); calibration-drift monitoring (infra).  Scope **what / why / effort / files / data
+  dependency** before starting.
