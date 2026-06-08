@@ -3,7 +3,7 @@
 Regenerate after structural changes: `uv run python scripts/gen_map.py`.
 Line numbers are 1-indexed — slice with `Read(path, offset, limit)` instead of
 reading whole files.  Sources: src/rehab_sci, scripts.
-Index: 49 files, 16085 source lines.
+Index: 50 files, 16429 source lines.
 
 ## scripts
 
@@ -612,6 +612,22 @@ Landmark (dynamic) prediction — sharpen the discharge prognosis as early recov
 - L278 `_eval_cell(spec, X, y_t, y_raw, y_codes, groups, cat_cols, tr, cal, te)` — Eval + persist one head on matrix ``X`` for ``spec`` (dispatches by task).
 - L295 `_run_outcome(spec, af, lm_blocks, max_oi)` — Fit every landmark (paired baseline + landmark model) for one outcome.
 - L371 `main()`
+
+### level_descent.py (344 lines)
+Neurological-level descent modeling (G10) — admission->discharge change in ISNCS…
+- L114 `ROOT` (const)
+- L115 `OUT` (const)
+- L117 `INT_ORD` (const)
+- L118 `MAG_CAP` (const)
+- L119 `MIN_COHORT` (const)
+- L124 `LEVELS` (const)
+- L133 `REGIONS` (const)
+- L143 `_level_delta(level, ep, disc, idx_kr)` — Return (admission ordinal, INT-aware discharge ordinal), both aligned to ``ep`` …
+- L160 `_landscape(a, delta)` — Descriptive descent landscape for one level over its room-to-descend cohort.
+- L186 `_run_descent(X, y, groups, cat_cols)` — Calibrated binary head: P(level descends ≥1 segment).  Returns (metrics, persist…
+- L215 `_run_magnitude(X, delta, groups, cat_cols)` — Ordinal magnitude head {0,+1,≥+2} (balanced) + APS.  Returns (metrics, persisted…
+- L247 `_run_level(level, ep, af, disc, idx_kr)` — Fit + score both heads for one level on its room-to-descend cohort.  None if too…
+- L283 `main()`
 
 ### multistate.py (457 lines)
 AIS multi-state recovery modeling (G6) — neurological-grade *dynamics* over earl…

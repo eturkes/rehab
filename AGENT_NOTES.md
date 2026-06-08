@@ -49,10 +49,12 @@ superseded, duplicated elsewhere, or has gone stale.
   observed-trajectory phenotyping (s32/s33) + G4 AIS-grade conversion (s34/s35) + G6 AIS
   multi-state recovery (s36/s37) + G7 functional-independence profile (s38/s39) + G8 recovery
   topography map (s40 model + s41 body-map dashboard) + G9 Δ score-recovery prediction (s42)
-  **all fully shipped** (see §7).  **No G-series item is mid-flight — pick the next from §8.**
-  Open: F26 test harness · F27 dep refresh · a new G-series idea (data is exhausted of NEW field
-  families — see §8; any new G must reuse the existing ISNCSCI/SCIM/AIS signal — e.g.
-  NLI/motor-level (neurological-level) descent or calibration-drift monitoring).
+  **all fully shipped** (see §7); **G10 neurological-level descent — Part 1 model shipped (s43),
+  Part 2 dashboard pending a user go/no-go** (weak motor/sensory heads — see §3).  **G10 Part 2 is
+  the only mid-flight item; else pick the next from §8.**
+  Open: F26 test harness · F27 dep refresh · G10 Part 2 · a new G-series idea (data is exhausted of
+  NEW field families — see §8; any new G must reuse the existing ISNCSCI/SCIM/AIS signal — e.g.
+  ZPP descent or calibration-drift monitoring).
   The user steers toward *insightful* (clinical/scientific) features over infra/maintenance, so
   lead with those.
 
@@ -193,6 +195,17 @@ superseded, duplicated elsewhere, or has gone stale.
   single leading `/` anchors to the project root (`//` = filesystem-absolute), a
   bare name matches at any depth, and deny still leaves `python`/`jq`/`ls`/`git`
   working (so query a denied JSON with `jq`).
+* **A feature that nails a *state* need not help a *change / threshold-crossing* target — test the
+  transfer, never assume it.**  G8 added a segment's own granular admission grade and segment-*state*
+  AUC jumped 0.5→0.93 (most segments don't change between admission and discharge ⇒ high
+  autocorrelation).  Replaying that recipe for G10 neurological-*level descent* (concat the
+  modality-matched 20/112/132 per-segment admission grades onto the 30 aggregates) moved descent AUC
+  by ≤0.02 on all five heads — within OOF noise, sometimes worse — so it was reverted.  A level
+  descends only when its *most rostral impaired segment* crosses a grade threshold, a recovery-
+  dynamics event the static admission grades don't encode; the admission level ordinal already
+  locates the boundary, so the surrounding per-segment grades add only noise.  Lesson: enrichment
+  that wins on a state/autocorrelated target can be inert on a change/event target — measure it and
+  keep the simpler model when it doesn't pay.
 
 ## 1. Data invariants (do not rediscover)
 
@@ -769,6 +782,36 @@ superseded, duplicated elsewhere, or has gone stale.
   at-ceiling +1.2 vs room +29.1; Δtotal-motor +2.2 vs +56.3), confirming the model learned the
   ceiling/room structure rather than a flat cohort mean.
 
+* **Neurological-level descent (`models/level_descent.py`, G10)** — predicts the admission→discharge
+  change in the five ISNCSCI neurological *levels* (NLI + bilateral motor + bilateral sensory) — the
+  anatomical complement to G9's Δ summary *scores* (a level can descend without the score rising and
+  vice-versa, so SCI trials report level conversion and score recovery separately).  Cord-level
+  ordinal C1=0..S45=28 (smaller = more rostral = more severe); **Δ>0 = caudal descent = improvement.**
+  **INT→`INT_ORD`=29 ceiling:** full recovery (raw `INT`, which the loader's `*_ord` maps to NaN) is
+  lifted to ord 29 at discharge so a cure becomes the Δ *ceiling*, not a dropped row; the admission
+  baseline reuses the loader `*_ord` (INT/missing→NaN), so already-intact admissions (no room to
+  descend) drop from the cohort — only ord-0..28 admissions enter.  **Two heads per level (10 total):**
+  a *calibrated binary* descent head P(Δ≥1) (no `class_weight`, Platt — cohort near-balanced ~57–61 %)
+  + an *ordinal magnitude* head {0,+1,≥+2} (`MAG_CAP`=2, `class_weight="balanced"`, APS) — the same
+  calibrated-binary-vs-balanced-magnitude non-comparability CRUX as G4 (surface the binary as the
+  probability, the magnitude as APS set / argmax, never a competing probability).  Methodology + all
+  binary plumbing reused **verbatim from `conversion.py`** (grouped-5fold-CV by IDNumber → OOF metrics
+  + Platt + cross-conformal APS q; refit full cohort; descriptive in-sample SHAP); `MIN_COHORT`=120.
+  Diagnostic + inference layer like conversion/topography: tracked identifier-free
+  `models/level_descent_metrics.json` + git-ignored `models/level_descent/bundle.joblib`; **production
+  `train.py` artifacts untouched (byte-repro verified)**.  Bundle shape documented inline at the top of
+  `level_descent.py`.  **Findings — only the NLI is well-predicted from admission (AUC ≈0.73,
+  calibration well below base Brier); bilateral motor & sensory levels sit at AUC ≈0.62–0.63, a
+  genuine admission-signal ceiling** (a single level boundary's threshold crossing is intrinsically
+  noisy, and sensory levels carry re-assessment noise), parallel to G8's "the aggregates forecast a
+  *specific* target near-chance" finding; the magnitude heads are near-degenerate (APS set ≈3.0 — the
+  conservative-discrete-K behaviour).  **INT→29 inflates the mean Δ (NLI mean +3.1 vs median +1) —
+  report the median.**  **Enrichment rejected:** a G8-style concat of the modality-matched per-segment
+  admission grades (20 motor / 112 sensory / 132 for NLI) left descent AUC flat-to-worse on every head
+  (within OOF noise), so the clean 30-feature module ships (see §0b for the state-vs-threshold-crossing
+  lesson).  **Part 1 shipped (s43): model + tracked metrics.  Part 2 (dashboard surfaces) pending a
+  go/no-go given the weak motor/sensory heads.**
+
 ## 4. Dashboard conventions
 
 * **Module layout** (`src/rehab_sci/dashboard/`) — `MAP.md` is the authoritative
@@ -879,6 +922,7 @@ uv run python -m rehab_sci.models.conversion     # AIS-grade conversion modeling
 uv run python -m rehab_sci.models.multistate     # AIS multi-state recovery — transition Markov + improve head (G6); ~5 s
 uv run python -m rehab_sci.models.independence   # functional-independence profile — 18 per-SCIM-item calibrated heads (G7); ~50 s
 uv run python -m rehab_sci.models.topography      # recovery topography — 132 per-ISNCSCI-segment calibrated heads (G8); ~4 min
+uv run python -m rehab_sci.models.level_descent   # neurological-level descent — 5 levels × (descent + magnitude) heads (G10); ~1 min
 uv run python -m rehab_sci.dashboard.app         # serve at :8050
 pkill -f 'rehab_sci.dashboard.app'               # stop stale dashboard
 uv cache prune                                   # reclaim uv cache space
@@ -902,6 +946,19 @@ bgcmd 'exit()'; rm -rf "$BGCMDDIR"               # stop + clean
 
 One line per session; full detail is in Git history (`git log`, diffs).
 
+* **s43** — G10 neurological-level descent, **Part 1** (model + tracked metrics; user chose a
+  standalone diagnostic module + the full 5-level profile + the INT→29 ceiling).  New
+  `models/level_descent.py`: per ISNCSCI level (NLI + bilateral motor/sensory) a calibrated binary
+  descent head P(Δ≥1) + a balanced ordinal magnitude head {0,+1,≥+2} + APS, all reusing
+  `conversion.py`'s binary plumbing; INT→29 so full recoveries become the Δ ceiling not dropped
+  rows; admission-INT (no room) excluded from each cohort.  Tracked `level_descent_metrics.json` +
+  git-ignored bundle; production byte-repro verified (empty `training_metrics.json` diff).
+  Findings: only NLI is well-predicted from admission (AUC ≈0.73); bilateral motor/sensory hit a
+  genuine admission-signal ceiling (≈0.62–0.63); magnitude near-degenerate (APS≈3.0).  **Enrichment
+  experiment (user: "enrich, then Part 2") — a G8-style per-segment admission-grade concat did NOT
+  lift descent AUC (flat-to-worse, within noise) and was reverted** (the §0b state-vs-threshold-
+  crossing lesson).  Lint + F-gate clean; MAP regenerated.  Part 2 (dashboard surfaces) pending a
+  user go/no-go given the weak motor/sensory heads.
 * **s42** — G9 Δ score-recovery prediction (admission→discharge change in each ISNCSCI summary
   score: ΔUEMS/ΔLEMS/Δtotal-motor/Δlight-touch/Δpin-prick — the canonical SCI-trial primary
   endpoint; user chose the **production OUTCOMES-registry** integration over a standalone module).
@@ -1202,8 +1259,9 @@ One line per session; full detail is in Git history (`git log`, diffs).
 
 Propose from here unless the user redirects.  **Items F1–F25 + G1–G4 + G6 + G7 + G8 (recovery
 topography map) + G9 (Δ score-recovery prediction, s42) are all fully shipped** — see §7 for the
-session each landed in, and Git history for implementation detail.  No item is mid-flight; the next
-pick is F26 / F27 / a new G-series idea.
+session each landed in, and Git history for implementation detail.  **G10 neurological-level descent
+Part 1 (model + metrics) shipped s43; its Part 2 (dashboard) is the lone mid-flight item, pending a
+user go/no-go** (weak motor/sensory heads).  Next pick is G10 Part 2 / F26 / F27 / a new G idea.
 The user steers toward *insightful* (clinical/scientific) features over
 infra/maintenance.
 Shipped ledger (terse, by feature number):
@@ -1289,6 +1347,13 @@ Shipped ledger (terse, by feature number):
   new callbacks).  See §3 for the full contract (registry-not-module, no-leakage Δ construction,
   negative-clip invariant, the temporal/landmark scope boundary, the
   motor-more-predictable-than-sensory + ceiling/room behavioral findings) and §7.  Fully shipped.
+* **G10 neurological-level descent** (s43 Part 1: model + tracked metrics): `models/level_descent.py`
+  — per ISNCSCI level (NLI + bilateral motor/sensory) a calibrated binary descent head P(Δ≥1) + a
+  balanced ordinal magnitude head {0,+1,≥+2}+APS, reusing conversion.py's binary plumbing; INT→29
+  ceiling; the anatomical complement to G9's Δ-scores.  Only NLI predicts well from admission (AUC
+  ≈0.73); motor/sensory hit a genuine ≈0.63 ceiling.  A G8-style per-segment-grade enrichment was
+  tried and **rejected** (no AUC lift — §0b).  See §3 for the contract.  **Part 2 (dashboard
+  surfaces) pending a user go/no-go** given the weak motor/sensory heads — the lone mid-flight item.
 
 **F23 (shipped s26): data-quality / clinical-consistency report** — see §7 and
 `data/quality.py`; durable data facts it surfaced live in §0b/§1, and the
@@ -1310,7 +1375,8 @@ regenerated `models/dataquality_summary.json` holds the per-rule scorecard.
   / competing-risks; calendar time-to-event / survival (no admission/discharge/injury/birth dates —
   only `LOS_days` duration + `BusinessYear`); complications / comorbidities; treatment-lever
   counterfactuals (zero clinician-modifiable variables); pain / QoL / psychosocial.**  Any new G
-  must reuse the existing ISNCSCI/SCIM/AIS signal — e.g. neurological-level / motor-level recovery
-  (NLI/ZPP descent — the remaining standard SCI endpoint; **Δ-score recovery already shipped as
-  G9**); calibration-drift monitoring (infra).  Scope **what / why / effort / files / data
-  dependency** before starting.
+  must reuse the existing ISNCSCI/SCIM/AIS signal.  **The standard neurological-level endpoints are
+  now covered: Δ-score recovery = G9, NLI/motor/sensory-level descent = G10** (admission predicts
+  only the NLI level well — motor/sensory-level descent sits at a ≈0.63 ceiling).  Remaining untried
+  reuse-ideas: ZPP (zone-of-partial-preservation) descent; calibration-drift monitoring (infra).
+  Scope **what / why / effort / files / data dependency** before starting.
