@@ -221,6 +221,20 @@ superseded, duplicated elsewhere, or has gone stale.
   locates the boundary, so the surrounding per-segment grades add only noise.  Lesson: enrichment
   that wins on a state/autocorrelated target can be inert on a change/event target — measure it and
   keep the simpler model when it doesn't pay.
+* **To score the *dissociation / mismatch* between two recovery axes, use the standardized contrast
+  z(A)−z(B), NOT a regression residual.**  When the axes are weakly coupled (G11: Pearson r≈0.12–0.27
+  for Δneuro↔Δfunction), the residual of one regressed on the other is ≈the target axis itself (the
+  coupling explains almost none of its variance) — so it measures that axis's *recovery*, not the
+  *mismatch*.  The symmetric z-contrast weights both axes equally (corr ≈±0.6 with each), is mean-0,
+  and its sign is the interpretable direction (G11 D>0 = functional over-achiever).  Confirm the
+  intended symmetry by checking the score's correlation with each input axis before trusting it.
+* **Before claiming a derived-target head is genuinely novel, correlate it against the naive
+  composition of existing heads.**  G11's predicted dissociation D correlates ≈0.97 with simply
+  differencing two separately-modeled axes (predict Δfunction and Δneuro, take z-difference) — so the
+  modeling novelty is modest and the real value is the *framing/surface* (one calibrated, signed
+  dissociation signal + PI instead of two raw Δ predictions the clinician must mentally subtract).
+  State that honestly rather than overselling a new mechanism; the contribution can be legitimate and
+  UI-side without being a new predictive signal.
 
 ## 1. Data invariants (do not rediscover)
 
@@ -824,8 +838,54 @@ superseded, duplicated elsewhere, or has gone stale.
   report the median.**  **Enrichment rejected:** a G8-style concat of the modality-matched per-segment
   admission grades (20 motor / 112 sensory / 132 for NLI) left descent AUC flat-to-worse on every head
   (within OOF noise), so the clean 30-feature module ships (see §0b for the state-vs-threshold-crossing
-  lesson).  **Part 1 shipped (s43): model + tracked metrics.  Part 2 (dashboard surfaces, all 5
-  levels) USER-APPROVED, not yet built — see the §8 build spec.**
+  lesson).  **Part 1 shipped (s43): model + tracked metrics; Part 2 (dashboard surfaces, all 5
+  levels) shipped s44 — Methods/Patient/Simulator, no retrain (see §7/§8).**
+
+* **Neuro-functional dissociation (`models/dissociation.py`, G11)** — predicts the *mismatch* between
+  a patient's **neurological** recovery (Δ ISNCSCI summary score) and **functional** recovery (Δ SCIM
+  subscale) from admission features.  SCI trials report the two axes separately because they
+  dissociate — function is often regained by **compensation/adaptation** (wheelchair skills, devices),
+  not by neurological gain — and on this cohort they are only weakly coupled (Pearson r≈0.21/0.12/0.27
+  for the three axes), so ~41–45 % of episodes are off-diagonal.  **Score = the standardized contrast
+  `D = z(Δfunction) − z(Δneuro)`** (z = cohort standardization of each Δ); **D>0 = functional
+  over-achiever** (compensation), **D<0 = under-achiever** (neurology outpaces function — a
+  functional-translation flag).  The contrast (not a regression residual) is used *because* the
+  coupling is low — a residual would collapse to the functional axis and measure recovery, not
+  dissociation (§0b lesson).  **No leakage:** the target uses discharge values, the features are
+  admission-only (the admission baselines legitimately enter both Δ's, exactly as in G9's Δ heads).
+  **Three domain-paired axes** (user choice): `uems_selfcare` (UEMS↔SCIM self-care), `lems_mobility`
+  (LEMS↔SCIM mobility — the striking r≈0.12 decoupling: lower-limb strength barely predicts mobility
+  independence, which comes via wheelchair skills), `totalmotor_total` (total-motor↔SCIM-total, the
+  global headline).  Δneuro = the G9 `y_delta_*`; Δfunction = discharge-slot SCIM subscale − its
+  admission baseline feature.  **Two heads per axis** (user choice): **over_achiever** = calibrated
+  binary P(D>0) (no `class_weight` — cohort near-balanced ⇒ Platt-calibratable); **magnitude** =
+  continuous regression on D + a marginal cross-conformal 80 % PI.  **Inverse of the G4/G10 CRUX:**
+  here the magnitude is a *regression* (no class weighting), so the two heads are honestly comparable
+  — sign(magnitude) ≈ the binary direction by construction; surface the binary as the calibrated
+  probability and the magnitude as the signed point estimate + PI.  **Methodology** identical to
+  conversion/level_descent — grouped-5fold-CV by IDNumber → OOF metrics + Platt + the conformal q
+  (the (1−α)-quantile of the OOF |residual| pool); refit on the full cohort reusing the OOF
+  calibrator/q; descriptive in-sample SHAP.  Binary plumbing imported verbatim from `conversion.py`,
+  regression helpers from `train.py` (`_fit_reg`/`_params_lgbm_reg`), `_conformal_q` from
+  `conformal.py`; `MIN_COHORT`=120; all three axes land at **n=438** (the paired-ISNCSCI+SCIM-Δ ∩
+  IDNumber cohort — the gating scores are co-recorded).  Diagnostic + inference layer like
+  conversion/topography: tracked identifier-free `models/dissociation_metrics.json` + git-ignored
+  `models/dissociation/bundle.joblib`; **production `train.py` artifacts untouched (byte-repro
+  verified)**.  Bundle shape documented inline at the top of `dissociation.py`; mirror `_apply_platt`
+  inline in compute.py for Part 2 (never import this module — it pulls shap via conversion→train).
+  Back-translate a magnitude D to functional points in the UI via `axis_meta[key].zparams`
+  (D ≈ Δfunction-equivalent × `sd_f`).  **Findings — all three axes are well-predicted from admission**
+  (binary AUC 0.93–0.95, Brier well below base; magnitude R² 0.69–0.76, RMSE 0.62–0.74, PI half-width
+  ±0.70–0.91 z, 80 % coverage).  **The dominant SHAP driver in every axis is the NEURO-axis baseline
+  score** (UEMS/LEMS/TotalMotor — the same ceiling/room structure as G9's Δ heads: the baseline fixes
+  how much room there is on the neuro side, hence the contrast), with **age consistently #2**
+  (compensation capacity differs by age).  **Honest-novelty caveat (§0b):** predicted-D correlates
+  ≈0.97 with naively differencing two separately-modeled axes — the value is the *framing/surface*
+  (one calibrated signed dissociation signal + PI), not a fundamentally new predictive mechanism.
+  **Behavioral validation:** the two heads agree in direction 93–96 %, predicted-D tracks observed-D
+  in-sample r 0.96–0.97, the z-contrast label reproduces exactly (100 %), conformal coverage holds.
+  **Part 1 shipped (s45): model + tracked metrics.  Part 2 (dashboard surfaces) PENDING** — user
+  pre-chose both heads + the 3 domain-paired axes; no build spec locked yet (§8).
 
 ## 4. Dashboard conventions
 
@@ -938,6 +998,7 @@ uv run python -m rehab_sci.models.multistate     # AIS multi-state recovery — 
 uv run python -m rehab_sci.models.independence   # functional-independence profile — 18 per-SCIM-item calibrated heads (G7); ~50 s
 uv run python -m rehab_sci.models.topography      # recovery topography — 132 per-ISNCSCI-segment calibrated heads (G8); ~4 min
 uv run python -m rehab_sci.models.level_descent   # neurological-level descent — 5 levels × (descent + magnitude) heads (G10); ~1 min
+uv run python -m rehab_sci.models.dissociation    # neuro-functional dissociation — 3 axes × (over-achiever binary + magnitude) heads (G11); ~30 s
 uv run python -m rehab_sci.dashboard.app         # serve at :8050
 pkill -f 'rehab_sci.dashboard.app'               # stop stale dashboard
 uv cache prune                                   # reclaim uv cache space
@@ -961,6 +1022,26 @@ bgcmd 'exit()'; rm -rf "$BGCMDDIR"               # stop + clean
 
 One line per session; full detail is in Git history (`git log`, diffs).
 
+* **s45** — G11 neuro-functional dissociation, **Part 1** (model + tracked metrics; user pre-chose
+  *both* heads + the *3 domain-paired* axes).  New `models/dissociation.py`: per axis (UEMS↔self-care,
+  LEMS↔mobility, total-motor↔SCIM-total) the standardized contrast `D = z(Δfunction) − z(Δneuro)`
+  (D>0 = functional over-achiever / compensation), with a **calibrated binary** P(D>0) head + a
+  **continuous magnitude** regression on D + marginal cross-conformal 80 % PI.  Contrast (not
+  residual) because the axes are weakly coupled (r≈0.12–0.27 ⇒ a residual would just measure the
+  functional axis — new §0b lesson).  Reuses `conversion.py` binary plumbing + `train.py` regression
+  helpers (`_fit_reg`/`_params_lgbm_reg`, new local `_oof_reg`/`_refit_reg`) + `conformal.py`'s
+  `_conformal_q`; grouped-5fold OOF → metrics + Platt + conformal q, refit full cohort, in-sample
+  SHAP; n=438/axis.  **Inverse of the G4/G10 CRUX** — magnitude is a regression (unweighted), so the
+  two heads are honestly comparable (sign(magnitude) ≈ binary).  Tracked identifier-free
+  `dissociation_metrics.json` + git-ignored bundle; production byte-repro verified (empty
+  `training_metrics.json` diff).  Findings: all three axes well-predicted (binary AUC 0.93–0.95;
+  magnitude R² 0.69–0.76); the dominant SHAP driver is always the neuro-axis baseline score
+  (ceiling/room, as in G9), age #2.  **Honest-novelty caveat:** predicted-D ≈0.97-correlates with
+  naively differencing two separately-modeled axes — value is the framing/surface, not a new
+  mechanism (new §0b lesson).  Behavioral validation: heads agree 93–96 %, predicted-D tracks
+  observed in-sample r 0.96–0.97, z-contrast label reproduces 100 %, conformal coverage holds.  Lint +
+  F-gate clean; MAP regenerated.  Part 2 (dashboard surfaces) deferred to the backlog per the
+  G-series rhythm.
 * **s44** — G10 neurological-level descent, **Part 2** (dashboard surfaces, all 5 levels; **no
   model retrain** — production artifacts byte-identical).  4 shared `layout.py` figs
   (`fig_level_descent_bar` P(descent) vs base-rate diamonds · `fig_level_descent_magnitude`
@@ -1285,11 +1366,12 @@ One line per session; full detail is in Git history (`git log`, diffs).
 
 ## 8. Feature backlog (default-work pool)
 
-Propose from here unless the user redirects.  **Items F1–F25 + G1–G4 + G6 + G7 + G8 (recovery
-topography map) + G9 (Δ score-recovery prediction, s42) are all fully shipped** — see §7 for the
-session each landed in, and Git history for implementation detail.  **G10 neurological-level descent
-Part 1 (model + metrics) shipped s43; its Part 2 (dashboard) is USER-APPROVED for all 5 levels (build
-spec below) and is the next pick** (deferred from s43 to a fresh session).  Then F26 / F27 / a new G.
+Propose from here unless the user redirects.  **Items F1–F25 + G1–G4 + G6–G10 are all fully shipped**
+(G8 topography s40/s41, G9 Δ score-recovery s42, G10 neurological-level descent s43/s44) — see §7 for
+the session each landed in, and Git history for implementation detail.  **G11 neuro-functional
+dissociation Part 1 (model + metrics) shipped s45; its Part 2 (dashboard surfaces) is the next pick**
+(user pre-chose both heads + the 3 domain-paired axes — no detailed build spec locked yet; deferred to
+a fresh session per the G-series rhythm).  Then F26 / F27 / a new G.
 The user steers toward *insightful* (clinical/scientific) features over
 infra/maintenance.
 Shipped ledger (terse, by feature number):
@@ -1400,6 +1482,21 @@ Shipped ledger (terse, by feature number):
   levels/level_meta/heads.  Frame motor/sensory honestly (calibrated but low-discrimination, like
   G4's 0.62 `motor_incomplete`): surface the binary as the probability, the magnitude as the APS
   set, never as competing probabilities (the G4 CRUX).
+* **G11 neuro-functional dissociation** (s45 Part 1: model + tracked metrics; Part 2 dashboard
+  pending): `models/dissociation.py` — per domain-paired axis (UEMS↔SCIM self-care · LEMS↔SCIM
+  mobility · total-motor↔SCIM-total) predicts the standardized contrast `D = z(Δfunction) − z(Δneuro)`
+  (D>0 = functional over-achiever / compensation) with a calibrated binary P(D>0) head + a continuous
+  magnitude regression on D + marginal cross-conformal 80 % PI.  Quantifies how much functional
+  recovery dissociates from neurological recovery (weak coupling r≈0.12–0.27 ⇒ contrast not residual,
+  §0b).  Reuses conversion.py binary plumbing + train.py regression helpers + conformal.py; n=438/axis;
+  inverse of the G4/G10 CRUX (magnitude is unweighted regression ⇒ heads honestly comparable).
+  Findings: all three axes well-predicted (binary AUC 0.93–0.95, magnitude R² 0.69–0.76); dominant
+  driver = the neuro-axis baseline (ceiling/room, as in G9), age #2; honest-novelty caveat
+  (predicted-D ≈0.97-correlates with naive axis-differencing — value is the framing/surface).  See §3
+  for the model contract and §7 for the session.  **Part 2 (dashboard) is the next pick** — user
+  pre-chose both heads + 3 domain-paired axes; mirror `_apply_platt` inline in compute.py, surface the
+  binary as the calibrated probability and the magnitude as the signed point + PI, back-translate D to
+  functional points via `axis_meta.zparams.sd_f`.
 
 **F23 (shipped s26): data-quality / clinical-consistency report** — see §7 and
 `data/quality.py`; durable data facts it surfaced live in §0b/§1, and the
@@ -1422,7 +1519,9 @@ regenerated `models/dataquality_summary.json` holds the per-rule scorecard.
   only `LOS_days` duration + `BusinessYear`); complications / comorbidities; treatment-lever
   counterfactuals (zero clinician-modifiable variables); pain / QoL / psychosocial.**  Any new G
   must reuse the existing ISNCSCI/SCIM/AIS signal.  **The standard neurological-level endpoints are
-  now covered: Δ-score recovery = G9, NLI/motor/sensory-level descent = G10** (admission predicts
-  only the NLI level well — motor/sensory-level descent sits at a ≈0.63 ceiling).  Remaining untried
-  reuse-ideas: ZPP (zone-of-partial-preservation) descent; calibration-drift monitoring (infra).
-  Scope **what / why / effort / files / data dependency** before starting.
+  now covered: Δ-score recovery = G9, NLI/motor/sensory-level descent = G10, neuro↔functional
+  dissociation = G11** (admission predicts only the NLI level well — motor/sensory-level descent sits
+  at a ≈0.63 ceiling).  **ZPP (zone-of-partial-preservation) descent is INFEASIBLE — confirmed s45:
+  the paired admission+discharge ZPP cohort is only ~20 (sensory) / ~39 (motor) episodes, far below
+  `MIN_COHORT`=120** (ZPP is recorded sparsely).  Remaining untried reuse-idea: calibration-drift
+  monitoring (infra).  Scope **what / why / effort / files / data dependency** before starting.

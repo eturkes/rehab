@@ -1,0 +1,601 @@
+{
+  "random_state": 20260518,
+  "alpha": 0.2,
+  "n_splits": 5,
+  "axes": {
+    "uems_selfcare": {
+      "neuro_en": "UEMS (upper-limb motor)",
+      "func_en": "SCIM self-care",
+      "neuro_ja": "UEMS（上肢運動スコア）",
+      "func_ja": "SCIM セルフケア",
+      "zparams": {
+        "mu_n": 12.011415525114156,
+        "sd_n": 12.011689789683821,
+        "mu_f": 10.735159817351597,
+        "sd_f": 7.570261231387244
+      },
+      "landscape": {
+        "n": 438,
+        "pearson_r": 0.21131648200352013,
+        "spearman_r": 0.16849704089730344,
+        "slope": 0.13318034342164758,
+        "intercept": 9.135475372736787,
+        "neuro_mean": 12.011415525114156,
+        "neuro_sd": 12.011689789683821,
+        "func_mean": 10.735159817351597,
+        "func_sd": 7.570261231387244,
+        "over_achiever_rate": 0.4429223744292237,
+        "quadrants": {
+          "concordant_high": 116,
+          "concordant_low": 125,
+          "neuro_over": 100,
+          "func_over": 97
+        },
+        "dissociated_share": 0.4497716894977169
+      },
+      "over_achiever": {
+        "n": 438,
+        "n_pos": 194,
+        "base_rate": 0.4429223744292237,
+        "auc": 0.9515379415244212,
+        "brier": 0.07736802060845474,
+        "brier_raw": 0.07754353550468025,
+        "brier_baseline": 0.2467421446592023,
+        "logloss": 0.26654754136360614,
+        "calibration_raw": {
+          "pred_mean": [
+            0.013550750293959938,
+            0.0442939566412291,
+            0.3053186930790797,
+            0.8551004653546386,
+            0.9669401345038225
+          ],
+          "obs_freq": [
+            0.022727272727272728,
+            0.034482758620689655,
+            0.32954545454545453,
+            0.8735632183908046,
+            0.9545454545454546
+          ],
+          "count": [
+            88,
+            87,
+            88,
+            87,
+            88
+          ]
+        },
+        "calibration": {
+          "pred_mean": [
+            0.014808732763005343,
+            0.04806236012145614,
+            0.3201342133153703,
+            0.8629586614567762,
+            0.9689179544033806
+          ],
+          "obs_freq": [
+            0.022727272727272728,
+            0.034482758620689655,
+            0.32954545454545453,
+            0.8735632183908046,
+            0.9545454545454546
+          ],
+          "count": [
+            88,
+            87,
+            88,
+            87,
+            88
+          ]
+        },
+        "shap_top": [
+          {
+            "feature": "UEMS",
+            "mean_abs": 2.039097267182409
+          },
+          {
+            "feature": "年齢",
+            "mean_abs": 0.39170014879171644
+          },
+          {
+            "feature": "PinPrickTotal",
+            "mean_abs": 0.3026343621596237
+          },
+          {
+            "feature": "LightTouchTotal",
+            "mean_abs": 0.29105203342986574
+          },
+          {
+            "feature": "TotalMotor",
+            "mean_abs": 0.23979341232268983
+          },
+          {
+            "feature": "SCIM_self_care",
+            "mean_abs": 0.18492449329589594
+          },
+          {
+            "feature": "RightMotorLevel_ord",
+            "mean_abs": 0.1536208129118945
+          },
+          {
+            "feature": "RightSensoryLevel_ord",
+            "mean_abs": 0.08659642702739419
+          },
+          {
+            "feature": "LeftMotorLevel_ord",
+            "mean_abs": 0.05204674524709193
+          },
+          {
+            "feature": "AIS_ord",
+            "mean_abs": 0.050993921039678466
+          },
+          {
+            "feature": "SCIM_total",
+            "mean_abs": 0.04813526635677795
+          },
+          {
+            "feature": "LEMS",
+            "mean_abs": 0.04090344658939489
+          }
+        ]
+      },
+      "magnitude": {
+        "n": 438,
+        "d_mean": 1.6222436889500003e-16,
+        "d_sd": 1.255932735457182,
+        "r2": 0.7579022962083248,
+        "rmse": 0.6179619223306368,
+        "mae": 0.48040909304742585,
+        "conformal_q": 0.7726544078527101,
+        "conformal_coverage_80": 0.8036529680365296,
+        "pi_halfwidth": 0.7726544078527101,
+        "shap_top": [
+          {
+            "feature": "UEMS",
+            "mean_abs": 0.7915023341217012
+          },
+          {
+            "feature": "年齢",
+            "mean_abs": 0.1555981244410025
+          },
+          {
+            "feature": "SCIM_self_care",
+            "mean_abs": 0.09584685259189223
+          },
+          {
+            "feature": "TotalMotor",
+            "mean_abs": 0.0812761925384823
+          },
+          {
+            "feature": "PinPrickTotal",
+            "mean_abs": 0.06404424688873714
+          },
+          {
+            "feature": "RightMotorLevel_ord",
+            "mean_abs": 0.045171675884049606
+          },
+          {
+            "feature": "LightTouchTotal",
+            "mean_abs": 0.04123631872095997
+          },
+          {
+            "feature": "Frankel_ord",
+            "mean_abs": 0.032999481192156684
+          },
+          {
+            "feature": "LEMS",
+            "mean_abs": 0.0255835492642792
+          },
+          {
+            "feature": "OPLL",
+            "mean_abs": 0.02550943656257169
+          },
+          {
+            "feature": "AIS_ord",
+            "mean_abs": 0.02017649859990733
+          },
+          {
+            "feature": "SCIM_total",
+            "mean_abs": 0.019268467354493567
+          }
+        ]
+      }
+    },
+    "lems_mobility": {
+      "neuro_en": "LEMS (lower-limb motor)",
+      "func_en": "SCIM mobility",
+      "neuro_ja": "LEMS（下肢運動スコア）",
+      "func_ja": "SCIM 移動",
+      "zparams": {
+        "mu_n": 11.105022831050228,
+        "sd_n": 13.131158607272313,
+        "mu_f": 20.059360730593607,
+        "sd_f": 15.367229009981465
+      },
+      "landscape": {
+        "n": 438,
+        "pearson_r": 0.11962902886091678,
+        "spearman_r": 0.1395332389331961,
+        "slope": 0.14000034100031838,
+        "intercept": 18.504653747430257,
+        "neuro_mean": 11.105022831050228,
+        "neuro_sd": 13.131158607272313,
+        "func_mean": 20.059360730593607,
+        "func_sd": 15.367229009981465,
+        "over_achiever_rate": 0.4771689497716895,
+        "quadrants": {
+          "concordant_high": 120,
+          "concordant_low": 125,
+          "neuro_over": 97,
+          "func_over": 96
+        },
+        "dissociated_share": 0.4406392694063927
+      },
+      "over_achiever": {
+        "n": 438,
+        "n_pos": 209,
+        "base_rate": 0.4771689497716895,
+        "auc": 0.928104302041328,
+        "brier": 0.10736927582648678,
+        "brier_raw": 0.11181870775697632,
+        "brier_baseline": 0.24947874314547233,
+        "logloss": 0.34131174673484205,
+        "calibration_raw": {
+          "pred_mean": [
+            0.006813332547867393,
+            0.05914713446126627,
+            0.43417608665498864,
+            0.9055309554751285,
+            0.9893991607644061
+          ],
+          "obs_freq": [
+            0.03409090909090909,
+            0.09195402298850575,
+            0.48863636363636365,
+            0.7931034482758621,
+            0.9772727272727273
+          ],
+          "count": [
+            88,
+            87,
+            88,
+            87,
+            88
+          ]
+        },
+        "calibration": {
+          "pred_mean": [
+            0.027332056627367173,
+            0.11642241168572394,
+            0.4461760068483448,
+            0.8340797229997228,
+            0.9618623801954187
+          ],
+          "obs_freq": [
+            0.03409090909090909,
+            0.09195402298850575,
+            0.48863636363636365,
+            0.7931034482758621,
+            0.9772727272727273
+          ],
+          "count": [
+            88,
+            87,
+            88,
+            87,
+            88
+          ]
+        },
+        "shap_top": [
+          {
+            "feature": "LEMS",
+            "mean_abs": 1.8528752427450488
+          },
+          {
+            "feature": "TotalMotor",
+            "mean_abs": 1.014170584261647
+          },
+          {
+            "feature": "年齢",
+            "mean_abs": 0.7465428920701513
+          },
+          {
+            "feature": "PinPrickTotal",
+            "mean_abs": 0.5126859773585052
+          },
+          {
+            "feature": "mFrankel_ord",
+            "mean_abs": 0.259279293421362
+          },
+          {
+            "feature": "NLI_ord",
+            "mean_abs": 0.24402687537665874
+          },
+          {
+            "feature": "UEMS",
+            "mean_abs": 0.23980371172762371
+          },
+          {
+            "feature": "RightSensoryLevel_ord",
+            "mean_abs": 0.22031607459737412
+          },
+          {
+            "feature": "SCIM_mobility",
+            "mean_abs": 0.21969910488941347
+          },
+          {
+            "feature": "OPLL",
+            "mean_abs": 0.21749400134819644
+          },
+          {
+            "feature": "LeftMotorLevel_ord",
+            "mean_abs": 0.18623170381335932
+          },
+          {
+            "feature": "LightTouchTotal",
+            "mean_abs": 0.17477478157644646
+          }
+        ]
+      },
+      "magnitude": {
+        "n": 438,
+        "d_mean": -4.055609222375001e-17,
+        "d_sd": 1.3269295166956556,
+        "r2": 0.6865246836391407,
+        "rmse": 0.7429327946628027,
+        "mae": 0.5673167060229248,
+        "conformal_q": 0.9142414333008071,
+        "conformal_coverage_80": 0.8036529680365296,
+        "pi_halfwidth": 0.9142414333008071,
+        "shap_top": [
+          {
+            "feature": "LEMS",
+            "mean_abs": 0.7785241659651364
+          },
+          {
+            "feature": "TotalMotor",
+            "mean_abs": 0.2362914440486192
+          },
+          {
+            "feature": "mFrankel_ord",
+            "mean_abs": 0.13392244320974275
+          },
+          {
+            "feature": "年齢",
+            "mean_abs": 0.12045907119357185
+          },
+          {
+            "feature": "PinPrickTotal",
+            "mean_abs": 0.07673606269102072
+          },
+          {
+            "feature": "SCIM_mobility",
+            "mean_abs": 0.06663970251679029
+          },
+          {
+            "feature": "AIS_ord",
+            "mean_abs": 0.06537884676591646
+          },
+          {
+            "feature": "OPLL",
+            "mean_abs": 0.053317343345059665
+          },
+          {
+            "feature": "Frankel_ord",
+            "mean_abs": 0.04150499020849361
+          },
+          {
+            "feature": "UEMS",
+            "mean_abs": 0.040710772637087736
+          },
+          {
+            "feature": "性別",
+            "mean_abs": 0.03679920593530975
+          },
+          {
+            "feature": "RightSensoryLevel_ord",
+            "mean_abs": 0.036548022401621486
+          }
+        ]
+      }
+    },
+    "totalmotor_total": {
+      "neuro_en": "Total motor",
+      "func_en": "SCIM total",
+      "neuro_ja": "運動スコア合計",
+      "func_ja": "SCIM 合計",
+      "zparams": {
+        "mu_n": 24.255707762557076,
+        "sd_n": 22.311685858960438,
+        "mu_f": 48.87214611872146,
+        "sd_f": 34.677998241836875
+      },
+      "landscape": {
+        "n": 438,
+        "pearson_r": 0.27215599491955034,
+        "spearman_r": 0.25993578014944035,
+        "slope": 0.4229991930231162,
+        "intercept": 38.61200130895528,
+        "neuro_mean": 24.255707762557076,
+        "neuro_sd": 22.311685858960438,
+        "func_mean": 48.87214611872146,
+        "func_sd": 34.677998241836875,
+        "over_achiever_rate": 0.4703196347031963,
+        "quadrants": {
+          "concordant_high": 127,
+          "concordant_low": 132,
+          "neuro_over": 92,
+          "func_over": 87
+        },
+        "dissociated_share": 0.408675799086758
+      },
+      "over_achiever": {
+        "n": 438,
+        "n_pos": 206,
+        "base_rate": 0.4703196347031963,
+        "auc": 0.9333570472045531,
+        "brier": 0.09560227692313693,
+        "brier_raw": 0.09608532561435566,
+        "brier_baseline": 0.24911907591584825,
+        "logloss": 0.3222352031032739,
+        "calibration_raw": {
+          "pred_mean": [
+            0.04491597613778775,
+            0.11479857663900093,
+            0.38756932238201586,
+            0.8238387224101001,
+            0.944142445393521
+          ],
+          "obs_freq": [
+            0.03409090909090909,
+            0.11494252873563218,
+            0.3409090909090909,
+            0.9080459770114943,
+            0.9545454545454546
+          ],
+          "count": [
+            88,
+            87,
+            88,
+            87,
+            88
+          ]
+        },
+        "calibration": {
+          "pred_mean": [
+            0.033400660389509,
+            0.09772990377873521,
+            0.3950882327793124,
+            0.8616973703935731,
+            0.9639184899954588
+          ],
+          "obs_freq": [
+            0.03409090909090909,
+            0.11494252873563218,
+            0.3409090909090909,
+            0.9080459770114943,
+            0.9545454545454546
+          ],
+          "count": [
+            88,
+            87,
+            88,
+            87,
+            88
+          ]
+        },
+        "shap_top": [
+          {
+            "feature": "TotalMotor",
+            "mean_abs": 1.6455023850210242
+          },
+          {
+            "feature": "年齢",
+            "mean_abs": 0.4802556569482594
+          },
+          {
+            "feature": "LEMS",
+            "mean_abs": 0.2677707710090244
+          },
+          {
+            "feature": "UEMS",
+            "mean_abs": 0.22346385544043884
+          },
+          {
+            "feature": "mFrankel_ord",
+            "mean_abs": 0.19814387215047508
+          },
+          {
+            "feature": "SCIM_mobility",
+            "mean_abs": 0.15040684072379257
+          },
+          {
+            "feature": "OPLL",
+            "mean_abs": 0.10829039173412151
+          },
+          {
+            "feature": "PinPrickTotal",
+            "mean_abs": 0.08022828029918065
+          },
+          {
+            "feature": "SCIM_self_care",
+            "mean_abs": 0.06551899260626702
+          },
+          {
+            "feature": "AIS_ord",
+            "mean_abs": 0.05091692589491216
+          },
+          {
+            "feature": "LightTouchTotal",
+            "mean_abs": 0.05028625342184622
+          },
+          {
+            "feature": "SCIM_respiration_sphincter",
+            "mean_abs": 0.04983107332912157
+          }
+        ]
+      },
+      "magnitude": {
+        "n": 438,
+        "d_mean": -2.0278046111875004e-17,
+        "d_sd": 1.2065189638629388,
+        "r2": 0.7372729820169073,
+        "rmse": 0.6184242637731115,
+        "mae": 0.45297748901937596,
+        "conformal_q": 0.6998178060834593,
+        "conformal_coverage_80": 0.8036529680365296,
+        "pi_halfwidth": 0.6998178060834593,
+        "shap_top": [
+          {
+            "feature": "TotalMotor",
+            "mean_abs": 0.8058250069088441
+          },
+          {
+            "feature": "年齢",
+            "mean_abs": 0.12379430688383657
+          },
+          {
+            "feature": "UEMS",
+            "mean_abs": 0.08447884527755598
+          },
+          {
+            "feature": "mFrankel_ord",
+            "mean_abs": 0.08439296669403833
+          },
+          {
+            "feature": "PinPrickTotal",
+            "mean_abs": 0.07512341106747797
+          },
+          {
+            "feature": "AIS_ord",
+            "mean_abs": 0.07131616827372542
+          },
+          {
+            "feature": "OPLL",
+            "mean_abs": 0.055337051504036394
+          },
+          {
+            "feature": "LEMS",
+            "mean_abs": 0.050190800300317265
+          },
+          {
+            "feature": "SCIM_mobility",
+            "mean_abs": 0.03520428699277638
+          },
+          {
+            "feature": "SCIM_total",
+            "mean_abs": 0.03471302369676036
+          },
+          {
+            "feature": "Frankel_ord",
+            "mean_abs": 0.03357339233810933
+          },
+          {
+            "feature": "SCIM_self_care",
+            "mean_abs": 0.03153428047256427
+          }
+        ]
+      }
+    }
+  }
+}

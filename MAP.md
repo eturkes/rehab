@@ -3,7 +3,7 @@
 Regenerate after structural changes: `uv run python scripts/gen_map.py`.
 Line numbers are 1-indexed — slice with `Read(path, offset, limit)` instead of
 reading whole files.  Sources: src/rehab_sci, scripts.
-Index: 50 files, 17065 source lines.
+Index: 51 files, 17424 source lines.
 
 ## scripts
 
@@ -596,6 +596,21 @@ AIS-grade conversion modeling (G4) — predict the admission->discharge AIS *tra
 - L303 `_run_magnitude(ep, af)` — Fit + score the ordinal improvement-magnitude head; return (metrics, persisted-m…
 - L357 `_landscape(ep)` — Descriptive conversion landscape over every episode with both admission + discha…
 - L381 `main()`
+
+### dissociation.py (359 lines)
+Neuro-functional dissociation modeling (G11) — does function track neurology in …
+- L104 `ROOT` (const)
+- L105 `OUT` (const)
+- L107 `MIN_COHORT` (const)
+- L112 `AXES` (const)
+- L136 `_axis_deltas(axis, ep)` — Return (Δneuro, Δfunction) aligned to ``ep`` rows; NaN where either side is unde…
+- L151 `_landscape(dneuro, dfunc, D)` — Descriptive dissociation landscape for one axis over its paired-delta cohort.
+- L184 `_oof_reg(X, y, groups, cat_cols)` — Grouped-CV out-of-fold regression predictions + median best-iteration (mirrors _…
+- L203 `_refit_reg(params, X, y, cat_cols, best_iter)` — Refit a regressor on the full cohort at a fixed iteration count (mirrors convers…
+- L214 `_run_over_achiever(X, y, groups, cat_cols)` — Calibrated binary head: P(D > 0) = functional over-achiever.  (metrics, persiste…
+- L238 `_run_magnitude(X, D, groups, cat_cols)` — Continuous regression head on the signed dissociation D + marginal conformal PI.
+- L260 `_run_axis(axis, ep, af)` — Fit + score both heads for one axis on its paired-delta cohort.  None if too sma…
+- L303 `main()`
 
 ### independence.py (282 lines)
 Functional-independence profile (G7) — per-SCIM-item discharge independence pred…
