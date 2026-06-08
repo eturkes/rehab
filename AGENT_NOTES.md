@@ -16,8 +16,10 @@ superseded, duplicated elsewhere, or has gone stale.
 
 * `CLAUDE.md` — user policy file.  Authoritative.  Edit freely when content
   becomes obsolete or improvable.
-* `SESSION_PROMPT.md` — reusable bootstrap prompt the user pastes to start a
-  session.  Update if the workflow changes.
+* `.claude/commands/session.md` — the `/session` slash command: reusable
+  bootstrap for a new session.  Invoke bare (`/session`) to pull the next
+  backlog item, or `/session <TASK>` to steer a one-off task that overrides the
+  roadmap for that run.  Update if the workflow changes.
 * `README.md` — human-facing entry point.  Keep in sync with code.
 * `MAP.md` — **generated** symbol index (per file: purpose, line count, every
   top-level symbol with its 1-indexed line number; Dash callbacks tagged).  Read
