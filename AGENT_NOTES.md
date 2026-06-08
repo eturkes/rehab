@@ -27,14 +27,22 @@ superseded, duplicated elsewhere, or has gone stale.
   replaces whole-file reads.  Regenerate after structural edits:
   `uv run python scripts/gen_map.py` (idempotent + timestamp-free, so an
   unchanged tree yields no diff).
-* `./compaction.sh` — manual context gauge (`pct used/window`); run via Bash to
-  read own usage from the transcript.  The user's global statusline
-  (`$HOME/.claude/compaction.sh`, byte-identical) already covers this repo, so
-  `.claude/settings.json` needs **no** `statusLine` (resist re-adding it; the
-  file now holds only `permissions.deny` Read rules — see next bullet); keep the
-  two `compaction.sh` copies in sync.  Dual-mode keyed on `CLAUDE_CODE_SESSION_ID` (set ⇒
-  manual/transcript; unset ⇒ statusline/stdin) — any edit must keep both.  Per
-  CLAUDE.md, wrap to a clean boundary at ≥80 % for a manual `/compact`.
+* `./compaction.sh` — manual-only context gauge (`pct used/window`); run via
+  Bash to read own usage from the transcript (keyed on `CLAUDE_CODE_SESSION_ID`,
+  always set under Bash, with a newest-`*.jsonl` fallback; window 200K unless 1M
+  context is on).  It is **not** the statusline: the real statusline is the global
+  `$HOME/.claude/statusline.sh` (a separate, richer script — context % + rate
+  limits + timestamps), wired in the *global* `~/.claude/settings.json`.  The
+  project `.claude/settings.json` has **no** `statusLine` (resist re-adding it; it
+  holds only `permissions.deny` Read rules — see next bullet).  Keep the repo copy
+  and the global `$HOME/.claude/compaction.sh` (symlink → `agents/claude/
+  compaction.sh`) byte-identical — update both on any edit.  **Gotcha:** the
+  statusline *also* sets `CLAUDE_CODE_SESSION_ID`, so that env var cannot
+  distinguish manual-vs-statusline — `statusline.sh` branches on stdin (JSON piped
+  ⇒ statusline; TTY/empty ⇒ transcript).  `compaction.sh` is never fed stdin, so it
+  stays single-mode (an earlier stdin/JSON branch here was dead code, since removed
+  — resist re-adding env-var-keyed dual mode).  Per CLAUDE.md, wrap to a clean
+  boundary at ≥80 % for a manual `/compact`.
 * `.claude/settings.json` — `permissions.deny` `Read()` rules (CLAUDE.md policy)
   that hide low-benefit paths from the Read tool, Grep/Glob, and `cat`/`head`/
   `sed`: the venv, `.git`, caches, raw `ALL_SCIDATA.csv`, `uv.lock`, every
