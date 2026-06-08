@@ -49,10 +49,10 @@ superseded, duplicated elsewhere, or has gone stale.
   observed-trajectory phenotyping (s32/s33) + G4 AIS-grade conversion (s34/s35) + G6 AIS
   multi-state recovery (s36/s37) + G7 functional-independence profile (s38/s39) + G8 recovery
   topography map (s40 model + s41 body-map dashboard) + G9 Δ score-recovery prediction (s42)
-  **all fully shipped** (see §7); **G10 neurological-level descent — Part 1 model shipped (s43),
-  Part 2 dashboard pending a user go/no-go** (weak motor/sensory heads — see §3).  **G10 Part 2 is
-  the only mid-flight item; else pick the next from §8.**
-  Open: F26 test harness · F27 dep refresh · G10 Part 2 · a new G-series idea (data is exhausted of
+  **all fully shipped** (see §7); **G10 neurological-level descent — Part 1 model shipped (s43);
+  Part 2 dashboard USER-APPROVED for all 5 levels (build spec in §8) — the next pick** (deferred
+  from s43 to a fresh session per the G-series rhythm).
+  Open: F26 test harness · F27 dep refresh · **G10 Part 2 (next)** · a new G-series idea (data is exhausted of
   NEW field families — see §8; any new G must reuse the existing ISNCSCI/SCIM/AIS signal — e.g.
   ZPP descent or calibration-drift monitoring).
   The user steers toward *insightful* (clinical/scientific) features over infra/maintenance, so
@@ -809,8 +809,8 @@ superseded, duplicated elsewhere, or has gone stale.
   report the median.**  **Enrichment rejected:** a G8-style concat of the modality-matched per-segment
   admission grades (20 motor / 112 sensory / 132 for NLI) left descent AUC flat-to-worse on every head
   (within OOF noise), so the clean 30-feature module ships (see §0b for the state-vs-threshold-crossing
-  lesson).  **Part 1 shipped (s43): model + tracked metrics.  Part 2 (dashboard surfaces) pending a
-  go/no-go given the weak motor/sensory heads.**
+  lesson).  **Part 1 shipped (s43): model + tracked metrics.  Part 2 (dashboard surfaces, all 5
+  levels) USER-APPROVED, not yet built — see the §8 build spec.**
 
 ## 4. Dashboard conventions
 
@@ -957,8 +957,9 @@ One line per session; full detail is in Git history (`git log`, diffs).
   genuine admission-signal ceiling (≈0.62–0.63); magnitude near-degenerate (APS≈3.0).  **Enrichment
   experiment (user: "enrich, then Part 2") — a G8-style per-segment admission-grade concat did NOT
   lift descent AUC (flat-to-worse, within noise) and was reverted** (the §0b state-vs-threshold-
-  crossing lesson).  Lint + F-gate clean; MAP regenerated.  Part 2 (dashboard surfaces) pending a
-  user go/no-go given the weak motor/sensory heads.
+  crossing lesson).  Lint + F-gate clean; MAP regenerated.  **Part 2 (dashboard surfaces)
+  USER-APPROVED for all 5 levels** (build spec in §8); deferred to a fresh session per the G-series
+  rhythm (60 % context at decision time).
 * **s42** — G9 Δ score-recovery prediction (admission→discharge change in each ISNCSCI summary
   score: ΔUEMS/ΔLEMS/Δtotal-motor/Δlight-touch/Δpin-prick — the canonical SCI-trial primary
   endpoint; user chose the **production OUTCOMES-registry** integration over a standalone module).
@@ -1260,8 +1261,8 @@ One line per session; full detail is in Git history (`git log`, diffs).
 Propose from here unless the user redirects.  **Items F1–F25 + G1–G4 + G6 + G7 + G8 (recovery
 topography map) + G9 (Δ score-recovery prediction, s42) are all fully shipped** — see §7 for the
 session each landed in, and Git history for implementation detail.  **G10 neurological-level descent
-Part 1 (model + metrics) shipped s43; its Part 2 (dashboard) is the lone mid-flight item, pending a
-user go/no-go** (weak motor/sensory heads).  Next pick is G10 Part 2 / F26 / F27 / a new G idea.
+Part 1 (model + metrics) shipped s43; its Part 2 (dashboard) is USER-APPROVED for all 5 levels (build
+spec below) and is the next pick** (deferred from s43 to a fresh session).  Then F26 / F27 / a new G.
 The user steers toward *insightful* (clinical/scientific) features over
 infra/maintenance.
 Shipped ledger (terse, by feature number):
@@ -1353,7 +1354,24 @@ Shipped ledger (terse, by feature number):
   ceiling; the anatomical complement to G9's Δ-scores.  Only NLI predicts well from admission (AUC
   ≈0.73); motor/sensory hit a genuine ≈0.63 ceiling.  A G8-style per-segment-grade enrichment was
   tried and **rejected** (no AUC lift — §0b).  See §3 for the contract.  **Part 2 (dashboard
-  surfaces) pending a user go/no-go** given the weak motor/sensory heads — the lone mid-flight item.
+  surfaces) USER-APPROVED for all 5 levels (s43) — the next pick.**
+  **Part 2 build spec (all 5 levels, user-approved):** pure `compute.predict_level_descent(X_row)` —
+  inline `_apply_platt` mirror over the bundle's 10 heads (never import `models.level_descent`, it
+  pulls shap via conversion→train); per level return the calibrated descent prob + cohort `base_rate`
+  and the magnitude class-probs / APS set / argmax; **gate per level on its admission `*_ord` being
+  present** (admission-INT or missing ⇒ a "no room / needs level" prompt, mirroring the conversion-
+  card invariant — and on the Patient tab override each `*_ord` with the episode's real admission
+  value before inference, since `episode_row_for_model` imputes).  Reconstruct the INT-aware
+  level→ord from `bundle.int_ord` + the loader cord order.  Shared `layout` figs: a 5-level
+  calibrated descent-prob bar (+ base-rate diamonds), a magnitude set/argmax fig, a readout; reuse
+  `fig_conversion_{reliability,shap,confusion}` for the per-level Methods drilldown.  Surfaces:
+  Methods (per-level Δ-landscape + calibration/drivers + magnitude confusion), Patient (real-grade-
+  gated card + own admission→discharge level overlay), Simulator (hypothetical from admission inputs,
+  blanks stay NaN ⇒ natural prompt).  Bilingual `ld_*`/`methods_ld_*` strings; reuse `.conv-*` CSS.
+  **No retrain** — the bundle already persists feature_cols/numeric/categorical/int_ord/mag_cap/
+  levels/level_meta/heads.  Frame motor/sensory honestly (calibrated but low-discrimination, like
+  G4's 0.62 `motor_incomplete`): surface the binary as the probability, the magnitude as the APS
+  set, never as competing probabilities (the G4 CRUX).
 
 **F23 (shipped s26): data-quality / clinical-consistency report** — see §7 and
 `data/quality.py`; durable data facts it surfaced live in §0b/§1, and the
