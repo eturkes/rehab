@@ -570,6 +570,166 @@ def conversion_readout(result: dict, lang: str) -> html.Div:
     return html.Div(lines, className="lm-readout conv-readout")
 
 
+# ---------- neurological-level descent (G10) ----------
+def _ld_label(level: dict, lang: str) -> str:
+    return level["label_ja"] if lang == "ja" else level["label_en"]
+
+
+def fig_level_descent_bar(result: dict, lang: str) -> go.Figure:
+    """Calibrated descent probabilities P(Δ≥1 caudal level) for the applicable levels (see
+    compute.predict_level_descent).  One horizontal bar per modelled level; a grey diamond marks
+    that level's cohort base rate so the per-patient lift is visible.  Empty when no level applies
+    (every admission *_ord missing/INT)."""
+    items = [lv for lv in result["levels"] if lv.get("applicable")]
+    if not items:
+        return go.Figure()
+    labels = [_ld_label(lv, lang) for lv in items]
+    probs = [lv["prob"] for lv in items]
+    bases = [lv["base_rate"] for lv in items]
+    accent_dark = "#0c5a66"
+    base_word = "コホート基準率" if lang == "ja" else "Cohort base rate"
+    prob_word = "下降確率 (Δ≥1)" if lang == "ja" else "Descent probability (Δ≥1)"
+    fig = go.Figure()
+    fig.add_trace(go.Bar(
+        x=probs, y=labels, orientation="h",
+        marker=dict(color="rgba(17,122,139,0.85)", line=dict(color=accent_dark, width=1)),
+        text=[f"{p:.0%}" for p in probs], textposition="auto", textfont=dict(size=12),
+        insidetextanchor="end", cliponaxis=False,
+        hovertemplate="%{y}<br>" + prob_word + ": %{x:.1%}<extra></extra>",
+        showlegend=False,
+    ))
+    fig.add_trace(go.Scatter(
+        x=bases, y=labels, mode="markers",
+        marker=dict(color=INK["500"], size=12, symbol="diamond",
+                    line=dict(color="#fff", width=1.2)),
+        hovertemplate=base_word + ": %{x:.1%}<extra></extra>", showlegend=False,
+    ))
+    fig.update_layout(
+        height=58 * len(items) + 70,
+        margin=dict(l=210, r=44, t=16, b=38),
+        xaxis=dict(range=[0, 1.02], tickformat=".0%", title=prob_word),
+        yaxis=dict(autorange="reversed", tickfont=dict(size=11.5), showgrid=False),
+    )
+    return fig
+
+
+def fig_level_descent_magnitude(result: dict, lang: str) -> go.Figure:
+    """Ordinal descent-magnitude heads, surfaced AS their uncalibrated relative likelihood over {0,
+    +1, ≥+2} with the most-likely class carrying a caret (the heads are class-weighted, hence
+    uncalibrated — same s3 CRUX as conversion; never a competing calibrated probability).  Rendered
+    as a heatmap (rows = applicable levels) in a neutral slate scale so it reads as a different kind
+    of quantity from the teal calibrated descent panel.  The 80% APS sets are near-degenerate
+    (APS≈3, all three classes) so set membership carries no resolution — the per-level set is given
+    in the readout instead.  Empty when no level applies."""
+    items = [lv for lv in result["levels"] if lv.get("applicable") and lv.get("magnitude")]
+    if not items:
+        return go.Figure()
+    cap = items[0]["magnitude"]["mag_cap"]
+    codes = items[0]["magnitude"]["class_codes"]
+    ticks = [mag_short_label(c, cap) for c in codes]
+    rows = [_ld_label(lv, lang) for lv in items]
+    z, text = [], []
+    for lv in items:
+        m = lv["magnitude"]
+        pred = m["pred_code"]
+        z.append([float(p) for p in m["proba"]])
+        text.append([("▲ " if c == pred else "") + f"{p:.0%}"
+                     for c, p in zip(m["class_codes"], m["proba"], strict=True)])
+    zmax = max((max(r) for r in z), default=1.0) or 1.0
+    score_word = "相対尤度 (較正なし)" if lang == "ja" else "Relative likelihood (uncalibrated)"
+    mag_word = "下降幅 (レベル)" if lang == "ja" else "Descent magnitude (levels)"
+    fig = go.Figure(go.Heatmap(
+        z=z, x=ticks, y=rows, text=text, texttemplate="%{text}", textfont=dict(size=11),
+        colorscale=[[0, INK["paper"]], [1, PALETTE_CATEGORICAL[3]]],
+        showscale=False, zmin=0, zmax=zmax, xgap=3, ygap=3,
+        hovertemplate="%{y}<br>%{x}: %{text}<extra></extra>",
+    ))
+    fig.update_layout(
+        height=44 * len(items) + 96,
+        margin=dict(l=210, r=20, t=42, b=40),
+        title=dict(text=score_word, font=dict(size=11.5, color=INK["700"]), x=0.5, xanchor="center"),
+        xaxis=dict(type="category", title=mag_word, side="bottom"),
+        yaxis=dict(type="category", autorange="reversed", tickfont=dict(size=11.5)),
+    )
+    return fig
+
+
+def level_descent_readout(result: dict, lang: str) -> html.Div:
+    """Text summary of the level-descent panel: per applicable level, the calibrated descent
+    probability with its cohort base-rate lift, plus the magnitude most-likely class + APS set
+    (reusing the conv_* strings).  Renders a 'needs a level' prompt when nothing applies."""
+    if not result["any_applicable"]:
+        return html.Div(t(SCHEMA, "ld_need_level", lang), className="lm-prompt")
+    pp_word = "pt" if lang == "ja" else "pp"
+    lines: list = []
+    for lv in result["levels"]:
+        if not lv.get("applicable"):
+            continue
+        name = _ld_label(lv, lang)
+        lift = (lv["prob"] - lv["base_rate"]) * 100
+        m = lv.get("magnitude") or {}
+        cap = m["mag_cap"]
+        pred_lbl = mag_short_label(m["pred_code"], cap)
+        set_lbl = ", ".join(mag_short_label(c, cap) for c in m["aps_codes"])
+        lines.append(html.Div(
+            f"{name}: {lv['prob']:.0%} "
+            f"({t(SCHEMA, 'conv_base', lang)} {lv['base_rate']:.0%}, {lift:+.0f}{pp_word}) · "
+            f"{t(SCHEMA, 'conv_most_likely', lang)} {pred_lbl} · "
+            f"{t(SCHEMA, 'conv_aps_set', lang)} {{{set_lbl}}}",
+            className="lm-readout-line",
+        ))
+    return html.Div(lines, className="lm-readout conv-readout")
+
+
+def fig_level_descent_observed(observed: dict, lang: str) -> go.Figure:
+    """The patient's OWN admission->discharge level change per modelled level (see
+    compute.level_descent_observed).  A cord ladder: one row per level, x = cord ordinal (rostral C1
+    left -> caudal INT right); an open circle marks admission, a filled circle (teal=descent,
+    crimson=ascent, grey=stable) marks discharge with the signed Δ.  Empty when no level has both
+    endpoints observed."""
+    levels = observed["levels"]
+    if not levels:
+        return go.Figure()
+    axis = observed["axis"]
+    rows = [_ld_label(lv, lang) for lv in levels]
+    teal, crimson, grey = PALETTE_CATEGORICAL[0], "#a3354e", INK["300"]
+    adm_word = "入院時" if lang == "ja" else "Admission"
+    disc_word = "退院時" if lang == "ja" else "Discharge"
+    fig = go.Figure()
+    for i, lv in enumerate(levels):
+        d = lv["delta"]
+        col = teal if d > 0 else (crimson if d < 0 else grey)
+        fig.add_trace(go.Scatter(
+            x=[lv["adm_ord"], lv["disc_ord"]], y=[rows[i], rows[i]], mode="lines",
+            line=dict(color=col, width=3), showlegend=False, hoverinfo="skip",
+        ))
+    fig.add_trace(go.Scatter(
+        x=[lv["adm_ord"] for lv in levels], y=rows, mode="markers", name=adm_word,
+        marker=dict(symbol="circle-open", size=12, color=INK["500"], line=dict(width=2)),
+        customdata=[lv["adm_label"] for lv in levels],
+        hovertemplate="%{y}<br>" + adm_word + ": %{customdata}<extra></extra>",
+    ))
+    disc_colors = [teal if lv["delta"] > 0 else (crimson if lv["delta"] < 0 else grey) for lv in levels]
+    fig.add_trace(go.Scatter(
+        x=[lv["disc_ord"] for lv in levels], y=rows, mode="markers+text", name=disc_word,
+        marker=dict(symbol="circle", size=13, color=disc_colors, line=dict(color="#fff", width=1.2)),
+        text=[f"{lv['delta']:+d}" for lv in levels], textposition="top center", textfont=dict(size=10),
+        customdata=[lv["disc_label"] for lv in levels],
+        hovertemplate="%{y}<br>" + disc_word + ": %{customdata}<extra></extra>",
+    ))
+    title = ("吻側 ← 脊髄レベル → 尾側 (右=改善)" if lang == "ja"
+             else "rostral ← cord level → caudal (right = improvement)")
+    fig.update_layout(
+        height=52 * len(levels) + 96,
+        margin=dict(l=210, r=44, t=20, b=44),
+        xaxis=dict(title=title, tickvals=axis["tickvals"], ticktext=axis["ticktext"],
+                   range=[-0.8, axis["max_ord"] + 0.8], showgrid=True),
+        yaxis=dict(autorange="reversed", tickfont=dict(size=11.5), showgrid=False),
+        legend=dict(orientation="h", x=0.5, y=1.02, xanchor="center", yanchor="bottom", font=dict(size=10)),
+    )
+    return fig
+
+
 # ---------- AIS multi-state recovery (G6) ----------
 _MS_TICK_VALS = [1, 2, 3, 4, 5]
 

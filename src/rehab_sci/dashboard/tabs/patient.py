@@ -22,11 +22,13 @@ from rehab_sci.dashboard.compute import (
     inv_transform_scalar,
     landmark_observed_for_episode,
     landmark_voi,
+    level_descent_observed,
     multistate_observed_grades,
     phenotype_cutoff_options,
     predict_conversion,
     predict_independence,
     predict_landmark,
+    predict_level_descent,
     predict_multistate,
     predict_phenotype_membership,
     predict_topography,
@@ -54,6 +56,9 @@ from rehab_sci.dashboard.layout import (
     fig_conversion_magnitude,
     fig_independence_profile,
     fig_landmark_compare,
+    fig_level_descent_bar,
+    fig_level_descent_magnitude,
+    fig_level_descent_observed,
     fig_multistate_conversion_personal,
     fig_multistate_trajectory,
     fig_shap_local,
@@ -61,6 +66,7 @@ from rehab_sci.dashboard.layout import (
     fig_voi_patient,
     independence_readout,
     landmark_readout,
+    level_descent_readout,
     multistate_readout,
     topography_readout,
     voi_readout,
@@ -74,6 +80,7 @@ from rehab_sci.dashboard.state import (
     FEATURE_SPEC,
     INDEPENDENCE_BUNDLE,
     LANDMARK_BUNDLE,
+    LEVEL_DESCENT_BUNDLE,
     LONG,
     MULTISTATE_BUNDLE,
     OUTCOME_BUNDLES,
@@ -426,6 +433,31 @@ def _patient_topography_card(lang: str) -> html.Div | None:
     )
 
 
+def _patient_level_descent_card(lang: str) -> html.Div | None:
+    """Neurological-level descent card: the patient's REAL admission levels (per-level own *_ord)
+    drive the calibrated per-level descent probabilities + ordinal magnitude sets; the patient's OWN
+    admission->discharge level change is overlaid as a cord ladder where both endpoints exist.  Each
+    level is gated on its own recorded admission level (missing/INT -> not applicable).  Omitted
+    entirely when the bundle is absent."""
+    if LEVEL_DESCENT_BUNDLE is None:
+        return None
+    return chart_card(
+        t(SCHEMA, "ld_card_heading", lang),
+        html.Div([
+            html.Div(t(SCHEMA, "ld_card_intro", lang), className="lm-card-intro"),
+            html.Div(id="patient-ld-readout"),
+            html.Div(t(SCHEMA, "ld_descent_heading", lang), className="pheno-subtitle"),
+            dcc.Graph(id="patient-ld-descent-graph", config={"displayModeBar": False}),
+            html.Div(t(SCHEMA, "ld_magnitude_heading", lang), className="pheno-subtitle"),
+            dcc.Graph(id="patient-ld-mag-graph", config={"displayModeBar": False}),
+            html.Div(t(SCHEMA, "ld_mag_caption", lang), className="sim-caveat"),
+            html.Div(t(SCHEMA, "ld_observed_heading", lang), className="pheno-subtitle"),
+            dcc.Graph(id="patient-ld-observed-graph", config={"displayModeBar": False}),
+            html.Div(t(SCHEMA, "ld_caption", lang), className="sim-caveat"),
+        ]),
+    )
+
+
 # ---------- layout ----------
 def render_patient(lang: str) -> html.Div:
     default_pid = PATIENT_OPTIONS[0].id_number if PATIENT_OPTIONS else None
@@ -537,6 +569,9 @@ def render_patient(lang: str) -> html.Div:
     topo_card = _patient_topography_card(lang)
     if topo_card is not None:
         content_children.append(topo_card)
+    ld_card = _patient_level_descent_card(lang)
+    if ld_card is not None:
+        content_children.append(ld_card)
     content_children.append(similarity_card)
 
     return html.Div(
@@ -1042,6 +1077,42 @@ def update_patient_topography(key_record, modality, lang):
     return (
         topography_readout(result, lang),
         fig_topography_bodymap(result, lang, sensory_modality=(modality or "light_touch"), observed=obs),
+    )
+
+
+# ---------- neurological-level descent callback ----------
+@callback(
+    Output("patient-ld-readout", "children"),
+    Output("patient-ld-descent-graph", "figure"),
+    Output("patient-ld-mag-graph", "figure"),
+    Output("patient-ld-observed-graph", "figure"),
+    Input("patient-episode-radio", "value"),
+    Input("lang-store", "data"),
+)
+def update_patient_level_descent(key_record, lang):
+    empty = go.Figure()
+    prompt = html.Div(t(SCHEMA, "ld_need_level", lang), className="lm-prompt")
+    if LEVEL_DESCENT_BUNDLE is None or key_record is None:
+        return prompt, empty, empty, empty
+    key_record = int(key_record)
+    X = episode_row_for_model(key_record).copy()
+    # Gate each level on its REAL recorded admission level — episode_row_for_model imputes cohort
+    # defaults, which would spuriously make every level applicable.  Override each level's own *_ord
+    # with the raw value (NaN -> that level shows as not applicable / drops out of the panel).
+    for key in LEVEL_DESCENT_BUNDLE["levels"]:
+        ord_col = LEVEL_DESCENT_BUNDLE["level_meta"][key]["ord"]
+        raw = EP.loc[EP["KeyRecordNumber"] == key_record, ord_col]
+        X[ord_col] = float(raw.iloc[0]) if (not raw.empty and pd.notna(raw.iloc[0])) else float("nan")
+    result = predict_level_descent(X)
+    if result is None:
+        return prompt, empty, empty, empty
+    obs = level_descent_observed(key_record)
+    obs_fig = fig_level_descent_observed(obs, lang) if obs else empty
+    return (
+        level_descent_readout(result, lang),
+        fig_level_descent_bar(result, lang),
+        fig_level_descent_magnitude(result, lang),
+        obs_fig,
     )
 
 

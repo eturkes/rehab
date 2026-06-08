@@ -643,6 +643,118 @@ def fig_conversion_confusion(mag: dict, lang: str) -> go.Figure | None:
     return fig
 
 
+# ----------------------------- neurological-level descent (G10) -------------------------
+_LEVEL_DESCENT_ORDER = ["nli", "right_motor", "left_motor", "right_sensory", "left_sensory"]
+
+
+def _ld_levels(ld: dict, lang: str) -> tuple[list[str], list[str]]:
+    """(keys-in-display-order, matching row labels) for the modelled levels present in ``ld``."""
+    levels = (ld or {}).get("levels") or {}
+    keys = [k for k in _LEVEL_DESCENT_ORDER if k in levels]
+    labels = [levels[k]["label_ja" if lang == "ja" else "label_en"] for k in keys]
+    return keys, labels
+
+
+def fig_level_descent_scorecard(ld: dict, lang: str) -> go.Figure | None:
+    """Per-level descent discrimination: horizontal OOF AUC bars over the five modelled levels, with
+    a chance reference at 0.5.  Surfaces the headline — only NLI descent is well-predicted (~0.73);
+    the bilateral motor/sensory heads sit near 0.62.  ``ld`` is ``level_descent_metrics.json``."""
+    keys, labels = _ld_levels(ld, lang)
+    if not keys:
+        return None
+    levels = ld["levels"]
+    keys, labels = keys[::-1], labels[::-1]  # nli ends at top of the horizontal axis
+    aucs = [levels[k]["descent"]["auc"] for k in keys]
+    ns = [levels[k]["descent"]["n"] for k in keys]
+    colors = [PALETTE_CATEGORICAL[i % len(PALETTE_CATEGORICAL)] for i in range(len(keys))]
+    auc_lbl = "下降判別 (AUC)" if lang == "ja" else "Descent discrimination (AUC)"
+    n_word = "症例数" if lang == "ja" else "n"
+    chance_lbl = "偶然 (0.5)" if lang == "ja" else "chance (0.5)"
+    fig = go.Figure(go.Bar(
+        x=aucs, y=labels, orientation="h", marker=dict(color=colors),
+        text=[f"{a:.3f} (n={n})" for a, n in zip(aucs, ns, strict=True)],
+        textposition="outside", textfont=dict(size=11),
+        hovertemplate="%{y}<br>AUC=%{x:.3f}<br>" + n_word + "=%{customdata}<extra></extra>",
+        customdata=ns, showlegend=False,
+    ))
+    fig.add_vline(x=0.5, line=dict(color=INK["300"], dash="dash", width=1.5),
+                  annotation=dict(text=chance_lbl, font=dict(size=9, color=INK["500"])),
+                  annotation_position="top")
+    fig.update_layout(
+        height=52 * len(keys) + 80, margin=dict(l=170, r=78, t=24, b=40),
+        xaxis=dict(range=[0.5, 0.85], tickformat=".2f", title=auc_lbl),
+        yaxis=dict(tickfont=dict(size=11.5), showgrid=False),
+    )
+    return fig
+
+
+def fig_level_descent_landscape(ld: dict, lang: str) -> go.Figure | None:
+    """Descriptive per-level outcome composition: a stacked horizontal bar of deteriorate (Δ<0,
+    crimson) / stable (Δ=0, slate) / descent (Δ≥1, teal) rates with the median Δ annotated at the
+    right.  The non-trivial deterioration share reflects re-assessment noise in the cord level, not
+    true ascent.  ``ld`` is ``level_descent_metrics.json``."""
+    keys, labels = _ld_levels(ld, lang)
+    if not keys:
+        return None
+    levels = ld["levels"]
+    keys, labels = keys[::-1], labels[::-1]
+    det = [levels[k]["landscape"]["deteriorate_rate"] for k in keys]
+    stab = [levels[k]["landscape"]["stable_rate"] for k in keys]
+    desc = [levels[k]["landscape"]["any_descent_rate"] for k in keys]
+    med = [levels[k]["landscape"]["median_delta"] for k in keys]
+    crimson, slate, teal = "#a3354e", INK["300"], PALETTE_CATEGORICAL[0]
+    det_lbl = "悪化 (Δ<0)" if lang == "ja" else "Deteriorate (Δ<0)"
+    stab_lbl = "不変 (Δ=0)" if lang == "ja" else "Stable (Δ=0)"
+    desc_lbl = "下降 (Δ≥1)" if lang == "ja" else "Descent (Δ≥1)"
+    med_word = "中央値 Δ" if lang == "ja" else "median Δ"
+    fig = go.Figure()
+    for vals, col, name in [(det, crimson, det_lbl), (stab, slate, stab_lbl), (desc, teal, desc_lbl)]:
+        fig.add_trace(go.Bar(
+            x=vals, y=labels, orientation="h", name=name, marker=dict(color=col),
+            text=[f"{v:.0%}" if v >= 0.07 else "" for v in vals], textposition="inside",
+            insidetextfont=dict(color="#fff", size=10),
+            hovertemplate="%{y}<br>" + name + ": %{x:.0%}<extra></extra>",
+        ))
+    for lab, m in zip(labels, med, strict=True):
+        fig.add_annotation(x=1.015, y=lab, xref="paper", yref="y", xanchor="left",
+                           text=f"{med_word} {m:+.0f}", showarrow=False,
+                           font=dict(size=10, color=INK["700"]))
+    fig.update_layout(
+        barmode="stack", height=52 * len(keys) + 96, margin=dict(l=170, r=124, t=40, b=36),
+        xaxis=dict(range=[0, 1.0], tickformat=".0%"),
+        yaxis=dict(tickfont=dict(size=11.5), showgrid=False),
+        legend=dict(orientation="h", x=0.5, y=1.04, xanchor="center", yanchor="bottom", font=dict(size=10)),
+    )
+    return fig
+
+
+def fig_level_descent_delta(landscape: dict, lang: str) -> go.Figure | None:
+    """Distribution of one level's change Δ (discharge − admission cord ordinal) for the per-level
+    drilldown: deterioration (Δ<0, crimson) tail, the stable spike at 0 (slate), and the descent /
+    INT full-recovery mass (Δ>0, teal) at right.  ``landscape`` is one entry of
+    ``level_descent_metrics.json['levels'][key]['landscape']``."""
+    dist = (landscape or {}).get("delta_distribution")
+    if not dist:
+        return None
+    deltas = sorted(int(k) for k in dist)
+    counts = [dist[str(d)] for d in deltas]
+    colors = ["#a3354e" if d < 0 else (INK["300"] if d == 0 else PALETTE_CATEGORICAL[0]) for d in deltas]
+    delta_lbl = ("レベル変化 Δ (尾側=改善)" if lang == "ja"
+                 else "Level change Δ (caudal = improvement)")
+    n_word = "症例数" if lang == "ja" else "Episodes"
+    fig = go.Figure(go.Bar(
+        x=deltas, y=counts, marker=dict(color=colors),
+        hovertemplate="Δ=%{x:+d}<br>" + n_word + ": %{y}<extra></extra>", showlegend=False,
+    ))
+    fig.add_vline(x=0, line=dict(color=INK["200"], width=1))
+    fig.update_layout(
+        height=260, margin=dict(l=54, r=20, t=20, b=40),
+        xaxis=dict(title=delta_lbl, dtick=2, zeroline=False),
+        yaxis=dict(title=n_word),
+    )
+    return fig
+
+
 # ----------------------------- AIS multi-state recovery (G6) ----------------------------
 def _ms_xlabels(ms: dict, schema: Schema, lang: str) -> list[str]:
     return [level_label(schema, "time_name", tp, lang) for tp in ms["window"]]

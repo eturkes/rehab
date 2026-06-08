@@ -180,5 +180,22 @@ TOPOGRAPHY_BUNDLE: dict | None = (
     joblib.load(_topography_bundle_path) if _topography_bundle_path.exists() else None
 )
 
+# G10 neurological-level descent. `level_descent_metrics.json` (tracked, identifier-free) drives
+# the Methods scorecard / landscape / per-level reliability+driver+confusion drilldown;
+# `level_descent/bundle.joblib` (gitignored) holds the per-level calibrated descent + ordinal
+# magnitude heads for per-row inference (compute.predict_level_descent).  Both absent until
+# `python -m rehab_sci.models.level_descent`; every level-descent surface degrades gracefully.
+_level_descent_path = MODELS_DIR / "level_descent_metrics.json"
+if _level_descent_path.exists():
+    with _level_descent_path.open(encoding="utf-8") as _f:
+        LEVEL_DESCENT: dict | None = json.load(_f)
+else:
+    LEVEL_DESCENT = None
+
+_level_descent_bundle_path = MODELS_DIR / "level_descent" / "bundle.joblib"
+LEVEL_DESCENT_BUNDLE: dict | None = (
+    joblib.load(_level_descent_bundle_path) if _level_descent_bundle_path.exists() else None
+)
+
 PATIENT_OPTIONS = list_patient_options(EP)
 PATIENT_OPTIONS_BY_ID = {p.id_number: p for p in PATIENT_OPTIONS}

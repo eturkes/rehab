@@ -21,6 +21,7 @@ from rehab_sci.dashboard.compute import (
     predict_conversion,
     predict_independence,
     predict_landmark,
+    predict_level_descent,
     predict_multistate,
     predict_topography,
     predict_trajectory,
@@ -39,6 +40,8 @@ from rehab_sci.dashboard.layout import (
     fig_conversion_magnitude,
     fig_independence_profile,
     fig_landmark_compare,
+    fig_level_descent_bar,
+    fig_level_descent_magnitude,
     fig_multistate_conversion_personal,
     fig_multistate_trajectory,
     fig_prediction_interval,
@@ -46,6 +49,7 @@ from rehab_sci.dashboard.layout import (
     fig_topography_bodymap,
     independence_readout,
     landmark_readout,
+    level_descent_readout,
     multistate_readout,
     number_input_for,
     topography_readout,
@@ -58,6 +62,7 @@ from rehab_sci.dashboard.state import (
     FEATURE_SPEC,
     INDEPENDENCE_BUNDLE,
     LANDMARK_BUNDLE,
+    LEVEL_DESCENT_BUNDLE,
     MULTISTATE_BUNDLE,
     OUTCOME_BUNDLES,
     SCHEMA,
@@ -185,6 +190,9 @@ def render_simulator(lang: str, ref_data: dict | None = None) -> html.Div:
     topo_card = _topography_card(lang, ref_data)
     if topo_card is not None:
         children.append(topo_card)
+    ld_card = _level_descent_card(lang)
+    if ld_card is not None:
+        children.append(ld_card)
     return html.Div(children)
 
 
@@ -206,6 +214,30 @@ def _conversion_card(lang: str) -> html.Div | None:
             dcc.Graph(id="sim-conv-mag-graph", config={"displayModeBar": False}),
             html.Div(t(SCHEMA, "conv_mag_caption", lang), className="sim-caveat"),
             html.Div(t(SCHEMA, "conv_caption", lang), className="sim-caveat"),
+        ],
+    )
+
+
+# ---------- neurological-level descent card ----------
+def _level_descent_card(lang: str) -> html.Div | None:
+    """Hypothetical neurological-level descent card driven by the simulator's admission inputs (the
+    five level *_ord fields).  Each level applies only when its admission ordinal is entered; blanks
+    stay NaN and drop out.  No realized-outcome overlay (hypothetical).  Omitted when bundle
+    absent."""
+    if LEVEL_DESCENT_BUNDLE is None:
+        return None
+    return html.Div(
+        className="lm-card conv-card",
+        children=[
+            html.H2(t(SCHEMA, "ld_card_heading", lang), className="lm-card-heading"),
+            html.Div(t(SCHEMA, "ld_card_intro", lang), className="lm-card-intro"),
+            html.Div(id="sim-ld-readout"),
+            html.Div(t(SCHEMA, "ld_descent_heading", lang), className="sim-section-title"),
+            dcc.Graph(id="sim-ld-descent-graph", config={"displayModeBar": False}),
+            html.Div(t(SCHEMA, "ld_magnitude_heading", lang), className="sim-section-title"),
+            dcc.Graph(id="sim-ld-mag-graph", config={"displayModeBar": False}),
+            html.Div(t(SCHEMA, "ld_mag_caption", lang), className="sim-caveat"),
+            html.Div(t(SCHEMA, "ld_caption", lang), className="sim-caveat"),
         ],
     )
 
@@ -759,6 +791,34 @@ def simulate_conversion(num_vals, cat_vals, lang, num_ids, cat_ids):
         conversion_readout(result, lang),
         fig_conversion_endpoints(result, lang),
         fig_conversion_magnitude(result, lang),
+    )
+
+
+# ---------- neurological-level descent callback ----------
+@callback(
+    Output("sim-ld-readout", "children"),
+    Output("sim-ld-descent-graph", "figure"),
+    Output("sim-ld-mag-graph", "figure"),
+    Input({"type": "num", "col": dash.ALL}, "value"),
+    Input({"type": "cat", "col": dash.ALL}, "value"),
+    Input("lang-store", "data"),
+    State({"type": "num", "col": dash.ALL}, "id"),
+    State({"type": "cat", "col": dash.ALL}, "id"),
+)
+def simulate_level_descent(num_vals, cat_vals, lang, num_ids, cat_ids):
+    # Each level is gated on its own admission *_ord input; blanks stay NaN and drop out, so an
+    # empty form yields no applicable level.  No realized-outcome overlay (hypothetical).
+    empty = go.Figure()
+    if not num_ids and not cat_ids:
+        return html.Div(t(SCHEMA, "ld_need_level", lang), className="lm-prompt"), empty, empty
+    X = collect_sim_inputs(num_vals, num_ids, cat_vals, cat_ids)
+    result = predict_level_descent(X)
+    if result is None:
+        return html.Div(t(SCHEMA, "ld_need_level", lang), className="lm-prompt"), empty, empty
+    return (
+        level_descent_readout(result, lang),
+        fig_level_descent_bar(result, lang),
+        fig_level_descent_magnitude(result, lang),
     )
 
 

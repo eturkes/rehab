@@ -981,3 +981,51 @@ topo_sim_seed:
 topo_sim_clear:
   ja: "ワークシートを消去"
   en: "Clear worksheet"
+ld_card_heading:
+  ja: "神経学的高位の下降予測"
+  en: "Neurological-level descent"
+ld_card_intro:
+  ja: "入院→退院での神経学的高位 (NLI と左右の運動・感覚レベル) の尾側への下降を予測する。各レベルの「下降」(Δ≥1 分節の尾側移動 = 改善) を較正済み確率で、下降幅 (順序) を最尤クラスと80%予測集合で示す。脊髄分節は吻側ほど重症で、尾側への移動が回復を表す。入院時の当該レベルが未測定/INT のものは適用外。"
+  en: "Predicts the admission→discharge caudal descent of the neurological levels (NLI plus the bilateral motor and sensory levels). Each level's descent (≥1 segment caudal shift = improvement) is shown as a calibrated probability; the descent magnitude (ordinal) as its most-likely class and 80% prediction set. More rostral cord segments are more severe, so a caudal shift means recovery. Levels with a missing/INT admission value do not apply."
+ld_descent_heading:
+  ja: "レベル別 下降確率 (較正済み)"
+  en: "Per-level descent probability (calibrated)"
+ld_magnitude_heading:
+  ja: "下降幅 (順序・最尤クラス + 80%集合)"
+  en: "Descent magnitude (ordinal — most-likely class + 80% set)"
+ld_observed_heading:
+  ja: "この患者の実測レベル変化 (入院→退院)"
+  en: "This patient's observed level change (admission→discharge)"
+ld_need_level:
+  ja: "入院時の神経学的レベル (NLI・運動・感覚) を少なくとも1つ入力すると下降予測が表示されます。"
+  en: "Enter at least one admission level (NLI, motor, or sensory) to see the descent prediction."
+ld_mag_caption:
+  ja: "下降幅ヘッドは class_weight=balanced のため確率は較正されていない。較正済みの下降確率 (上) とは別物で、最尤クラスと APS 集合として解釈する。ヘッドはほぼ縮退 (APS≈3) しており判別力は乏しい。"
+  en: "The magnitude head is class-weighted, so its scores are uncalibrated — distinct from the calibrated descent probabilities above; read it as the most-likely class and APS set. The head is near-degenerate (APS≈3) with little resolving power."
+ld_caption:
+  ja: "下降確率は患者単位5分割の OOF 予測で Platt 較正済み (二値・near-balanced)。下降幅は交差コンフォーマル APS (α=0.2)。診断・推論層であり、本番の退院時アウトカムモデルとは別。NLI 以外の判別力は限定的 (Methods 参照)。"
+  en: "Descent probabilities are Platt-calibrated on grouped 5-fold OOF predictions (binary, near-balanced); the magnitude set is cross-conformal APS (α=0.2). Diagnostic + inference layer, distinct from the production discharge-outcome models. Discrimination beyond NLI is limited (see Methods)."
+methods_ld_heading:
+  ja: "神経学的高位の下降モデル (G10)"
+  en: "Neurological-level descent modeling (G10)"
+methods_ld_def:
+  ja: "ISNCSCI の5つの神経学的高位 (NLI、左右の運動・感覚レベル) について、入院→退院の尾側下降を予測する。脊髄分節を順序符号化し (吻側 C1=0 …尾側 S45=28、INT=29 を天井)、Δ>0 を尾側下降 = 改善とする。入院時 INT/欠測は改善余地なしとして除外。レベルごとに2ヘッド: 下降 = 較正済み二値 P(Δ≥1)、下降幅 = 順序多クラス {0,+1,≥+2} (class_weight=balanced ゆえ較正なし)。小コホート向けに患者単位5分割の OOF 予測で全指標・Platt 較正・交差コンフォーマル APS (α=0.2) を計算し、最終ヘッドは全コホートで再学習。SHAP は記述的な院内重要度。診断・推論層で本番アーティファクトは不変。"
+  en: "Models the admission→discharge caudal descent of the five ISNCSCI neurological levels (NLI, bilateral motor and sensory). Cord segments are ordinally encoded (rostral C1=0 … caudal S45=28, INT=29 as the ceiling) so that Δ>0 is a caudal descent = improvement. Admission INT/missing values are excluded (no room to improve). Each level carries two heads: descent = calibrated binary P(Δ≥1); magnitude = ordinal {0,+1,≥+2} (class-weighted, hence uncalibrated). For the small cohorts, grouped 5-fold OOF predictions drive every metric, the Platt calibrator, and a cross-conformal APS q (α=0.2); the final heads refit on the full cohort. SHAP drivers are descriptive in-sample. Diagnostic + inference layer — production artifacts unchanged."
+methods_ld_scorecard_heading:
+  ja: "レベル別 下降判別 (AUC)"
+  en: "Per-level descent discrimination (AUC)"
+methods_ld_scorecard_caption:
+  ja: "OOF AUC をレベル別に示す。下降を確かに予測できるのは NLI のみ (≈0.73)。左右の運動・感覚レベルは ≈0.62 と偶然に近い天井で、患者単位の運用は NLI に限るべき。"
+  en: "OOF AUC per level. Only NLI descent is reliably predictable (≈0.73); the bilateral motor/sensory heads sit near a ≈0.62 chance-adjacent ceiling, so per-patient use should be limited to NLI."
+methods_ld_landscape_heading:
+  ja: "レベル別 アウトカム構成 (記述統計)"
+  en: "Per-level outcome composition (descriptive)"
+methods_ld_landscape_caption:
+  ja: "悪化 (Δ<0) / 不変 (Δ=0) / 下降 (Δ≥1) の割合と中央値 Δ。INT (完全回復) が平均 Δ を押し上げるため中央値で示す。無視できない悪化の割合は真の吻側移動ではなく脊髄レベル再評価のノイズを反映する。"
+  en: "Share of deteriorate (Δ<0) / stable (Δ=0) / descent (Δ≥1) with the median Δ. The median is reported because INT (full recovery) inflates the mean. The non-trivial deterioration share reflects re-assessment noise in the cord level, not true rostral migration."
+methods_ld_drilldown_heading:
+  ja: "レベル別ドリルダウン (較正・寄与因子・下降幅・Δ分布)"
+  en: "Per-level drilldown (calibration, drivers, magnitude, Δ)"
+methods_ld_drilldown_caption:
+  ja: "レベルを選択すると、下降ヘッドの生 vs Platt 較正の信頼度曲線と in-sample SHAP 寄与因子、下降幅ヘッドの混同行列、当該レベルの Δ 分布を表示。"
+  en: "Select a level to see its descent head's raw-vs-Platt-calibrated reliability curve and in-sample SHAP drivers, the magnitude head's confusion matrix, and that level's Δ distribution."

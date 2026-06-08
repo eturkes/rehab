@@ -15,6 +15,7 @@ from rehab_sci.dashboard.state import (
     DATAQUALITY,
     INDEPENDENCE,
     LANDMARK,
+    LEVEL_DESCENT,
     METRICS,
     MULTISTATE,
     OUTCOME_BUNDLES,
@@ -682,6 +683,91 @@ def update_methods_topography_segment(seg_key, lang):
     return rel, shap
 
 
+_LD_LEVEL_ORDER = ["nli", "right_motor", "left_motor", "right_sensory", "left_sensory"]
+
+
+def _ld_level_label(key: str, lang: str) -> str:
+    lv = (LEVEL_DESCENT or {}).get("levels", {}).get(key, {})
+    return lv.get("label_ja" if lang == "ja" else "label_en", key)
+
+
+def _level_descent_block(lang: str) -> html.Div | None:
+    """G10 — neurological-level descent: per-level descent-discrimination scorecard + outcome-
+    composition landscape + the interactive per-level drilldown (calibration, drivers, magnitude
+    confusion, Δ distribution)."""
+    ld = LEVEL_DESCENT
+    if not ld or not ld.get("levels"):
+        return None
+    children: list = [
+        html.H3(t(SCHEMA, "methods_ld_heading", lang)),
+        html.P(t(SCHEMA, "methods_ld_def", lang)),
+    ]
+    for heading_key, caption_key, fig in [
+        ("methods_ld_scorecard_heading", "methods_ld_scorecard_caption",
+         fg.fig_level_descent_scorecard(ld, lang)),
+        ("methods_ld_landscape_heading", "methods_ld_landscape_caption",
+         fg.fig_level_descent_landscape(ld, lang)),
+    ]:
+        if fig is not None:
+            children.append(html.Div(className="methods-perf-card", children=[
+                html.H4(t(SCHEMA, heading_key, lang)),
+                dcc.Graph(figure=fig, config={"displayModeBar": False}),
+                html.P(t(SCHEMA, caption_key, lang), style={"fontSize": "12px", "color": INK["500"]}),
+            ]))
+
+    # interactive per-level drilldown (reuses the G4 conversion reliability + SHAP + confusion figs)
+    keys = [k for k in _LD_LEVEL_ORDER if k in ld["levels"]]
+    lvl_opts = [{"label": _ld_level_label(k, lang), "value": k} for k in keys]
+    children.append(html.Div(className="methods-perf-card", children=[
+        html.H4(t(SCHEMA, "methods_ld_drilldown_heading", lang)),
+        html.P(t(SCHEMA, "methods_ld_drilldown_caption", lang),
+               style={"fontSize": "12px", "color": INK["500"]}),
+        dcc.Dropdown(id="methods-ld-level", options=lvl_opts,
+                     value=(lvl_opts[0]["value"] if lvl_opts else None), clearable=False,
+                     style={"maxWidth": "340px", "marginBottom": "8px"}),
+        html.Div(style={"display": "flex", "gap": "12px"}, children=[
+            dcc.Graph(id="methods-ld-rel-graph", config={"displayModeBar": False},
+                      style={"flex": "1", "minWidth": "0"}),
+            dcc.Graph(id="methods-ld-shap-graph", config={"displayModeBar": False},
+                      style={"flex": "1", "minWidth": "0"}),
+        ]),
+        html.Div(style={"display": "flex", "gap": "12px", "marginTop": "8px"}, children=[
+            dcc.Graph(id="methods-ld-cm-graph", config={"displayModeBar": False},
+                      style={"flex": "1", "minWidth": "0"}),
+            dcc.Graph(id="methods-ld-delta-graph", config={"displayModeBar": False},
+                      style={"flex": "1", "minWidth": "0"}),
+        ]),
+    ]))
+    children.append(html.P(t(SCHEMA, "ld_caption", lang),
+                           style={"fontSize": "12px", "color": INK["500"]}))
+    return html.Div(className="methods-block", children=children)
+
+
+@callback(
+    Output("methods-ld-rel-graph", "figure"),
+    Output("methods-ld-shap-graph", "figure"),
+    Output("methods-ld-cm-graph", "figure"),
+    Output("methods-ld-delta-graph", "figure"),
+    Input("methods-ld-level", "value"),
+    Input("lang-store", "data"),
+)
+def update_methods_level_descent(level_key, lang):
+    """Per-level drilldown: the selected level's descent-head raw-vs-Platt reliability curve and
+    in-sample SHAP drivers (reusing the G4 conversion figures), plus the magnitude head's confusion
+    matrix and that level's Δ distribution."""
+    if not LEVEL_DESCENT or not level_key:
+        return go.Figure(), go.Figure(), go.Figure(), go.Figure()
+    lv = LEVEL_DESCENT["levels"].get(level_key)
+    if lv is None:
+        return go.Figure(), go.Figure(), go.Figure(), go.Figure()
+    label = _ld_level_label(level_key, lang)
+    rel = fg.fig_conversion_reliability(lv["descent"], lang, label) or go.Figure()
+    shap = fg.fig_conversion_shap(lv["descent"], SCHEMA, lang) or go.Figure()
+    cm = fg.fig_conversion_confusion(lv["magnitude"], lang) or go.Figure()
+    delta = fg.fig_level_descent_delta(lv["landscape"], lang) or go.Figure()
+    return rel, shap, cm, delta
+
+
 def _dataquality_block(lang: str) -> html.Div | None:
     dq = DATAQUALITY
     if not dq:
@@ -780,6 +866,9 @@ def render_methods(lang: str) -> html.Div:
     topography_block = _topography_block(lang)
     if topography_block is not None:
         md.append(topography_block)
+    level_descent_block = _level_descent_block(lang)
+    if level_descent_block is not None:
+        md.append(level_descent_block)
     dq_block = _dataquality_block(lang)
     if dq_block is not None:
         md.append(dq_block)

@@ -15,6 +15,7 @@ from rehab_sci.dashboard.state import (
     FEATURE_SPEC,
     INDEPENDENCE_BUNDLE,
     LANDMARK_BUNDLE,
+    LEVEL_DESCENT_BUNDLE,
     LONG,
     MULTISTATE_BUNDLE,
     OUTCOME_BUNDLES,
@@ -25,6 +26,7 @@ from rehab_sci.dashboard.state import (
     TRAJECTORY_BUNDLE,
 )
 from rehab_sci.data.episodes import episode_admission_features
+from rehab_sci.data.loader import _CORD_ORDER
 from rehab_sci.data.phenotypes import (
     MEASURES,
     WINDOW,
@@ -989,3 +991,122 @@ def topography_observed_discharge(key_record: int) -> dict[str, bool]:
         if pd.notna(v):
             out[key] = bool(v >= seg["thr"])
     return out
+
+
+# ----------------------------------------------------------------------------
+# G10 neurological-level descent — admission->discharge ISNCSCI *level* recovery inference.
+# Per modelled level (NLI + bilateral motor/sensory): a CALIBRATED binary descent head P(Δ>=1 =
+# caudal descent = improvement) plus an ORDINAL magnitude head {0,+1,>=+2} (+APS).  As in G4
+# conversion the two head families are NOT numerically comparable (the magnitude head is
+# class_weight="balanced" => uncalibrated): surface the binary as the descent probability, the
+# magnitude as its APS set / most-likely class, never a competing probability.  Gated PER LEVEL on
+# that level's own admission ordinal being present — the loader maps INT (intact) / missing -> NaN,
+# so an already-intact or unrecorded level has no room / cannot be gated => a "needs level" prompt.
+# `_apply_platt` is the shared Platt mirror, so the dashboard never imports models.level_descent
+# (which pulls shap via conversion -> train).
+
+def _level_descent_input(X: pd.DataFrame) -> pd.DataFrame:
+    """One-row input over the bundle's 30 admission features, dtyped like training (every head
+    shares the 30 features — which already include each level's own admission *_ord baseline, the
+    dominant predictor of its own descent; re-cast categoricals so LightGBM realigns levels)."""
+    b = LEVEL_DESCENT_BUNDLE
+    base = X.iloc[0].to_dict() if len(X) else {}
+    cat = set(b["categorical_cols"])
+    Xc = pd.DataFrame([{c: base.get(c) for c in b["feature_cols"]}])
+    for c in b["feature_cols"]:
+        if c in cat:
+            Xc[c] = Xc[c].astype("category")
+        else:
+            Xc[c] = pd.to_numeric(Xc[c], errors="coerce")
+    return Xc
+
+
+def predict_level_descent(X: pd.DataFrame) -> dict | None:
+    """Per-level admission->discharge neurological-level descent for one admission row (see header).
+
+    Returns ``None`` when the bundle is absent.  Each level applies only if its own admission
+    ordinal (``level_meta[key]['ord']`` — the loader's first-non-null *_ord) is present in ``X``;
+    INT/missing -> NaN -> not applicable (the surfaces render a "needs level" prompt).  The descent
+    probability is Platt-calibrated; the magnitude head is surfaced as its APS set / argmax.
+    """
+    if LEVEL_DESCENT_BUNDLE is None:
+        return None
+    b = LEVEL_DESCENT_BUNDLE
+    base = X.iloc[0].to_dict() if len(X) else {}
+    Xc = _level_descent_input(X)
+    levels: list[dict] = []
+    for key in b["levels"]:
+        meta = b["level_meta"][key]
+        head = b["heads"][key]
+        adm_raw = base.get(meta["ord"])
+        adm_ord = None if adm_raw is None or pd.isna(adm_raw) else round(float(adm_raw))
+        entry: dict = {
+            "key": key,
+            "label_en": meta["label_en"],
+            "label_ja": meta["label_ja"],
+            "applicable": adm_ord is not None,
+            "base_rate": float(head["descent"]["base_rate"]),
+            "adm_ord": adm_ord,
+        }
+        if entry["applicable"]:
+            d = head["descent"]
+            raw = float(d["clf"].predict_proba(Xc[d["feature_cols"]])[0, 1])
+            entry["prob"] = _apply_platt(d["calibrator"], raw)
+            m = head["magnitude"]
+            proba = np.asarray(m["clf"].predict_proba(Xc[m["feature_cols"]])[0], dtype=float)
+            aps_idx = aps_prediction_set(proba, float(m["aps_q_hat"]))
+            codes = [int(c) for c in m["class_codes"]]
+            entry["magnitude"] = {
+                "mag_cap": int(m["mag_cap"]),
+                "class_codes": codes,
+                "proba": proba.tolist(),
+                "pred_code": codes[int(np.argmax(proba))],
+                "aps_codes": [codes[i] for i in aps_idx],
+            }
+        levels.append(entry)
+    return {"levels": levels, "any_applicable": any(lv["applicable"] for lv in levels)}
+
+
+def level_descent_observed(key_record: int) -> dict | None:
+    """The patient's OWN admission->discharge level change per modelled level, for the patient-card
+    cord-ladder overlay.  Admission ordinal = the loader's first-non-null *_ord (``EP``); discharge
+    = the discharge-slot *_ord with raw ``INT`` lifted to ``int_ord`` (full recovery = the ceiling).
+    Mirrors ``models.level_descent._level_delta``.  Only levels with BOTH endpoints observed appear;
+    ``None`` when none do.  Also returns sparse cord-axis ticks (rostral C1 left -> caudal INT)."""
+    if LEVEL_DESCENT_BUNDLE is None:
+        return None
+    b = LEVEL_DESCENT_BUNDLE
+    int_ord = int(b["int_ord"])
+    cord = [*list(_CORD_ORDER), "INT"]  # ordinal -> display token; index int_ord == "INT"
+    row = EP.loc[EP["KeyRecordNumber"] == key_record]
+    disc = LONG[(LONG["KeyRecordNumber"] == key_record) & (LONG["TIME_Name"] == "discharge")]
+    levels: list[dict] = []
+    for key in b["levels"]:
+        meta = b["level_meta"][key]
+        ord_col, raw_col = meta["ord"], meta["raw"]
+        adm_v = row[ord_col].iloc[0] if (not row.empty and ord_col in row.columns) else None
+        adm_ord = None if (adm_v is None or pd.isna(adm_v)) else round(float(adm_v))
+        disc_ord = None
+        if not disc.empty:
+            draw = str(disc.iloc[0][raw_col]).strip() if raw_col in disc.columns else ""
+            if draw == "INT":
+                disc_ord = int_ord
+            elif ord_col in disc.columns:
+                dv = pd.to_numeric(pd.Series([disc.iloc[0][ord_col]]), errors="coerce").iloc[0]
+                disc_ord = None if pd.isna(dv) else round(float(dv))
+        if adm_ord is None or disc_ord is None:
+            continue
+        levels.append({
+            "key": key, "label_en": meta["label_en"], "label_ja": meta["label_ja"],
+            "adm_ord": adm_ord, "disc_ord": disc_ord, "delta": disc_ord - adm_ord,
+            "adm_label": cord[adm_ord] if adm_ord < len(cord) else str(adm_ord),
+            "disc_label": cord[disc_ord] if disc_ord < len(cord) else str(disc_ord),
+        })
+    if not levels:
+        return None
+    tickvals, ticktext = [], []
+    for o in (0, 7, 13, 19, 24, 28, int_ord):  # C1, C8, T6, T12, L5, S45, INT
+        if 0 <= o < len(cord):
+            tickvals.append(o)
+            ticktext.append(cord[o])
+    return {"levels": levels, "axis": {"tickvals": tickvals, "ticktext": ticktext, "max_ord": int_ord}}
