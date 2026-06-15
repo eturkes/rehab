@@ -14,6 +14,8 @@ from rehab_sci.dashboard.compute import (
     aps_prediction_set,
     clip_scalar,
     compute_ref_predictions,
+    dissociation_cohort_landscape,
+    dissociation_observed,
     episode_has_admission,
     episode_landmark_eligibility,
     episode_row_for_model,
@@ -26,6 +28,7 @@ from rehab_sci.dashboard.compute import (
     multistate_observed_grades,
     phenotype_cutoff_options,
     predict_conversion,
+    predict_dissociation,
     predict_independence,
     predict_landmark,
     predict_level_descent,
@@ -51,9 +54,11 @@ from rehab_sci.dashboard.i18n import level_label, t
 from rehab_sci.dashboard.layout import (
     chart_card,
     conversion_readout,
+    dissociation_readout,
     fig_class_probabilities,
     fig_conversion_endpoints,
     fig_conversion_magnitude,
+    fig_dissociation_landscape,
     fig_independence_profile,
     fig_landmark_compare,
     fig_level_descent_bar,
@@ -76,6 +81,7 @@ from rehab_sci.dashboard.state import (
     ARCHETYPE_DATA,
     CONVERSION_BUNDLE,
     DEFAULT_OUTCOME,
+    DISSOCIATION_BUNDLE,
     EP,
     FEATURE_SPEC,
     INDEPENDENCE_BUNDLE,
@@ -458,6 +464,25 @@ def _patient_level_descent_card(lang: str) -> html.Div | None:
     )
 
 
+def _patient_dissociation_card(lang: str) -> html.Div | None:
+    """Neuro-functional dissociation card: the patient's admission row drives the predicted star on
+    each Δneuro×Δfunction quadrant (calibrated over-achiever direction + signed magnitude PI); the
+    patient's OWN realized dissociation is overlaid as an open star where both discharge deltas exist.
+    Predicted for everyone (no admission-grade gating).  Omitted when the bundle is absent."""
+    if DISSOCIATION_BUNDLE is None:
+        return None
+    return chart_card(
+        t(SCHEMA, "diss_card_heading", lang),
+        html.Div([
+            html.Div(t(SCHEMA, "diss_card_intro", lang), className="lm-card-intro"),
+            html.Div(id="patient-diss-readout"),
+            html.Div(t(SCHEMA, "diss_landscape_heading", lang), className="pheno-subtitle"),
+            dcc.Graph(id="patient-diss-graph", config={"displayModeBar": False}),
+            html.Div(t(SCHEMA, "diss_caption", lang), className="sim-caveat"),
+        ]),
+    )
+
+
 # ---------- layout ----------
 def render_patient(lang: str) -> html.Div:
     default_pid = PATIENT_OPTIONS[0].id_number if PATIENT_OPTIONS else None
@@ -572,6 +597,9 @@ def render_patient(lang: str) -> html.Div:
     ld_card = _patient_level_descent_card(lang)
     if ld_card is not None:
         content_children.append(ld_card)
+    diss_card = _patient_dissociation_card(lang)
+    if diss_card is not None:
+        content_children.append(diss_card)
     content_children.append(similarity_card)
 
     return html.Div(
@@ -1113,6 +1141,29 @@ def update_patient_level_descent(key_record, lang):
         fig_level_descent_bar(result, lang),
         fig_level_descent_magnitude(result, lang),
         obs_fig,
+    )
+
+
+# ---------- neuro-functional dissociation callback ----------
+@callback(
+    Output("patient-diss-readout", "children"),
+    Output("patient-diss-graph", "figure"),
+    Input("patient-episode-radio", "value"),
+    Input("lang-store", "data"),
+)
+def update_patient_dissociation(key_record, lang):
+    # No admission-grade gating — dissociation is predicted for everyone; the patient's OWN realized
+    # dissociation (where both discharge deltas exist) is overlaid as an open star on the quadrants.
+    if DISSOCIATION_BUNDLE is None or key_record is None:
+        return dissociation_readout(None, lang), go.Figure()
+    key_record = int(key_record)
+    result = predict_dissociation(episode_row_for_model(key_record))
+    if result is None:
+        return dissociation_readout(None, lang), go.Figure()
+    obs = dissociation_observed(key_record)
+    return (
+        dissociation_readout(result, lang),
+        fig_dissociation_landscape(dissociation_cohort_landscape(), lang, predict=result, observed=obs),
     )
 
 

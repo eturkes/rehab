@@ -16,9 +16,11 @@ from rehab_sci.dashboard.compute import (
     clip_scalar,
     collect_sim_inputs,
     compute_ref_predictions,
+    dissociation_cohort_landscape,
     episode_has_admission,
     inv_transform_scalar,
     predict_conversion,
+    predict_dissociation,
     predict_independence,
     predict_landmark,
     predict_level_descent,
@@ -34,10 +36,12 @@ from rehab_sci.dashboard.compute import (
 from rehab_sci.dashboard.i18n import col_label, t
 from rehab_sci.dashboard.layout import (
     conversion_readout,
+    dissociation_readout,
     dropdown_for,
     fig_class_probabilities,
     fig_conversion_endpoints,
     fig_conversion_magnitude,
+    fig_dissociation_landscape,
     fig_independence_profile,
     fig_landmark_compare,
     fig_level_descent_bar,
@@ -58,6 +62,7 @@ from rehab_sci.dashboard.reliability import assess_input
 from rehab_sci.dashboard.state import (
     CONVERSION_BUNDLE,
     DEFAULT_OUTCOME,
+    DISSOCIATION_BUNDLE,
     EP,
     FEATURE_SPEC,
     INDEPENDENCE_BUNDLE,
@@ -193,6 +198,9 @@ def render_simulator(lang: str, ref_data: dict | None = None) -> html.Div:
     ld_card = _level_descent_card(lang)
     if ld_card is not None:
         children.append(ld_card)
+    diss_card = _dissociation_card(lang)
+    if diss_card is not None:
+        children.append(diss_card)
     return html.Div(children)
 
 
@@ -282,6 +290,25 @@ def _independence_card(lang: str) -> html.Div | None:
             html.Div(t(SCHEMA, "ind_profile_heading", lang), className="sim-section-title"),
             dcc.Graph(id="sim-ind-graph", config={"displayModeBar": False}),
             html.Div(t(SCHEMA, "ind_caption", lang), className="sim-caveat"),
+        ],
+    )
+
+
+def _dissociation_card(lang: str) -> html.Div | None:
+    """Hypothetical neuro-functional dissociation driven by the simulator's admission inputs: the
+    predicted star on each Δneuro×Δfunction quadrant (calibrated over-achiever direction + signed
+    magnitude PI).  No realized-outcome overlay (hypothetical).  Omitted when the bundle is absent."""
+    if DISSOCIATION_BUNDLE is None:
+        return None
+    return html.Div(
+        className="lm-card diss-card",
+        children=[
+            html.H2(t(SCHEMA, "diss_card_heading", lang), className="lm-card-heading"),
+            html.Div(t(SCHEMA, "diss_card_intro", lang), className="lm-card-intro"),
+            html.Div(id="sim-diss-readout"),
+            html.Div(t(SCHEMA, "diss_landscape_heading", lang), className="sim-section-title"),
+            dcc.Graph(id="sim-diss-graph", config={"displayModeBar": False}),
+            html.Div(t(SCHEMA, "diss_caption", lang), className="sim-caveat"),
         ],
     )
 
@@ -868,6 +895,31 @@ def simulate_independence(num_vals, cat_vals, lang, num_ids, cat_ids):
     if result is None:
         return independence_readout(None, lang), go.Figure()
     return independence_readout(result, lang), fig_independence_profile(result, lang)
+
+
+# ---------- neuro-functional dissociation callback ----------
+@callback(
+    Output("sim-diss-readout", "children"),
+    Output("sim-diss-graph", "figure"),
+    Input({"type": "num", "col": dash.ALL}, "value"),
+    Input({"type": "cat", "col": dash.ALL}, "value"),
+    Input("lang-store", "data"),
+    State({"type": "num", "col": dash.ALL}, "id"),
+    State({"type": "cat", "col": dash.ALL}, "id"),
+)
+def simulate_dissociation(num_vals, cat_vals, lang, num_ids, cat_ids):
+    # Predicted for everyone (no admission-grade gating); blanks stay NaN, so an empty form yields a
+    # near-cohort-average star.  No realized-outcome overlay (hypothetical).
+    if not num_ids and not cat_ids:
+        return dissociation_readout(None, lang), go.Figure()
+    X = collect_sim_inputs(num_vals, num_ids, cat_vals, cat_ids)
+    result = predict_dissociation(X)
+    if result is None:
+        return dissociation_readout(None, lang), go.Figure()
+    return (
+        dissociation_readout(result, lang),
+        fig_dissociation_landscape(dissociation_cohort_landscape(), lang, predict=result),
+    )
 
 
 # ---------- recovery-topography callbacks ----------

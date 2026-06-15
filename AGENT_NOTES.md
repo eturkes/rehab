@@ -63,10 +63,11 @@ superseded, duplicated elsewhere, or has gone stale.
   multi-state recovery (s36/s37) + G7 functional-independence profile (s38/s39) + G8 recovery
   topography map (s40 model + s41 body-map dashboard) + G9 Δ score-recovery prediction (s42)
   + G10 neurological-level descent (s43 model + s44 dashboard, all 5 levels)
+  + G11 neuro-functional dissociation (s45 model + s46 quadrant-scatter dashboard, 3 axes)
   **all fully shipped** (see §7).
   Open: F26 test harness · F27 dep refresh · a new G-series idea (data is exhausted of
   NEW field families — see §8; any new G must reuse the existing ISNCSCI/SCIM/AIS signal — e.g.
-  ZPP descent or calibration-drift monitoring).
+  ZPP descent [INFEASIBLE, cohort too small — §8] or calibration-drift monitoring).
   The user steers toward *insightful* (clinical/scientific) features over infra/maintenance, so
   lead with those.
 
@@ -904,8 +905,37 @@ superseded, duplicated elsewhere, or has gone stale.
   (one calibrated signed dissociation signal + PI), not a fundamentally new predictive mechanism.
   **Behavioral validation:** the two heads agree in direction 93–96 %, predicted-D tracks observed-D
   in-sample r 0.96–0.97, the z-contrast label reproduces exactly (100 %), conformal coverage holds.
-  **Part 1 shipped (s45): model + tracked metrics.  Part 2 (dashboard surfaces) PENDING** — user
-  pre-chose both heads + the 3 domain-paired axes; no build spec locked yet (§8).
+  **Fully shipped: model + tracked metrics (s45) + dashboard surfaces (s46).**
+  **Dashboard contract (s46) — user chose the unified QUADRANT-SCATTER design** (3 cohort quadrants on
+  Methods; the same cloud + a patient "star" on Patient/Simulator).  Pure `compute.predict_dissociation(X)`
+  (inline `_apply_platt` mirror — never import `models.dissociation`, it pulls shap via conversion→train)
+  returns per axis the calibrated `p_over` = P(D>0) + `base_rate`, the signed `d` + 80% PI (`d_lo/d_hi`),
+  the functional-point translation `d_points` = sd_f·D (`±_lo/_hi`), and the 2D **star**.  **Star-placement
+  CRUX — a 1-D dissociation has no 2-D position without an external anchor for the neuro axis:** x = the
+  patient's predicted Δneuro from the MATCHING G9 delta head (`compute_ref_predictions(X)[delta_uems/lems/
+  totalmotor]`), then func = `mu_f + sd_f·(z(Δneuro) + D)` with the vertical gap from the D=0 reference
+  (`func_ref = mu_f + sd_f·z(Δneuro)`) = sd_f·D, and the D-PI maps to a vertical whisker.  This is honest
+  because predicted-D ≈0.97-correlates with differencing the two separately-modeled axes (§0b).  **NOT
+  admission-grade gated** (predicted for everyone, like G7 — so NO real-grade override on the patient card).
+  `compute.dissociation_cohort_landscape()` recomputes the per-axis Δneuro×Δfunction cloud LIVE from `EP`
+  (only compact summaries are stored in the metrics file): over/under flag via the stored zparams, the
+  median quadrant cross + dissociated-share, the cohort coupling regression line, and the
+  equal-standardized-recovery diagonal (slope sd_f/sd_n).  `compute.dissociation_observed(kr)` = the
+  patient's realized (Δneuro,Δfunction,D) per axis for the open-star overlay (same discharge−admission
+  deltas the model trained on).  Shared `layout.fig_dissociation_landscape(cohort, lang, predict, observed)`
+  = a `make_subplots` 1×3 of quadrant scatters (cohort cloud teal=over / crimson=under; dashed D=0 diagonal
+  = the over/under boundary; dotted shallow coupling line = the visual proof function lags neurology;
+  predicted star + PI whisker + dotted connector to its D=0 reference; optional observed open-star) +
+  `layout.dissociation_readout`.  Methods-only: cohort 3-panel landscape centerpiece +
+  `figures/methods.fig_dissociation_scorecard` (per-axis over-achiever AUC + magnitude R²) + a per-axis
+  drilldown dropdown reusing `fig_conversion_{reliability,shap}` on the axis's `over_achiever` metrics entry
+  (shares the `calibration`/`calibration_raw`/`shap_top` shape) via **1 Methods `@callback`**.  Surfaces:
+  Methods cohort centerpiece + scorecard + drilldown; Patient card (predicted + observed stars, not gated);
+  Simulator card (predicted star, blanks→NaN ⇒ near-cohort-average star).  Compact subplot/readout/dropdown
+  labels via shared `layout._diss_short` (matches the on-screen subplot titles).  Bilingual
+  `diss_*`/`methods_diss_*`; reuse `.lm-card`/`.conv-readout`/`.pheno-subtitle`/`.chart-card`/
+  `.methods-perf-card` CSS (`.diss-card` unstyled hook).  +3 callbacks (42→45); **no retrain** (production
+  byte-repro preserved — dashboard-only diff).
 
 ## 4. Dashboard conventions
 
@@ -1042,6 +1072,24 @@ bgcmd 'exit()'; rm -rf "$BGCMDDIR"               # stop + clean
 
 One line per session; full detail is in Git history (`git log`, diffs).
 
+* **s46** — G11 neuro-functional dissociation, **Part 2** (dashboard surfaces; user chose the unified
+  **quadrant-scatter** design — 3 cohort Δneuro×Δfunction quadrants on Methods + a patient "star" on
+  Patient/Simulator; **no retrain**, production byte-identical).  Pure `compute.predict_dissociation`
+  (inline `_apply_platt` mirror; per axis calibrated P(over) + signed D + PI + d_points=sd_f·D + the 2D
+  star) + `dissociation_cohort_landscape` (per-axis cloud recomputed LIVE from `EP`) +
+  `dissociation_observed` (realized-star overlay) + `state.DISSOCIATION`/`DISSOCIATION_BUNDLE` loaders.
+  **Star-placement crux solved:** a 1-D dissociation needs an external anchor for the neuro axis → x =
+  the matching **G9** Δneuro prediction (`compute_ref_predictions`), vertical offset from the D=0 diagonal
+  = sd_f·D (honest: predicted-D ≈0.97-correlates with differencing the two axes).  Shared
+  `layout.fig_dissociation_landscape` (1×3 quadrants: cloud teal=over/crimson=under, dashed
+  equal-recovery D=0 diagonal, dotted shallow coupling line, predicted star + PI whisker + observed
+  open-star) + `dissociation_readout`; Methods `figures.fig_dissociation_scorecard` + per-axis drilldown
+  reusing `fig_conversion_{reliability,shap}` (1 Methods callback).  NOT grade-gated (predicted for all,
+  like G7 — no real-grade override).  Bilingual `diss_*`/`methods_diss_*`; `.diss-card` hook; shared
+  `layout._diss_short` labels.  Verified: all 3 tabs render both langs + the 3 new callbacks invoked
+  directly; behavioral star sanity (ep-2 predicted d≈+2.1 ≈ its observed +2.2, strong compensator);
+  **PNG-inspected the quadrant** (diagonal vs shallow coupling line legible, over/under split clean);
+  full lint + F-gate clean; boots 200 with 45 callbacks (42→45); MAP regenerated.
 * **s45** — G11 neuro-functional dissociation, **Part 1** (model + tracked metrics; user pre-chose
   *both* heads + the *3 domain-paired* axes).  New `models/dissociation.py`: per axis (UEMS↔self-care,
   LEMS↔mobility, total-motor↔SCIM-total) the standardized contrast `D = z(Δfunction) − z(Δneuro)`
@@ -1386,14 +1434,14 @@ One line per session; full detail is in Git history (`git log`, diffs).
 
 ## 8. Feature backlog (default-work pool)
 
-Propose from here unless the user redirects.  **Items F1–F25 + G1–G4 + G6–G10 are all fully shipped**
-(G8 topography s40/s41, G9 Δ score-recovery s42, G10 neurological-level descent s43/s44) — see §7 for
-the session each landed in, and Git history for implementation detail.  **G11 neuro-functional
-dissociation Part 1 (model + metrics) shipped s45; its Part 2 (dashboard surfaces) is the next pick**
-(user pre-chose both heads + the 3 domain-paired axes — no detailed build spec locked yet; deferred to
-a fresh session per the G-series rhythm).  Then F26 / F27 / a new G.
+Propose from here unless the user redirects.  **Items F1–F25 + G1–G4 + G6–G11 are all fully shipped**
+(G8 topography s40/s41, G9 Δ score-recovery s42, G10 neurological-level descent s43/s44, G11
+neuro-functional dissociation s45 model + s46 quadrant-scatter dashboard) — see §7 for the session each
+landed in, and Git history for implementation detail.  **Next pick: F26 invariant test harness, F27 dep
+refresh, or a new G-series idea** (data is exhausted of NEW field families — any new G must reuse the
+existing ISNCSCI/SCIM/AIS signal; see the "new G-series ideas" candidate below).
 The user steers toward *insightful* (clinical/scientific) features over
-infra/maintenance.
+infra/maintenance, so lead with a new G if one can be justified, else F26.
 Shipped ledger (terse, by feature number):
 
 * F1 patient explorer · F2 multi-outcome prediction · F3 Mondrian conformal ·
@@ -1502,8 +1550,8 @@ Shipped ledger (terse, by feature number):
   levels/level_meta/heads.  Frame motor/sensory honestly (calibrated but low-discrimination, like
   G4's 0.62 `motor_incomplete`): surface the binary as the probability, the magnitude as the APS
   set, never as competing probabilities (the G4 CRUX).
-* **G11 neuro-functional dissociation** (s45 Part 1: model + tracked metrics; Part 2 dashboard
-  pending): `models/dissociation.py` — per domain-paired axis (UEMS↔SCIM self-care · LEMS↔SCIM
+* **G11 neuro-functional dissociation** (s45 Part 1: model + tracked metrics; s46 Part 2: quadrant-scatter
+  dashboard — **fully shipped**): `models/dissociation.py` — per domain-paired axis (UEMS↔SCIM self-care · LEMS↔SCIM
   mobility · total-motor↔SCIM-total) predicts the standardized contrast `D = z(Δfunction) − z(Δneuro)`
   (D>0 = functional over-achiever / compensation) with a calibrated binary P(D>0) head + a continuous
   magnitude regression on D + marginal cross-conformal 80 % PI.  Quantifies how much functional
@@ -1512,11 +1560,13 @@ Shipped ledger (terse, by feature number):
   inverse of the G4/G10 CRUX (magnitude is unweighted regression ⇒ heads honestly comparable).
   Findings: all three axes well-predicted (binary AUC 0.93–0.95, magnitude R² 0.69–0.76); dominant
   driver = the neuro-axis baseline (ceiling/room, as in G9), age #2; honest-novelty caveat
-  (predicted-D ≈0.97-correlates with naive axis-differencing — value is the framing/surface).  See §3
-  for the model contract and §7 for the session.  **Part 2 (dashboard) is the next pick** — user
-  pre-chose both heads + 3 domain-paired axes; mirror `_apply_platt` inline in compute.py, surface the
-  binary as the calibrated probability and the magnitude as the signed point + PI, back-translate D to
-  functional points via `axis_meta.zparams.sd_f`.
+  (predicted-D ≈0.97-correlates with naive axis-differencing — value is the framing/surface).  Dashboard
+  (s46): `compute.predict_dissociation` + the unified **quadrant-scatter** map
+  (`layout.fig_dissociation_landscape`) — 3 cohort Δneuro×Δfunction panels on Methods + the patient "star"
+  (x = the matching G9 Δneuro prediction, vertical offset = sd_f·D) on Patient/Simulator — plus a per-axis
+  predictability scorecard + over-achiever drilldown reusing `fig_conversion_{reliability,shap}`.  See §3
+  for the full model + dashboard contract (incl. the star-placement crux, the live cohort recompute, and
+  the not-grade-gated invariant) and §7 for the sessions.  Fully shipped.
 
 **F23 (shipped s26): data-quality / clinical-consistency report** — see §7 and
 `data/quality.py`; durable data facts it surfaced live in §0b/§1, and the

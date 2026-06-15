@@ -197,5 +197,22 @@ LEVEL_DESCENT_BUNDLE: dict | None = (
     joblib.load(_level_descent_bundle_path) if _level_descent_bundle_path.exists() else None
 )
 
+# G11 neuro-functional dissociation. `dissociation_metrics.json` (tracked, identifier-free) drives
+# the Methods cohort-landscape / per-axis calibration + driver panels; `dissociation/bundle.joblib`
+# (gitignored) holds the per-axis calibrated over-achiever + signed-magnitude heads for per-row
+# inference (compute.predict_dissociation).  Both absent until
+# `python -m rehab_sci.models.dissociation`; every dissociation surface degrades gracefully.
+_dissociation_path = MODELS_DIR / "dissociation_metrics.json"
+if _dissociation_path.exists():
+    with _dissociation_path.open(encoding="utf-8") as _f:
+        DISSOCIATION: dict | None = json.load(_f)
+else:
+    DISSOCIATION = None
+
+_dissociation_bundle_path = MODELS_DIR / "dissociation" / "bundle.joblib"
+DISSOCIATION_BUNDLE: dict | None = (
+    joblib.load(_dissociation_bundle_path) if _dissociation_bundle_path.exists() else None
+)
+
 PATIENT_OPTIONS = list_patient_options(EP)
 PATIENT_OPTIONS_BY_ID = {p.id_number: p for p in PATIENT_OPTIONS}

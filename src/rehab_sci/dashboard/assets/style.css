@@ -770,6 +770,10 @@ input[type="number"]:focus, input[type="text"]:focus, select:focus {
 /* --- G8 recovery topography map (patient + simulator + methods) --- */
 /* .topo-card is an unstyled hook on the simulator card, parallel to .ms-card / .ind-card.
    The patient/methods surfaces reuse .lm-card / .conv-readout / .pheno-subtitle / .chart-card. */
+/* --- G11 neuro-functional dissociation (patient + simulator + methods) --- */
+/* .diss-card is an unstyled hook on the simulator card, parallel to .ms-card / .ind-card / .topo-card.
+   All dissociation surfaces reuse .lm-card / .conv-readout / .pheno-subtitle / .chart-card /
+   .methods-perf-card; the quadrant figure carries its own colours (teal=over-achiever, crimson=under). */
 .topo-worksheet-scroll {
   max-height: 340px;
   overflow-y: auto;

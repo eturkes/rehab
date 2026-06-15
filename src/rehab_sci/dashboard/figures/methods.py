@@ -1234,3 +1234,43 @@ def fig_topography_drivers(topo: dict, schema: Schema, lang: str) -> go.Figure |
         legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1, font=dict(size=10)),
     )
     return fig
+
+
+# ----------------------------- neuro-functional dissociation (G11) -------------------------
+def _diss_axis_label(em: dict, lang: str) -> str:
+    """Compact axis label for the scorecard, derived from the metrics' verbose neuro/func names."""
+    neuro = em["neuro_ja" if lang == "ja" else "neuro_en"].split("（")[0].split(" (")[0]
+    return f"{neuro} ↔ {em['func_ja' if lang == 'ja' else 'func_en']}"
+
+
+def fig_dissociation_scorecard(diss: dict, lang: str) -> go.Figure | None:
+    """Per-axis predictability of the dissociation from admission features: the calibrated
+    over-achiever-direction AUC and the magnitude-regression R² as grouped horizontal bars.  ``diss``
+    is ``dissociation_metrics.json``.  All three axes are well-predicted (AUC 0.93-0.95)."""
+    axes = (diss or {}).get("axes") or {}
+    if not axes:
+        return None
+    keys = list(axes)
+    labels = [_diss_axis_label(axes[k], lang) for k in keys]
+    auc = [axes[k]["over_achiever"]["auc"] for k in keys]
+    r2 = [axes[k]["magnitude"]["r2"] for k in keys]
+    auc_w = "P(機能優位) の AUC" if lang == "ja" else "P(over-achiever) AUC"
+    r2_w = "大きさ D の R²" if lang == "ja" else "Magnitude D  R²"
+    fig = go.Figure()
+    fig.add_trace(go.Bar(
+        y=labels, x=auc, orientation="h", name=auc_w, marker=dict(color=PALETTE_CATEGORICAL[0]),
+        text=[f"{v:.2f}" for v in auc], textposition="auto", textfont=dict(size=11),
+        hovertemplate="%{y}<br>" + auc_w + "=%{x:.3f}<extra></extra>",
+    ))
+    fig.add_trace(go.Bar(
+        y=labels, x=r2, orientation="h", name=r2_w, marker=dict(color=PALETTE_CATEGORICAL[3]),
+        text=[f"{v:.2f}" for v in r2], textposition="auto", textfont=dict(size=11),
+        hovertemplate="%{y}<br>" + r2_w + "=%{x:.3f}<extra></extra>",
+    ))
+    fig.update_layout(
+        height=70 * len(keys) + 96, margin=dict(l=180, r=20, t=20, b=42), barmode="group",
+        xaxis=dict(range=[0, 1.0], title="AUC / R²"),
+        yaxis=dict(autorange="reversed", tickfont=dict(size=11)),
+        legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1, font=dict(size=10)),
+    )
+    return fig

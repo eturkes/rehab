@@ -11,6 +11,7 @@ import pandas as pd
 from rehab_sci.constants import AIS_ORD_TO_LETTER
 from rehab_sci.dashboard.state import (
     CONVERSION_BUNDLE,
+    DISSOCIATION_BUNDLE,
     EP,
     FEATURE_SPEC,
     INDEPENDENCE_BUNDLE,
@@ -1110,3 +1111,173 @@ def level_descent_observed(key_record: int) -> dict | None:
             tickvals.append(o)
             ticktext.append(cord[o])
     return {"levels": levels, "axis": {"tickvals": tickvals, "ticktext": ticktext, "max_ord": int_ord}}
+
+
+# ---------- neuro-functional dissociation (G11) ----------
+# Predicts the standardized contrast D = z(Δfunction) − z(Δneuro) per domain-paired axis
+# (UEMS↔self-care, LEMS↔mobility, total-motor↔SCIM-total).  D>0 = functional over-achiever
+# (function outpaces neurology — compensation/adaptation); D<0 = under-achiever (neurology
+# outpaces function — a functional-translation flag).  Two honestly-comparable heads per axis (the
+# INVERSE of the G4/G10 binary-vs-balanced-magnitude CRUX — here the magnitude is an UNWEIGHTED
+# regression, so sign(D) ≈ the binary direction): the calibrated binary P(D>0) and the signed
+# magnitude D + a marginal conformal 80% PI.  `_apply_platt` is the shared Platt mirror, so the
+# dashboard never imports models.dissociation (which pulls shap via conversion→train).  The 2D
+# "star" maps the 1-D dissociation onto the Δneuro×Δfunction plane: x = the patient's predicted
+# Δneuro (the matching G9 delta head), and the vertical offset from the equal-standardized-recovery
+# diagonal = sd_f·D functional points (the D→points back-translation).  Not admission-grade gated.
+
+# axis_meta neuro Δ column -> the matching production G9 OUTCOMES key (for the star x-coordinate).
+_DISS_NEURO_KEY = {
+    "y_delta_uems": "delta_uems",
+    "y_delta_lems": "delta_lems",
+    "y_delta_totalmotor": "delta_totalmotor",
+}
+
+
+def _dissociation_input(X: pd.DataFrame) -> pd.DataFrame:
+    """One-row input over the dissociation bundle's feature universe (the shared 30 admission
+    features), dtyped like training so LightGBM realigns category levels."""
+    b = DISSOCIATION_BUNDLE
+    base = X.iloc[0].to_dict() if len(X) else {}
+    cat = set(b["categorical_cols"])
+    Xc = pd.DataFrame([{c: base.get(c) for c in b["feature_cols"]}])
+    for c in b["feature_cols"]:
+        if c in cat:
+            Xc[c] = Xc[c].astype("category")
+        else:
+            Xc[c] = pd.to_numeric(Xc[c], errors="coerce")
+    return Xc
+
+
+def predict_dissociation(X: pd.DataFrame) -> dict | None:
+    """Per-axis neuro-functional dissociation for one admission row (see header).
+
+    Returns ``None`` when the bundle is absent.  NOT admission-grade gated — dissociation is
+    predicted for everyone (no real-grade override on the patient card).  Per axis: the calibrated
+    P(over-achiever) = P(D>0), the signed magnitude D + its 80% PI, the D→functional-points
+    translation (sd_f·D), and the 2D star placement (x = predicted Δneuro from the matching G9
+    head; the func coordinate + PI whisker derived via the axis zparams)."""
+    if DISSOCIATION_BUNDLE is None:
+        return None
+    b = DISSOCIATION_BUNDLE
+    Xc = _dissociation_input(X)
+    ref = compute_ref_predictions(X)  # G9 Δneuro point predictions (the matching delta heads)
+    axes: list[dict] = []
+    for key in b["axes"]:
+        meta = b["axis_meta"][key]
+        zp = meta["zparams"]
+        heads = b["heads"][key]
+        ov = heads["over_achiever"]
+        raw = float(ov["clf"].predict_proba(Xc[ov["feature_cols"]])[0, 1])
+        p_over = _apply_platt(ov["calibrator"], raw)
+        mg = heads["magnitude"]
+        d = float(mg["reg"].predict(Xc[mg["feature_cols"]])[0])
+        q = float(mg["conformal_q"])
+        d_lo, d_hi = d - q, d + q
+        neuro_key = _DISS_NEURO_KEY.get(meta["neuro_delta_col"])
+        dn_hat = ref.get(neuro_key, {}).get("pred") if neuro_key else None
+        star = None
+        if dn_hat is not None:
+            zn = (float(dn_hat) - zp["mu_n"]) / zp["sd_n"]
+            star = {
+                "neuro": float(dn_hat),
+                "func": zp["mu_f"] + zp["sd_f"] * (zn + d),       # implied Δfunction
+                "func_ref": zp["mu_f"] + zp["sd_f"] * zn,         # equal-recovery (D=0) reference
+                "func_lo": zp["mu_f"] + zp["sd_f"] * (zn + d_lo),
+                "func_hi": zp["mu_f"] + zp["sd_f"] * (zn + d_hi),
+            }
+        axes.append({
+            "key": key,
+            "neuro_en": meta["neuro_en"], "neuro_ja": meta["neuro_ja"],
+            "func_en": meta["func_en"], "func_ja": meta["func_ja"],
+            "p_over": p_over,
+            "base_rate": float(ov["base_rate"]),
+            "d": d, "d_lo": d_lo, "d_hi": d_hi,
+            "d_points": zp["sd_f"] * d,           # D back-translated to functional (SCIM) points
+            "d_points_lo": zp["sd_f"] * d_lo,
+            "d_points_hi": zp["sd_f"] * d_hi,
+            "star": star,
+        })
+    return {"axes": axes}
+
+
+def _axis_cohort_deltas(meta: dict):
+    """(Δneuro, Δfunction) over the whole episode frame for one axis (NaN where undefined)."""
+    dn = pd.to_numeric(EP[meta["neuro_delta_col"]], errors="coerce").to_numpy()
+    df_ = (
+        pd.to_numeric(EP[meta["func_dis_col"]], errors="coerce")
+        - pd.to_numeric(EP[meta["func_adm_col"]], errors="coerce")
+    ).to_numpy()
+    return dn, df_
+
+
+def dissociation_cohort_landscape() -> dict | None:
+    """Per-axis cohort scatter recomputed live from the episode frame (only compact summaries are
+    stored in the metrics file).  Each axis carries the paired (Δneuro, Δfunction) cohort (finite
+    both sides + real IDNumber — the model's mask), the over-achiever flag (D>0 via the stored
+    zparams), the median quadrant cross, the cohort coupling regression line, the
+    equal-standardized-recovery diagonal (the D=0 over/under boundary), and the headline coupling r
+    / dissociated share.  ``None`` when the bundle is absent."""
+    if DISSOCIATION_BUNDLE is None:
+        return None
+    b = DISSOCIATION_BUNDLE
+    axes: list[dict] = []
+    for key in b["axes"]:
+        meta = b["axis_meta"][key]
+        zp = meta["zparams"]
+        dn, df_ = _axis_cohort_deltas(meta)
+        mask = np.isfinite(dn) & np.isfinite(df_) & EP["IDNumber"].notna().to_numpy()
+        dn, df_ = dn[mask], df_[mask]
+        D = (df_ - zp["mu_f"]) / zp["sd_f"] - (dn - zp["mu_n"]) / zp["sd_n"]
+        over = D > 0
+        med_n, med_f = float(np.median(dn)), float(np.median(df_))
+        b1, b0 = (float(v) for v in np.polyfit(dn, df_, 1))
+        x0, x1 = float(dn.min()), float(dn.max())
+        diag_slope = zp["sd_f"] / zp["sd_n"]  # diagonal zf=zn: Δfunc = mu_f + (sd_f/sd_n)(Δneuro−mu_n)
+        axes.append({
+            "key": key,
+            "neuro_en": meta["neuro_en"], "neuro_ja": meta["neuro_ja"],
+            "func_en": meta["func_en"], "func_ja": meta["func_ja"],
+            "neuro": dn.tolist(), "func": df_.tolist(), "over": over.tolist(),
+            "median_neuro": med_n, "median_func": med_f,
+            "diag": {"x": [x0, x1],
+                     "y": [zp["mu_f"] + diag_slope * (x0 - zp["mu_n"]),
+                           zp["mu_f"] + diag_slope * (x1 - zp["mu_n"])]},
+            "couple": {"x": [x0, x1], "y": [b0 + b1 * x0, b0 + b1 * x1]},
+            "r": float(np.corrcoef(dn, df_)[0, 1]),
+            "over_rate": float(over.mean()),
+            "dissociated_share": float(((dn > med_n) ^ (df_ > med_f)).mean()),
+            "n": int(mask.sum()),
+        })
+    return {"axes": axes}
+
+
+def dissociation_observed(key_record: int) -> dict | None:
+    """The patient's OWN observed (Δneuro, Δfunction, D) per axis for the patient-card star overlay
+    (achieved dissociation vs the admission prediction).  Uses the same discharge−admission deltas
+    the model trained on; an axis is ``observed`` only when both deltas are recorded.  ``None`` when
+    the bundle is absent or no axis is observed."""
+    if DISSOCIATION_BUNDLE is None:
+        return None
+    b = DISSOCIATION_BUNDLE
+    row = EP.loc[EP["KeyRecordNumber"] == key_record]
+    if row.empty:
+        return None
+    r0 = row.iloc[0]
+    axes: list[dict] = []
+    for key in b["axes"]:
+        meta = b["axis_meta"][key]
+        zp = meta["zparams"]
+        dn = pd.to_numeric(pd.Series([r0.get(meta["neuro_delta_col"])]), errors="coerce").iloc[0]
+        fd = pd.to_numeric(pd.Series([r0.get(meta["func_dis_col"])]), errors="coerce").iloc[0]
+        fa = pd.to_numeric(pd.Series([r0.get(meta["func_adm_col"])]), errors="coerce").iloc[0]
+        if pd.isna(dn) or pd.isna(fd) or pd.isna(fa):
+            axes.append({"key": key, "observed": False})
+            continue
+        df_ = float(fd - fa)
+        D = (df_ - zp["mu_f"]) / zp["sd_f"] - (float(dn) - zp["mu_n"]) / zp["sd_n"]
+        axes.append({"key": key, "observed": True, "neuro": float(dn), "func": df_,
+                     "d": float(D), "over": bool(D > 0)})
+    if not any(a["observed"] for a in axes):
+        return None
+    return {"axes": axes}

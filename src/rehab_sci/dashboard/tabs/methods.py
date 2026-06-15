@@ -7,12 +7,17 @@ from dash import Input, Output, callback, dcc, html
 
 from rehab_sci.constants import AIS_ORD_TO_LETTER
 from rehab_sci.dashboard import figures as fg
-from rehab_sci.dashboard.compute import topography_cohort_atlas
+from rehab_sci.dashboard.compute import dissociation_cohort_landscape, topography_cohort_atlas
 from rehab_sci.dashboard.i18n import col_label, t
-from rehab_sci.dashboard.layout import fig_topography_bodymap
+from rehab_sci.dashboard.layout import (
+    _diss_short,
+    fig_dissociation_landscape,
+    fig_topography_bodymap,
+)
 from rehab_sci.dashboard.state import (
     CONVERSION,
     DATAQUALITY,
+    DISSOCIATION,
     INDEPENDENCE,
     LANDMARK,
     LEVEL_DESCENT,
@@ -816,6 +821,74 @@ def _dataquality_block(lang: str) -> html.Div | None:
     return html.Div(className="methods-block", children=children)
 
 
+def _dissociation_block(lang: str) -> html.Div | None:
+    """G11 — neuro-functional dissociation: the cohort Δneuro×Δfunction quadrant map (per axis) +
+    a per-axis predictability scorecard, plus the interactive per-axis drilldown (the over-achiever
+    head's raw-vs-calibrated reliability + SHAP drivers, reused from G4)."""
+    diss = DISSOCIATION
+    if not diss or not diss.get("axes"):
+        return None
+    children: list = [
+        html.H3(t(SCHEMA, "methods_diss_heading", lang)),
+        html.P(t(SCHEMA, "methods_diss_def", lang)),
+        html.Div(className="methods-perf-card", children=[
+            html.H4(t(SCHEMA, "methods_diss_landscape_heading", lang)),
+            dcc.Graph(figure=fig_dissociation_landscape(dissociation_cohort_landscape(), lang),
+                      config={"displayModeBar": False}),
+            html.P(t(SCHEMA, "methods_diss_landscape_caption", lang),
+                   style={"fontSize": "12px", "color": INK["500"]}),
+        ]),
+    ]
+    sc = fg.fig_dissociation_scorecard(diss, lang)
+    if sc is not None:
+        children.append(html.Div(className="methods-perf-card", children=[
+            html.H4(t(SCHEMA, "methods_diss_scorecard_heading", lang)),
+            dcc.Graph(figure=sc, config={"displayModeBar": False}),
+            html.P(t(SCHEMA, "methods_diss_scorecard_caption", lang),
+                   style={"fontSize": "12px", "color": INK["500"]}),
+        ]))
+    # --- interactive per-axis drilldown (over-achiever reliability + SHAP, reused from G4) ---
+    options = [{"label": _diss_short(k, lang), "value": k} for k in diss["axes"]]
+    children.append(html.Div(className="methods-perf-card", children=[
+        html.H4(t(SCHEMA, "methods_diss_drilldown_heading", lang)),
+        html.P(t(SCHEMA, "methods_diss_drilldown_caption", lang),
+               style={"fontSize": "12px", "color": INK["500"]}),
+        dcc.Dropdown(id="methods-diss-axis", options=options,
+                     value=(options[0]["value"] if options else None), clearable=False,
+                     style={"maxWidth": "340px", "marginBottom": "8px"}),
+        html.Div(style={"display": "flex", "gap": "12px"}, children=[
+            dcc.Graph(id="methods-diss-rel-graph", config={"displayModeBar": False},
+                      style={"flex": "1", "minWidth": "0"}),
+            dcc.Graph(id="methods-diss-shap-graph", config={"displayModeBar": False},
+                      style={"flex": "1", "minWidth": "0"}),
+        ]),
+    ]))
+    children.append(html.P(t(SCHEMA, "diss_caption", lang),
+                           style={"fontSize": "12px", "color": INK["500"]}))
+    return html.Div(className="methods-block", children=children)
+
+
+@callback(
+    Output("methods-diss-rel-graph", "figure"),
+    Output("methods-diss-shap-graph", "figure"),
+    Input("methods-diss-axis", "value"),
+    Input("lang-store", "data"),
+)
+def update_methods_dissociation_axis(axis_key, lang):
+    """Per-axis drilldown: the selected axis's over-achiever (binary) head raw-vs-Platt reliability
+    curve and in-sample SHAP drivers (reusing the G4 conversion reliability/SHAP figures — the
+    over_achiever metrics entry shares the calibration/calibration_raw/shap_top shape)."""
+    if not DISSOCIATION or not axis_key:
+        return go.Figure(), go.Figure()
+    em = (DISSOCIATION["axes"].get(axis_key) or {}).get("over_achiever")
+    if em is None:
+        return go.Figure(), go.Figure()
+    label = _diss_short(axis_key, lang)
+    rel = fg.fig_conversion_reliability(em, lang, label) or go.Figure()
+    shap = fg.fig_conversion_shap(em, SCHEMA, lang) or go.Figure()
+    return rel, shap
+
+
 def render_methods(lang: str) -> html.Div:
     perf_children: list = [
         html.H3(t(SCHEMA, "methods_per_outcome_heading", lang)),
@@ -869,6 +942,9 @@ def render_methods(lang: str) -> html.Div:
     level_descent_block = _level_descent_block(lang)
     if level_descent_block is not None:
         md.append(level_descent_block)
+    dissociation_block = _dissociation_block(lang)
+    if dissociation_block is not None:
+        md.append(dissociation_block)
     dq_block = _dataquality_block(lang)
     if dq_block is not None:
         md.append(dq_block)

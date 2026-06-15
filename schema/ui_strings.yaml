@@ -1029,3 +1029,45 @@ methods_ld_drilldown_heading:
 methods_ld_drilldown_caption:
   ja: "レベルを選択すると、下降ヘッドの生 vs Platt 較正の信頼度曲線と in-sample SHAP 寄与因子、下降幅ヘッドの混同行列、当該レベルの Δ 分布を表示。"
   en: "Select a level to see its descent head's raw-vs-Platt-calibrated reliability curve and in-sample SHAP drivers, the magnitude head's confusion matrix, and that level's Δ distribution."
+diss_card_heading:
+  ja: "神経-機能 乖離プロファイル"
+  en: "Neuro-functional dissociation profile"
+diss_card_intro:
+  ja: "神経学的回復 (Δ ISNCSCI スコア) と機能的回復 (Δ SCIM) の「ずれ」を予測する。標準化対比 D = z(Δ機能) − z(Δ神経): D>0 は機能優位 (代償・適応で神経回復以上に自立を獲得)、D<0 は神経優位 (筋力回復が自立に転換できていない = 機能転換に注力すべき指標)。Δ神経×Δ機能の散布図上で、患者を★として配置 (横位置=予測 Δ神経、対角線=同等回復 D=0 からの上下のずれ=乖離) する。"
+  en: "Predicts the mismatch between neurological recovery (Δ ISNCSCI score) and functional recovery (Δ SCIM). The standardized contrast D = z(Δfunction) − z(Δneuro): D>0 = functional over-achiever (independence regained through compensation/adaptation beyond neurological gain); D<0 = functional under-achiever (strength not yet translated into independence — a functional-translation flag). The patient is placed as a star on the Δneuro×Δfunction plane (x = predicted Δneuro; vertical offset from the equal-recovery D=0 diagonal = the dissociation)."
+diss_landscape_heading:
+  ja: "乖離マップ (Δ神経 × Δ機能)"
+  en: "Dissociation map (Δneuro × Δfunction)"
+diss_need_data:
+  ja: "入院時の運動・SCIM スコアを入力すると乖離予測が表示されます。"
+  en: "Enter admission motor / SCIM scores to see the dissociation prediction."
+diss_headline:
+  ja: "最も乖離する軸"
+  en: "Most dissociated axis"
+diss_caption:
+  ja: "方向 (機能優位 P(D>0)) は患者単位5分割の OOF 予測で Platt 較正済み・near-balanced。大きさ D は連続回帰 + 周辺交差コンフォーマル80%予測区間 (重み付けなしのため二値の方向と整合)。点数は sd_f·D で機能スコア換算。診断・推論層で本番アウトカムモデルとは別。予測 D は2軸を個別予測して差し引いた値とほぼ等価 (r≈0.97) であり、新規性は単一の符号付き乖離信号という提示面にある。"
+  en: "Direction (P(over-achiever) = P(D>0)) is Platt-calibrated on grouped 5-fold OOF predictions (near-balanced); the magnitude D is a continuous regression + a marginal cross-conformal 80% PI (unweighted, so it agrees with the binary direction). Points are D back-translated to functional-score units via sd_f·D. Diagnostic + inference layer, distinct from the production outcome models. Predicted D is near-equivalent (r≈0.97) to differencing two separately-modeled axes — the novelty is the single signed dissociation signal, framing-side."
+methods_diss_heading:
+  ja: "神経-機能 乖離モデル (G11)"
+  en: "Neuro-functional dissociation modeling (G11)"
+methods_diss_def:
+  ja: "SCI の回復は神経学的軸 (運動・感覚スコアの増分) と機能的軸 (ADL 自立の増分) に分かれ、両者は弱くしか連関しない (Pearson r≈0.12–0.27、約41–45%が乖離象限) ため、試験では別々に報告される。本モデルは入院時特徴量からその乖離 D = z(Δ機能) − z(Δ神経) を予測する。連関が弱いため残差ではなく標準化対比を用いる (残差は機能軸そのものに退化する)。ドメイン対の3軸 (UEMS↔セルフケア、LEMS↔移動、運動合計↔SCIM合計)、各2ヘッド: 機能優位 = 較正済み二値 P(D>0)、大きさ = D の連続回帰 + 周辺コンフォーマル80%区間。小コホート向けに患者単位5分割の OOF で全指標・Platt・コンフォーマル q を計算し全コホートで再学習、SHAP は記述的院内重要度。本番アーティファクトは不変。"
+  en: "SCI recovery splits into a neurological axis (motor/sensory score gain) and a functional axis (ADL-independence gain) that are only weakly coupled (Pearson r≈0.12–0.27; ~41–45% of episodes off-diagonal), so trials report them separately. This model predicts the dissociation D = z(Δfunction) − z(Δneuro) from admission features. Because the coupling is weak, a standardized contrast — not a residual — is used (a residual would collapse onto the functional axis itself). Three domain-paired axes (UEMS↔self-care, LEMS↔mobility, total-motor↔SCIM-total), each with two heads: over_achiever = calibrated binary P(D>0); magnitude = continuous regression on D + a marginal conformal 80% PI. For the small cohorts, grouped 5-fold OOF predictions drive every metric, the Platt calibrator and the conformal q; the heads refit on the full cohort; SHAP drivers are descriptive in-sample. Production artifacts unchanged."
+methods_diss_landscape_heading:
+  ja: "コホート乖離マップ (軸別)"
+  en: "Cohort dissociation map (per axis)"
+methods_diss_landscape_caption:
+  ja: "各軸の Δ神経×Δ機能 散布図。破線は同等回復の対角線 (D=0 = 機能優位/神経優位の境界)、点線はコホート回帰直線 (傾きが対角線より緩い = 機能は神経回復に追従しないという視覚的証拠)。点はティール=機能優位 / クリムゾン=神経優位。"
+  en: "Per-axis Δneuro×Δfunction scatter. The dashed line is the equal-recovery diagonal (D=0 — the over/under boundary); the dotted line is the cohort regression (shallower than the diagonal — the visual proof that function does not keep pace with neurological recovery). Points are teal = over-achiever / crimson = under-achiever."
+methods_diss_scorecard_heading:
+  ja: "軸別 予測性能 (方向 AUC・大きさ R²)"
+  en: "Per-axis predictability (direction AUC, magnitude R²)"
+methods_diss_scorecard_caption:
+  ja: "入院時特徴量からの予測性能。3軸とも良好 (機能優位 AUC 0.93–0.95、大きさ R² 0.69–0.76)。最大寄与因子は常に神経軸のベースラインスコア (天井/伸び代)、次いで年齢 (代償能力)。"
+  en: "How well admission features predict the dissociation. All three axes are well-predicted (over-achiever AUC 0.93–0.95; magnitude R² 0.69–0.76). The top driver is always the neuro-axis baseline score (ceiling/room), with age second (compensation capacity)."
+methods_diss_drilldown_heading:
+  ja: "軸別ドリルダウン (機能優位ヘッドの較正・寄与因子)"
+  en: "Per-axis drilldown (over-achiever head: calibration + drivers)"
+methods_diss_drilldown_caption:
+  ja: "軸を選択すると、機能優位 (二値) ヘッドの生 vs Platt 較正の信頼度曲線と in-sample SHAP 寄与因子を表示。"
+  en: "Select an axis to see its over-achiever (binary) head's raw-vs-Platt-calibrated reliability curve and in-sample SHAP drivers."

@@ -1190,3 +1190,143 @@ def topography_readout(result: dict, lang: str) -> html.Div:
             className="lm-readout-line lm-readout-delta",
         ))
     return html.Div(lines, className="lm-readout conv-readout")
+
+
+# ---------- neuro-functional dissociation (G11) ----------
+# Compact axis labels for the 3 small-multiple quadrant titles / readout lines (the metrics carry the
+# verbose neuro_en/func_en).  The cohort cloud, the equal-standardized-recovery diagonal (the D=0
+# over/under boundary), and the cohort coupling line come from compute.dissociation_cohort_landscape;
+# the patient "star" (predicted Δneuro on x, sd_f·D vertical offset from the diagonal) from
+# compute.predict_dissociation; the observed star from compute.dissociation_observed.
+_DISS_SHORT = {
+    "uems_selfcare": ("UEMS ↔ セルフケア", "UEMS ↔ self-care"),
+    "lems_mobility": ("LEMS ↔ 移動", "LEMS ↔ mobility"),
+    "totalmotor_total": ("運動 ↔ SCIM 合計", "Motor ↔ SCIM total"),
+}
+_DISS_OVER_RGBA = "rgba(17,122,139,0.40)"    # teal — functional over-achiever (D>0)
+_DISS_UNDER_RGBA = "rgba(163,53,78,0.40)"    # crimson — functional under-achiever (D<0)
+
+
+def _diss_short(key: str, lang: str) -> str:
+    return _DISS_SHORT.get(key, (key, key))[1 if lang == "en" else 0]
+
+
+def fig_dissociation_landscape(cohort: dict, lang: str, predict: dict | None = None,
+                               observed: dict | None = None) -> go.Figure:
+    """Per-axis Δneuro×Δfunction quadrant scatters (one small-multiple per domain-paired axis).
+
+    The cohort cloud (``compute.dissociation_cohort_landscape``) is coloured by over-achiever
+    (teal, D>0 — function outpaces neurology) vs under-achiever (crimson).  The dashed line is the
+    equal-standardized-recovery diagonal (D=0 boundary); the dotted line the shallow cohort coupling
+    regression (the visual proof that function does NOT keep pace with neurology).  When ``predict``
+    is given (Patient/Simulator), the patient's predicted star sits at x=predicted Δneuro with a
+    vertical PI whisker and a dotted connector to its D=0 reference (the gap = sd_f·D functional
+    points); ``observed`` adds the patient's realized star (open).  Cohort-only (Methods) omits both.
+    """
+    caxes = (cohort or {}).get("axes") or []
+    if not caxes:
+        return go.Figure()
+    teal, crimson = PALETTE_CATEGORICAL[0], PALETTE_CATEGORICAL[4]
+    paxes = {a["key"]: a for a in (predict or {}).get("axes", [])}
+    oaxes = {a["key"]: a for a in (observed or {}).get("axes", [])}
+    over_w = "機能優位 (D>0)" if lang == "ja" else "Functional over-achiever (D>0)"
+    under_w = "神経優位 (D<0)" if lang == "ja" else "Neuro over-achiever (D<0)"
+    diag_w = "同等回復 (D=0)" if lang == "ja" else "Equal recovery (D=0)"
+    couple_w = "コホート連関" if lang == "ja" else "Cohort coupling"
+    you_w = "予測" if lang == "ja" else "Predicted"
+    obs_w = "実測" if lang == "ja" else "Observed"
+    diss_w = "乖離" if lang == "ja" else "dissociated"
+    titles = [f"{_diss_short(a['key'], lang)}  ·  r={a['r']:+.2f} · {a['dissociated_share']:.0%} {diss_w}"
+              for a in caxes]
+    fig = make_subplots(rows=1, cols=len(caxes), subplot_titles=titles, horizontal_spacing=0.055)
+    for i, a in enumerate(caxes, start=1):
+        first = i == 1
+        nb, fb = np.asarray(a["neuro"], float), np.asarray(a["func"], float)
+        ov = np.asarray(a["over"], bool)
+        fig.add_trace(go.Scatter(
+            x=nb[ov], y=fb[ov], mode="markers", name=over_w, legendgroup="over", showlegend=first,
+            marker=dict(color=_DISS_OVER_RGBA, size=5, line=dict(width=0)),
+            hovertemplate="Δ=%{x:.0f}, %{y:.0f}<extra>" + over_w + "</extra>",
+        ), row=1, col=i)
+        fig.add_trace(go.Scatter(
+            x=nb[~ov], y=fb[~ov], mode="markers", name=under_w, legendgroup="under", showlegend=first,
+            marker=dict(color=_DISS_UNDER_RGBA, size=5, line=dict(width=0)),
+            hovertemplate="Δ=%{x:.0f}, %{y:.0f}<extra>" + under_w + "</extra>",
+        ), row=1, col=i)
+        fig.add_trace(go.Scatter(
+            x=a["diag"]["x"], y=a["diag"]["y"], mode="lines", name=diag_w, legendgroup="diag",
+            showlegend=first, line=dict(color=INK["500"], width=1.6, dash="dash"), hoverinfo="skip",
+        ), row=1, col=i)
+        fig.add_trace(go.Scatter(
+            x=a["couple"]["x"], y=a["couple"]["y"], mode="lines", name=couple_w, legendgroup="couple",
+            showlegend=first, line=dict(color=INK["300"], width=1.4, dash="dot"), hoverinfo="skip",
+        ), row=1, col=i)
+        p = paxes.get(a["key"])
+        if p and p.get("star"):
+            s = p["star"]
+            col = teal if p["d"] > 0 else crimson
+            fig.add_trace(go.Scatter(
+                x=[s["neuro"], s["neuro"]], y=[s["func_lo"], s["func_hi"]], mode="lines",
+                line=dict(color=col, width=2), showlegend=False, hoverinfo="skip"), row=1, col=i)
+            fig.add_trace(go.Scatter(
+                x=[s["neuro"], s["neuro"]], y=[s["func_ref"], s["func"]], mode="lines",
+                line=dict(color=col, width=1, dash="dot"), showlegend=False, hoverinfo="skip"), row=1, col=i)
+            fig.add_trace(go.Scatter(
+                x=[s["neuro"]], y=[s["func"]], mode="markers", name=you_w, legendgroup="you",
+                showlegend=first,
+                marker=dict(color=col, size=15, symbol="star", line=dict(color="#fff", width=1.2)),
+                hovertemplate=(f"{you_w}: D={p['d']:+.2f} ({p['d_points']:+.0f} pts)"
+                               f"<br>P(over)={p['p_over']:.0%}<extra></extra>"),
+            ), row=1, col=i)
+        o = oaxes.get(a["key"])
+        if o and o.get("observed"):
+            ocol = teal if o["over"] else crimson
+            fig.add_trace(go.Scatter(
+                x=[o["neuro"]], y=[o["func"]], mode="markers", name=obs_w, legendgroup="obs",
+                showlegend=first,
+                marker=dict(color="rgba(0,0,0,0)", size=15, symbol="star-open",
+                            line=dict(color=ocol, width=2)),
+                hovertemplate=f"{obs_w}: D={o['d']:+.2f}<extra></extra>",
+            ), row=1, col=i)
+        fig.update_xaxes(title=dict(text="Δ " + _diss_short(a["key"], lang).split(" ↔ ")[0],
+                                    font=dict(size=10)), row=1, col=i,
+                         zeroline=True, zerolinecolor=INK["100"], tickfont=dict(size=9))
+        fig.update_yaxes(
+            title=(dict(text="Δ " + _diss_short(a["key"], lang).split(" ↔ ")[-1], font=dict(size=10))
+                   if first else None),
+            row=1, col=i, zeroline=True, zerolinecolor=INK["100"], tickfont=dict(size=9))
+    for ann in fig.layout.annotations:  # subplot titles
+        ann.font.size = 11
+    fig.update_layout(
+        height=400, margin=dict(l=58, r=18, t=58, b=70),
+        legend=dict(orientation="h", y=-0.2, x=0.5, xanchor="center", font=dict(size=10),
+                    itemsizing="constant"),
+    )
+    return fig
+
+
+def dissociation_readout(result: dict, lang: str) -> html.Div:
+    """Text summary of the dissociation prediction: per axis the calibrated direction (over- vs
+    under-achiever) + P(over) + the signed magnitude in functional points with its 80% PI, plus a
+    headline naming the most strongly dissociated axis.  Prompt when the bundle is absent."""
+    if not result or not result.get("axes"):
+        return html.Div(t(SCHEMA, "diss_need_data", lang), className="lm-prompt")
+    over_w = "機能優位（代償）" if lang == "ja" else "functional over-achiever"
+    under_w = "神経優位（要・機能転換）" if lang == "ja" else "functional under-achiever"
+    pts_w = "点" if lang == "ja" else "pts"
+    lines: list = []
+    for a in result["axes"]:
+        over = a["d"] > 0
+        lines.append(html.Div(
+            f"{_diss_short(a['key'], lang)}: {(over_w if over else under_w)} · "
+            f"P={a['p_over']:.0%} · {a['d_points']:+.0f} {pts_w} "
+            f"(PI {a['d_points_lo']:+.0f}…{a['d_points_hi']:+.0f})",
+            className="lm-readout-line",
+        ))
+    top = max(result["axes"], key=lambda a: abs(a["d"]))
+    head = (f"{t(SCHEMA, 'diss_headline', lang)}: {_diss_short(top['key'], lang)} "
+            f"({(over_w if top['d'] > 0 else under_w)}, {top['d_points']:+.0f} {pts_w})")
+    return html.Div(
+        [html.Div(head, className="conv-readout-grade"), *lines],
+        className="lm-readout conv-readout",
+    )
