@@ -15,7 +15,7 @@ import ast
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
-TARGETS = ["src/rehab_sci", "scripts"]
+TARGETS = ["src/rehab_sci", "scripts", "tests"]
 DOC_MAX = 80  # truncate one-line summaries
 
 

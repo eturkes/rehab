@@ -2,8 +2,8 @@
 
 Regenerate after structural changes: `uv run python scripts/gen_map.py`.
 Line numbers are 1-indexed — slice with `Read(path, offset, limit)` instead of
-reading whole files.  Sources: src/rehab_sci, scripts.
-Index: 51 files, 17991 source lines.
+reading whole files.  Sources: src/rehab_sci, scripts, tests.
+Index: 56 files, 18420 source lines.
 
 ## scripts
 
@@ -811,3 +811,69 @@ Train one model per outcome spec + split-conformal PI + SHAP cache.
 - L664 `_train_trajectory(af, out_root)` — Train per-timepoint SCIM-total models for recovery trajectory forecasting.
 - L787 `_simulator_defaults(af)` — Return (defaults, ranges_and_categories) over the full episode frame.
 - L831 `main()`
+
+## tests
+
+### conftest.py (97 lines)
+Shared fixtures + skip gates for the F26 invariant harness.
+- L21 `RAW_PRESENT` (const)
+- L25 `_require_raw()`
+- L31 `af()` — The analysis frame (episode + longitudinal). Needs the raw CSV only.
+- L40 `ep(af)`
+- L45 `long_df(af)`
+- L50 `schema(af)`
+- L55 `state()` — The imported dashboard state (data + all model bundles loaded once).
+- L70 `sample_key_record(state)` — A real KeyRecordNumber with admission features and a recorded admission AIS grad…
+- L83 `contrast_episodes(state)` — (severe, mild) KeyRecordNumbers: most-complete AIS-A (min total motor) vs AIS-D …
+
+### test_behavioral.py (64 lines)
+Behavioral / alignment tripwires — the severe-vs-mild contrast a correctly
+- L18 `_row(state, kr)`
+- L24 `test_independence_monotone_with_severity(state, contrast_episodes)`
+- L38 `test_topography_antigravity_gap(state, contrast_episodes)`
+- L55 `test_conversion_complete_unlikely_ambulatory(state, contrast_episodes)`
+
+### test_dashboard_smoke.py (70 lines)
+Smoke: every tab renders in both languages, and the per-patient dynamic
+- L15 `LANGS` (const)
+- L16 `TABS` (const)
+- L20 `renderers(state)`
+- L38 `test_render_tab(renderers, tab, lang)`
+- L44 `test_patient_dynamic_callbacks(state, sample_key_record, lang)`
+- L58 `test_methods_drilldown_callbacks(state, lang)`
+
+### test_data_invariants.py (72 lines)
+§1 data invariants — exact cohort shapes a loader / ghost-filter regression woul…
+- L14 `N_EPISODES` (const)
+- L15 `N_PATIENTS` (const)
+- L16 `N_ORPHANS` (const)
+- L17 `N_TIMEPOINTS` (const)
+- L18 `N_LONG` (const)
+- L19 `N_FEATURES` (const)
+- L20 `CARDINALITY` (const)
+- L28 `test_episode_and_patient_counts(ep)`
+- L34 `test_long_frame_is_rectangular(long_df)`
+- L40 `test_admission_feature_partition(af)`
+- L49 `test_no_outcome_leakage_into_features(af)`
+- L56 `test_outcome_cardinalities(ep)`
+- L61 `test_numeric_features_have_numeric_dtype(af)`
+- L69 `test_ais_ordinal_domain(ep)`
+
+### test_model_invariants.py (126 lines)
+§3 model invariants — registry/metrics contracts checkable without retraining.
+- L18 `ROOT` (const)
+- L19 `METRICS_PATH` (const)
+- L21 `RANDOM_STATE` (const)
+- L22 `N_FEATURES` (const)
+- L23 `EXPECTED_KEYS` (const)
+- L36 `DELTA_KEYS` (const)
+- L37 `ABS_SCIM_KEYS` (const)
+- L41 `metrics()`
+- L51 `test_outcome_registry_shape()`
+- L60 `test_ais_classes_severity_ordered()`
+- L66 `test_transform_and_clip_contracts()`
+- L80 `test_metrics_match_registry(metrics)`
+- L91 `test_regression_conformal_coverage_sane(metrics)`
+- L101 `test_ais_ordinal_metrics_present(metrics)`
+- L111 `test_every_outcome_bundle_loads(state)`
+- L125 `test_shared_feature_spec(state)`

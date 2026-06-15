@@ -42,6 +42,7 @@ dev = [
   "ipython>=8.20,<10",
   "jupyterlab>=4.2,<5",
   "pip-audit>=2.10.0",
+  "pytest>=8,<9",
 ]
 
 [tool.ruff]
@@ -53,6 +54,12 @@ select = ["E", "F", "I", "B", "UP", "SIM", "RUF"]
 # RUF001/002/003: ambiguous-unicode — false positives on the bilingual UI's
 # intentional JA text + scientific typography (en-dash ranges, ×, σ, thin-space).
 ignore = ["E501", "B008", "RUF001", "RUF002", "RUF003"]
+
+[tool.pytest.ini_options]
+# F26 invariant harness. Suite is a no-op (all skips) when the gitignored raw
+# CSV / model bundles are absent — see tests/conftest.py skip gates.
+testpaths = ["tests"]
+addopts = "-q -ra"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/rehab_sci"]

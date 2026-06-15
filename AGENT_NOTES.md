@@ -64,8 +64,9 @@ superseded, duplicated elsewhere, or has gone stale.
   topography map (s40 model + s41 body-map dashboard) + G9 Δ score-recovery prediction (s42)
   + G10 neurological-level descent (s43 model + s44 dashboard, all 5 levels)
   + G11 neuro-functional dissociation (s45 model + s46 quadrant-scatter dashboard, 3 axes)
+  + F26 invariant test harness (s47)
   **all fully shipped** (see §7).
-  Open: F26 test harness · F27 dep refresh · a new G-series idea (data is exhausted of
+  Open: F27 dep refresh · a new G-series idea (data is exhausted of
   NEW field families — see §8; any new G must reuse the existing ISNCSCI/SCIM/AIS signal — e.g.
   ZPP descent [INFEASIBLE, cohort too small — §8] or calibration-drift monitoring).
   The user steers toward *insightful* (clinical/scientific) features over infra/maintenance, so
@@ -1055,6 +1056,7 @@ uv cache prune                                   # reclaim uv cache space
 uv run pip-audit                                 # dependency vuln scan (dev dep)
 uv run python scripts/gen_map.py                 # refresh MAP.md code index (idempotent)
 uv run ruff check src/ scripts/                  # lint (file:line); --select F = regression gate; --fix = safe autofix
+uv run pytest                                    # F26 invariant + smoke + behavioral harness (~11 s; skips if CSV/bundles absent)
 ./compaction.sh                                  # context-usage gauge (manual; statusline is global)
 ```
 
@@ -1071,6 +1073,24 @@ bgcmd 'exit()'; rm -rf "$BGCMDDIR"               # stop + clean
 ## 7. Session index (most recent first)
 
 One line per session; full detail is in Git history (`git log`, diffs).
+
+* **s47** — F26 invariant test harness (user chose hardening over a 12th G-series — data exhausted of
+  new field families).  New `tests/` (pytest 8, dev-group + `[tool.pytest.ini_options]`):
+  `conftest.py` skip-if-absent fixtures (CSV-only `af`/`ep`/`long_df`/`schema`; CSV+bundles `state`;
+  `sample_key_record`; `contrast_episodes` = most-complete-A vs full-motor-D).  `test_data_invariants`
+  (§1: 899 ep / 866 pt / 27 orphan / 23374 long / 26-tp-rectangular / 30-feat numeric∪categorical
+  partition / no-leakage / numeric-dtype / AIS∈{1..5}).  `test_model_invariants` (§3: 11-key OUTCOMES
+  registry exact, AIS severity codes, log1p+Δ-clip<0 contracts, metrics↔registry, conformal-coverage
+  ∈[0.6,0.95], per-bundle conformal_q/aps_q shape — pure-registry tests run even artifact-absent).
+  `test_dashboard_smoke` (render_{overview,insights,methods,patient,simulator}×{ja,en} — the s31
+  INK["600"] guard — + 6 patient dynamic callbacks + 2 Methods drilldowns, invoked directly per the
+  §0b pattern).  `test_behavioral` (the §0b row-alignment tripwire: independence expected-count
+  ~0.9 vs ~16.7, topography mean-P ~0.27 vs ~0.98, conversion ambulatory<0.3 — *gap* checks a
+  scramble would flatten while AUC stays high).  **32 tests, ~11 s, all green, 0 skipped here;
+  red-green verified** (mutating 899→900 fails cleanly).  Lint + F-gate clean; MAP now indexes
+  `tests/`.  **Cleanup:** removed 5 stale pre-G9 absolute-score model dirs
+  (uems/lems/total_motor/light_touch/pin_prick — 06-06, superseded by `delta_*` 06-08; gitignored,
+  loaded by nothing).  `models/` now = 11 OUTCOMES + 10 diagnostic-module dirs.
 
 * **s46** — G11 neuro-functional dissociation, **Part 2** (dashboard surfaces; user chose the unified
   **quadrant-scatter** design — 3 cohort Δneuro×Δfunction quadrants on Methods + a patient "star" on
@@ -1434,14 +1454,14 @@ One line per session; full detail is in Git history (`git log`, diffs).
 
 ## 8. Feature backlog (default-work pool)
 
-Propose from here unless the user redirects.  **Items F1–F25 + G1–G4 + G6–G11 are all fully shipped**
+Propose from here unless the user redirects.  **Items F1–F26 + G1–G4 + G6–G11 are all fully shipped**
 (G8 topography s40/s41, G9 Δ score-recovery s42, G10 neurological-level descent s43/s44, G11
-neuro-functional dissociation s45 model + s46 quadrant-scatter dashboard) — see §7 for the session each
-landed in, and Git history for implementation detail.  **Next pick: F26 invariant test harness, F27 dep
-refresh, or a new G-series idea** (data is exhausted of NEW field families — any new G must reuse the
-existing ISNCSCI/SCIM/AIS signal; see the "new G-series ideas" candidate below).
+neuro-functional dissociation s45 model + s46 quadrant-scatter dashboard, F26 invariant test harness
+s47) — see §7 for the session each landed in, and Git history for implementation detail.  **Next pick:
+F27 dep refresh, or a new G-series idea** (data is exhausted of NEW field families — any new G must
+reuse the existing ISNCSCI/SCIM/AIS signal; see the "new G-series ideas" candidate below).
 The user steers toward *insightful* (clinical/scientific) features over
-infra/maintenance, so lead with a new G if one can be justified, else F26.
+infra/maintenance, so lead with a new G if one can be justified, else F27.
 Shipped ledger (terse, by feature number):
 
 * F1 patient explorer · F2 multi-outcome prediction · F3 Mondrian conformal ·
@@ -1452,7 +1472,8 @@ Shipped ledger (terse, by feature number):
   audit · F16 patient similarity explorer · F18 recovery archetype clustering ·
   F20 app.py refactor · F22 overview cohort filtering · F23 data-quality /
   clinical-consistency report · F24 temporal (out-of-time) validation ·
-  F25 partial-input prediction (clearable inputs + reliability/OOD badge).
+  F25 partial-input prediction (clearable inputs + reliability/OOD badge) ·
+  F26 invariant test harness (pytest §1/§3 + render-both-langs smoke + §0b alignment tripwire; s47).
 * (F11/F12/F15/F17/F19/F21 were never opened — numbering gaps only.)
 * **G1 landmark (dynamic) prediction** (s29 training + Methods curve; s30
   interactive simulator + patient surfaces): `models/landmark.py` +
@@ -1573,11 +1594,10 @@ Shipped ledger (terse, by feature number):
 regenerated `models/dataquality_summary.json` holds the per-rule scorecard.
 
 **Ready candidates (pick the next unless redirected):**
-* **F26 invariant test harness** — narrow pytest enforcing §1 data + model
-  invariants + a smoke test (incl. a headless `render_{methods,patient,simulator}` per the §0b
-  lesson, which would have caught the s31 `INK["600"]` crash; and a topography-style row-alignment +
-  behavioral-personalization check per the new §0b alignment lesson).  skip-if-CSV-absent.  M.
-  files: `tests/`, pyproject.
+* **F26 invariant test harness — SHIPPED s47** (`tests/`, pytest).  §1 data + §3 model invariants
+  (incl. the 11-key OUTCOMES registry, exact-enforced) + render-each-tab-both-langs smoke (the
+  s31 `INK["600"]` guard) + the §0b severe-vs-mild row-alignment tripwire; skip-if-CSV/bundles-absent;
+  pure-registry tests run unconditionally.  32 tests ~11 s; red-green verified.  See §7.
 * **F27 dependency refresh** — minor/patch bumps + raise the `shap<0.52` cap;
   retrain to verify byte-repro.  S, low value now (no CVEs, lint clean).
 * **New G-series ideas — DATA IS EXHAUSTED OF NEW FIELD FAMILIES (s40 audit).**  An exhaustive
