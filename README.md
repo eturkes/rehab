@@ -25,7 +25,7 @@ schema/                           # bilingual schema (committed)
   isncsci.yaml                    # ISNCSCI scoring metadata
   scim_iii.yaml                   # SCIM-III subscale composition
   ui_strings.yaml                 # all dashboard strings (ja/en)
-  raw_profile.json                # column-level descriptive stats (no rows)
+  raw_profile.json                # column-level descriptive stats; git-ignored, regen via scripts/01_profile_raw.py
 
 scripts/
   01_profile_raw.py               # rebuild schema/raw_profile.json from the CSV

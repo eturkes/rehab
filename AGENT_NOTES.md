@@ -252,6 +252,13 @@ superseded, duplicated elsewhere, or has gone stale.
 ## 1. Data invariants (do not rediscover)
 
 * **Raw file** — `ALL_SCIDATA.csv` at repo root.  Never commit; gitignored.
+* **`schema/raw_profile.json` is git-ignored, never committed** — the generated
+  column profile is identifier-bearing: it leaks real medical-record numbers
+  (IDNumber min/max/median) and record-entry timestamps (STAMP level samples).
+  It was purged from all history (git filter-repo, 2026-06).
+  `scripts/01_profile_raw.py` now redacts `IDENTIFIER_COLS` to existence +
+  missingness, but the file stays untracked + deny-`Read()`'d; regenerate locally
+  if ever needed.  No runtime code reads it.
 * **Encoding** — `cp932` (Shift-JIS superset).  UTF-8 silently mangles half the
   column names.
 * **Missing sentinels** in raw file: `""`, `"_"`, `"NA"` → NaN via

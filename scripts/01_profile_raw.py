@@ -1,6 +1,10 @@
 """Profile ALL_SCIDATA.csv to discover schema, dtypes, missingness, and factor levels.
 
-Writes ONLY descriptive metadata (no patient rows) to ``schema/raw_profile.json``.
+Writes ONLY descriptive metadata (no patient rows) to ``schema/raw_profile.json``
+— a git-ignored, locally-regenerated artifact.  Identifier / bookkeeping columns
+(``IDENTIFIER_COLS``) are redacted to existence + missingness only: their value
+stats would otherwise expose real medical-record numbers (IDNumber min/max/median)
+and record-entry timestamps (STAMP level samples), which must never be committed.
 """
 
 from __future__ import annotations
@@ -15,6 +19,18 @@ import pandas as pd
 ROOT = Path(__file__).resolve().parents[1]
 RAW = ROOT / "ALL_SCIDATA.csv"
 OUT = ROOT / "schema" / "raw_profile.json"
+
+# Identifier / bookkeeping columns: emit existence + missingness ONLY, never their
+# values.  Numeric stats would leak real medical-record numbers (IDNumber) and
+# per-row indices; categorical level samples would leak real record-entry
+# timestamps (STAMP).  Redacting them keeps this profile genuinely PHI-free.
+IDENTIFIER_COLS = {
+    "IDNumber",
+    "STAMP",
+    "KeyRecordNumber",
+    "TIMESRecordNumber",
+    "AnualCaseNumber",
+}
 
 
 def main() -> int:
@@ -50,7 +66,9 @@ def main() -> int:
             "missing_pct": round(float(s.isna().mean()) * 100, 2),
             "numeric_like": bool(is_numeric_like),
         }
-        if is_numeric_like:
+        if col in IDENTIFIER_COLS:
+            info["redacted"] = True  # identifier column — value stats suppressed
+        elif is_numeric_like:
             info["numeric"] = {
                 "min": (None if coerced.empty else float(coerced.min())),
                 "max": (None if coerced.empty else float(coerced.max())),
