@@ -16,7 +16,10 @@
       "Read(**/*.parquet)",
       "Read(/models/dataquality_report.json)",
       "Read(/models/subgroups.json)",
-      "Read(/schema/raw_profile.json)"
+      "Read(/schema/raw_profile.json)",
+      "Read(/.serena/cache/**)",
+      "Read(/.serena/memories/**)",
+      "Read(/.serena/project.local.yml)"
     ]
   }
 }

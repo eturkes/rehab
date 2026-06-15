@@ -48,7 +48,10 @@ superseded, duplicated elsewhere, or has gone stale.
   `sed`: the venv, `.git`, caches, raw `ALL_SCIDATA.csv`, `uv.lock`, every
   `*.joblib` (+ `*.pkl/.npy/.npz/.parquet`), and the 3 oversized generated dumps
   `models/subgroups.json`, `models/dataquality_report.json`,
-  `schema/raw_profile.json`.  Deny does **not** touch `python`/`jq`/`ls`/`git`,
+  `schema/raw_profile.json`, plus the Serena/Headroom local scratch
+  `.serena/{cache,memories,project.local.yml}` (`.serena/project.yml`, the
+  tracked LSP config, stays readable).  Deny does **not** touch
+  `python`/`jq`/`ls`/`git`,
   so query a denied JSON with `jq` and confirm artifacts via `ls`/`git
   ls-files`.  The canonical `models/*_metrics.json` stay readable on purpose
   (model-performance source of truth).  Rules reload live; inspect with
