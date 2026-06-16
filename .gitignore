@@ -100,9 +100,10 @@ Thumbs.db
 .aider*
 .specstory/
 
-# serena / headroom local scratch — the AGENT_NOTES memory system is the sole
-# memory store and supersedes Serena's memories; .serena/project.yml (tracked
-# LSP config) is the only .serena file under version control.
-.serena/cache/
+# serena / headroom local scratch.  The nested .serena/.gitignore (tracked,
+# committed as-is per CLAUDE.md) ignores /cache + /project.local.yml; this
+# repo-root line covers the one path it omits.  Serena's memory system is
+# disabled globally (the AGENT_NOTES system is the sole memory store), so
+# .serena/memories/ stays empty — ignored here as a safety net.  Tracked .serena
+# files: project.yml (LSP config) + .gitignore.
 .serena/memories/
-.serena/project.local.yml

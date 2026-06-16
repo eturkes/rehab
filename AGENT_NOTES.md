@@ -52,9 +52,10 @@ superseded, duplicated elsewhere, or has gone stale.
   `*.joblib` (+ `*.pkl/.npy/.npz/.parquet`), the 3 oversized generated dumps
   `models/subgroups.json`, `models/dataquality_report.json`,
   `schema/raw_profile.json`, plus the Serena/Headroom local scratch
-  `.serena/{cache,memories,project.local.yml}` — now gitignored at the **repo
-  root** (the nested `.serena/.gitignore` was removed); `.serena/project.yml`
-  (tracked LSP config) stays readable.  **Sync invariant (CLAUDE.md):** every
+  `.serena/{cache,memories,project.local.yml}` — gitignored via the now-tracked
+  nested `.serena/.gitignore` (covers cache + project.local.yml, committed as-is
+  per CLAUDE.md) plus a repo-root line for `memories`; `.serena/{project.yml,
+  .gitignore}` (tracked LSP config + ignore file) stay readable.  **Sync invariant (CLAUDE.md):** every
   deny target that is *not* gitignored — i.e. the two tracked low-value files
   `uv.lock` and `models/subgroups.json` — is mirrored in Serena's
   `ignored_paths` (`.serena/project.yml`); gitignored deny targets are already
