@@ -33,7 +33,7 @@ superseded, duplicated elsewhere, or has gone stale.
   context is on).  It is **not** the statusline: the real statusline is the global
   `$HOME/.claude/statusline.sh` (a separate, richer script — context % + rate
   limits + timestamps), wired in the *global* `~/.claude/settings.json`.  The
-  project `.claude/settings.json` has **no** `statusLine` (resist re-adding it; it
+  project `.claude/settings.json` has **no** `statusLine` (leave it that way; it
   holds only `permissions.deny` Read rules — see next bullet).  Keep the repo copy
   and the global `$HOME/.claude/compaction.sh` (symlink → `agents/claude/
   compaction.sh`) byte-identical — update both on any edit.  **Gotcha:** the
@@ -41,7 +41,7 @@ superseded, duplicated elsewhere, or has gone stale.
   distinguish manual-vs-statusline — `statusline.sh` branches on stdin (JSON piped
   ⇒ statusline; TTY/empty ⇒ transcript).  `compaction.sh` is never fed stdin, so it
   stays single-mode (an earlier stdin/JSON branch here was dead code, since removed
-  — resist re-adding env-var-keyed dual mode).  Per CLAUDE.md, wrap to a clean
+  — keep it single-mode rather than restoring an env-var-keyed dual mode).  Per CLAUDE.md, wrap to a clean
   boundary at ≥80 % for a manual `/compact`.
 * `.claude/settings.json` — `permissions.deny` `Read()` rules (CLAUDE.md
   "do-not-read" policy).  Deny-`Read()` masks the **Read tool and Bash**
@@ -144,12 +144,34 @@ superseded, duplicated elsewhere, or has gone stale.
 * **Confirm dead code before deleting via a repo-wide grep of every call form.**
   `figures.kpi_card` was a stale dict-returning dup of `layout.kpi_card` (the
   `html.Div` version every caller imports); nothing referenced the figures one.
-* **`ruff` ambiguous-unicode rules (RUF001/002/003) fire on intentional text —
-  ignore them in config, never "fix" the strings.**  The flagged glyphs are
-  deliberate: full-width Japanese punctuation in bilingual UI strings and
-  scientific typography (en-dash ranges `0–100`, `×` for interactions, `σ`,
-  thin spaces).  Rewriting them to ASCII look-alikes corrupts the UI/maths.
-  They sit in `[tool.ruff.lint] ignore` beside `E501`/`B008`.
+* **`ruff` ambiguous-unicode rules (RUF001/002/003) fire on intentional text in
+  ruff-linted *code* — keep them ignored in config and leave the literals as
+  authored.**  The flagged glyphs are deliberate: full-width Japanese
+  punctuation in Python literals (e.g. `有`/`無`) and scientific typography
+  (en-dash ranges `0–100`, `×` for interactions, `σ`, thin spaces).  Rewriting
+  them to ASCII look-alikes corrupts the UI/maths.  They sit in
+  `[tool.ruff.lint] ignore` beside `E501`/`B008`.  This governs *code*; the
+  human-facing-prose rule below is a separate surface (and intentionally differs).
+* **Human-facing prose follows CLAUDE.md line-26, which is *distinct* from the
+  code-glyph rule above — apply it only to `README.md` and the `en` values of
+  `schema/ui_strings.yaml`.**  There: flatten em- *and* en-dashes to ASCII
+  hyphens (` — `→` - `, `0–100`→`0-100`), enumerate flexibly, and vary
+  comparative constructions.  Leave the `ja` UI values in their own typography,
+  leave agent-facing files (this one, `MAP.md`) and code comments/docstrings as
+  they are, and **preserve the math minus `−` (U+2212) everywhere** (it is not a
+  dash — e.g. `z(Δf) − z(Δn)`).  Flattening en-dash ranges on those two human
+  surfaces does *not* contradict the ruff lesson, which governs a different
+  surface (ruff-linted Python).  (Applied across README + `ui_strings.yaml` in
+  the s48 CLAUDE.md-response pass; `report.py` PDF text is already dash-free.
+  Em-dashes that remain in `src/**/*.py` are agent-facing docstrings / CLI
+  print-banners, exempt — plus a few English-only inline dashboard f-strings
+  that bypass `t()`, a separate pre-existing i18n gap.)
+* **Positive framing (CLAUDE.md line-11) covers self-read / prompt text,
+  including this file — phrase behavioral directives as `keep`/`always`/`rather
+  than`, not bare `do not`/`never`.**  Factual `never`s that *describe* an
+  invariant (`IDNumber` never null, a diagnostic module never touches `train.py`
+  artifacts, `BusinessYear` never a feature) are descriptions, not directives —
+  leave those as they read, and keep any new behavioral directive positively framed.
 * **LightGBM training is byte-reproducible here; k-means archetypes are not.**
   A full retrain reproduces every LightGBM metric in `training_metrics.json`
   exactly (fixed `random_state` suffices — no `deterministic=`/`num_threads=1`
@@ -171,8 +193,8 @@ superseded, duplicated elsewhere, or has gone stale.
   never returns NA — so detect those by testing the cleaned value against the
   level set's `display` set, NOT by looking for NaN.  Pattern lives in
   `data/quality.py`.
-* **`class_weight="balanced"` trades probability calibration for recall — never surface its
-  raw class probabilities as calibrated.**  G4's magnitude head (balanced, for the imbalanced
+* **`class_weight="balanced"` trades probability calibration for recall — treat its
+  raw class probabilities as uncalibrated.**  G4's magnitude head (balanced, for the imbalanced
   improvement-size classes) emits *inflated* minority-class probs; for an event it shares with a
   calibrated, unweighted binary head the two disagree (adm A: binary P(≥C)=0.51 vs magnitude
   P(≥+2)=0.76).  Rule: for a near-balanced target omit weighting and Platt/isotonic-calibrate;
@@ -193,8 +215,7 @@ superseded, duplicated elsewhere, or has gone stale.
   (PDF methods text), `train.py` (trajectory docstring), and §3 here.  When a
   count is load-bearing, derive it from `len(af.feature_cols)` at runtime
   rather than re-typing a literal that silently drifts.
-* **A conformal *prediction set* over a BINARY head degenerates — do not surface
-  it; use the calibrated probability + reliability curve instead.**  G7 first put
+* **A conformal *prediction set* over a BINARY head degenerates — rely on the calibrated probability + reliability curve instead.**  G7 first put
   an APS set over {dependent, independent}; coverage came out 100 % with ~90–100 %
   *abstain* (`{both}`) on every one of the 18 heads.  Root cause: the APS
   nonconformity score is the cumulative mass to reach the true class, so every
@@ -206,7 +227,7 @@ superseded, duplicated elsewhere, or has gone stale.
   (AIS, magnitude).  Verified q_hat=0.98–1.00 before removing the layer.
 * **`build_episode_frame` ends with `feat.reset_index()` ⇒ `ep` (= `af.df`) has a POSITIONAL
   index (0..N−1) and `KeyRecordNumber` is a COLUMN — so align any *separately-built* per-timepoint
-  matrix to `ep` by `ep["KeyRecordNumber"]`, never by `.reindex(ep.index)`.**  G8 first reindexed
+  matrix to `ep` by `ep["KeyRecordNumber"]`, rather than by `.reindex(ep.index)`.**  G8 first reindexed
   the per-segment ISNCSCI discharge/admission matrices (which are `set_index("KeyRecordNumber")`)
   onto `ep.index`, silently pulling KeyRecordNumbers 0..898 (the real values are the non-contiguous
   1..1169) — a wholesale row scramble.  **The trap: per-segment AUC stayed HIGH (~0.87) so a naive
@@ -231,12 +252,12 @@ superseded, duplicated elsewhere, or has gone stale.
   Bash *command string*, not just `Read` targets** — so any command whose text
   contains a denied literal (`foo.joblib`, a denied filename) is itself blocked,
   even `ls`/`wc`/`cat`/`python -c` on it (`echo hello` works; `ls x.joblib` does
-  not).  Work around it by never naming the path: query a denied JSON with `jq`
+  not).  Work around it by keeping the denied path out of the command text: query a denied JSON with `jq`
   (no `.joblib` substring), and load a denied binary indirectly via an import that
   reads the path internally (run a `python` heredoc that imports `state.py`, which
   `joblib.load`s the bundle) rather than passing the path on the command line.
 * **A feature that nails a *state* need not help a *change / threshold-crossing* target — test the
-  transfer, never assume it.**  G8 added a segment's own granular admission grade and segment-*state*
+  transfer rather than assuming it.**  G8 added a segment's own granular admission grade and segment-*state*
   AUC jumped 0.5→0.93 (most segments don't change between admission and discharge ⇒ high
   autocorrelation).  Replaying that recipe for G10 neurological-*level descent* (concat the
   modality-matched 20/112/132 per-segment admission grades onto the 30 aggregates) moved descent AUC
@@ -261,10 +282,10 @@ superseded, duplicated elsewhere, or has gone stale.
   State that honestly rather than overselling a new mechanism; the contribution can be legitimate and
   UI-side without being a new predictive signal.
 
-## 1. Data invariants (do not rediscover)
+## 1. Data invariants (established — rely on them)
 
-* **Raw file** — `ALL_SCIDATA.csv` at repo root.  Never commit; gitignored.
-* **`schema/raw_profile.json` is git-ignored, never committed** — the generated
+* **Raw file** — `ALL_SCIDATA.csv` at repo root; keep it gitignored and uncommitted.
+* **`schema/raw_profile.json` stays git-ignored and uncommitted** — the generated
   column profile is identifier-bearing: it leaks real medical-record numbers
   (IDNumber min/max/median) and record-entry timestamps (STAMP level samples).
   It was purged from all history (git filter-repo, 2026-06).
@@ -340,7 +361,7 @@ superseded, duplicated elsewhere, or has gone stale.
   `feature_cols`; it exists only as the temporal-split key for F24.
 * **`mFrankel_Frankel` is a packed pair column** — missing marker `_/_`, and
   valid values include mismatched pairs (`C1/C2` = mFrankel C1 / Frankel C2).
-  Validate it through the split `mFrankel_ord` / `Frankel_ord`, never the pair
+  Validate it through the split `mFrankel_ord` / `Frankel_ord`, rather than the pair
   string (which matches no `mfrankel_pair` display).
 * **`ALLEN分類` raw values are messy** — full-width Roman-numeral stages
   (`DE-Ⅱ` vs the schema's ASCII `DE-2`), out-of-enum stages (`VC-3`), and
@@ -367,7 +388,7 @@ superseded, duplicated elsewhere, or has gone stale.
 ## 3. Model conventions (design contracts; metrics live in `training_metrics.json`)
 
 * **Random state:** `20260518` (also embedded in `training_metrics.json`).
-* **Group split** by `IDNumber` (patient), never by row — prevents same-patient
+* **Group split** by `IDNumber` (patient), rather than by row — prevents same-patient
   leakage.
 * **Outcome registry** — `models/outcomes.py::OUTCOMES` is the ordered tuple of
   `OutcomeSpec` records — the 6 production heads (4 SCIM + AIS + LOS) plus the 5
@@ -389,7 +410,7 @@ superseded, duplicated elsewhere, or has gone stale.
   calibration fold, computed on the *transformed* scale (identity for SCIM/AIS,
   log1p for LOS), back-transformed, then clipped to `[clip_min, clip_max]`.
   **Required — LightGBM quantile heads alone give ~0.41 coverage on SCIM total;
-  do not remove the conformal layer.**  At inference the PI is the *union* of
+  keep the conformal layer.**  At inference the PI is the *union* of
   the conformal interval and the raw quantile interval
   (`lo=min(lo_conf,lo_q10)`, `hi=max(hi_conf,hi_q90)`) — user sees the more
   conservative bound.
@@ -549,7 +570,7 @@ superseded, duplicated elsewhere, or has gone stale.
   trainer stores it and **(a)** the Overview figure blanks (NaN) each line past its support so a
   curve is drawn only where observed (the figure also clips to [0,100] for the at-ceiling
   overshoot), and **(b)** `order_by_discharge(p, resp, support)` ranks phenotypes (class 0 =
-  lowest recovery) by clipped SCIM at the *latest universally-supported* timepoint — never by the
+  lowest recovery) by clipped SCIM at the *latest universally-supported* timepoint — rather than by the
   raw 6m value, which would mislabel the best early-discharge recoverer as the worst.  Persists a
   tracked identifier-free `models/phenotype_metrics.json` (k, degree, selection table, **raw**
   class_means [no NaN tokens], class_support, min_coverage, summaries, diagnostics) and a
@@ -607,7 +628,7 @@ superseded, duplicated elsewhere, or has gone stale.
   a bug); magnitude κ_quadratic ≈0.49, APS conservative (~99 %, set ≈2.4, as documented for
   discrete K).  **Fully shipped: model + tracked metrics (s34) + dashboard surfaces (s35).**
   **Dashboard contract (s35):** pure `compute.predict_conversion(X_row)` (inline `_apply_platt`
-  mirror — never import `models.conversion`, it pulls shap) returns per-endpoint calibrated prob +
+  mirror, used rather than importing `models.conversion`, which pulls shap) returns per-endpoint calibrated prob +
   applicability flag (gated by admission grade ∈ `adm_grades`) and the magnitude class-probs / APS
   set / argmax (A–D only); `ais_ord=None` ⇒ an all-N/A result the UI renders as a "needs admission
   grade" prompt.  Shared inference figs live in `layout.py` (`fig_conversion_endpoints` calibrated
@@ -655,7 +676,7 @@ superseded, duplicated elsewhere, or has gone stale.
   (byte-repro verified)**.  Bundle shape documented inline at the top of `multistate.py`.  **Fully
   shipped: model + tracked metrics (s36) + dashboard surfaces (s37).**
   **Dashboard contract (s37):** pure `compute.predict_multistate(X_row)` (inline `_apply_platt`
-  mirror — never import `models.multistate`, it pulls shap) is admission-grade gated (`AIS_ord`
+  mirror, used rather than importing `models.multistate`, which pulls shap) is admission-grade gated (`AIS_ord`
   required; `None` ⇒ `applicable=False` "needs-grade" prompt) and returns the per-admission-grade
   cohort Markov curves (occupancy, the available first-passage `conversion` labels, `sojourn`,
   `median_day_to_improve`) **looked up by admission grade alone — NOT personalized** + the one
@@ -714,7 +735,7 @@ superseded, duplicated elsewhere, or has gone stale.
   **production `train.py` artifacts untouched (empty `training_metrics.json` diff)**.  Bundle
   shape: `items` registry + `heads[key]={clf, calibrator, thr, col, domain, feature_cols,
   base_rate}` + `discharge_timepoint` (added s39 for the patient overlay); mirror `_apply_platt`
-  inline in compute.py (never import this module — it pulls shap via conversion→train).  **Fully
+  inline in compute.py (use the inline mirror rather than importing the module, which pulls shap via conversion→train).  **Fully
   shipped: model + tracked metrics (s38) + dashboard surfaces (s39).**
   **Dashboard contract (s39):** pure `compute.predict_independence(X)` (inline `_apply_platt`
   mirror) runs all 18 heads and returns, in display order, each item's calibrated `prob` +
@@ -777,7 +798,7 @@ superseded, duplicated elsewhere, or has gone stale.
   `models/topography_metrics.json` + git-ignored `models/topography/bundle.joblib`; **production
   `train.py` artifacts untouched (empty `training_metrics.json` diff)**.  Bundle/metrics shape
   documented inline at the top of `topography.py`; mirror `_apply_platt` inline in compute.py for
-  Part 2 (never import this module — it pulls shap via conversion→train).  **Fully shipped: model +
+  Part 2 (use the inline mirror rather than importing the module, which pulls shap via conversion→train).  **Fully shipped: model +
   tracked metrics (s40) + dashboard surfaces (s41).**
   **Dashboard contract (s41):** the user chose the *richest* atlas (anatomical dermatome **silhouette + motor
   myotome ladder**) and a *seeded Simulator worksheet*.  Pure `compute.predict_topography(X, adm_grades)` (inline
@@ -821,7 +842,7 @@ superseded, duplicated elsewhere, or has gone stale.
   `train._prep`'s `dropna`).  `train.py` is **untouched** (fully generic over `OutcomeSpec`); the Δ
   heads reuse the SCIM regression machinery verbatim — LightGBM median/p10/p90 + Mondrian
   split-conformal 80 % PI + TreeSHAP, identity `transform=None`.  **No leakage:** only the *delta* is
-  the label, never the discharge score itself.  **Negative-range invariant:** `clip_min < 0` (±50
+  the label, rather than the discharge score itself.  **Negative-range invariant:** `clip_min < 0` (±50
   motor / ±100 total-motor / ±112 sensory) so a predicted/observed **deterioration** is representable
   (re-assessment noise + genuine decline); `np.clip` already supports it, so the production clip path
   needed no change.  `clip_min < 0` is also the UI's **unique flag for a Δ head** (no absolute-score
@@ -830,7 +851,7 @@ superseded, duplicated elsewhere, or has gone stale.
   draws a dotted **"no change" zero-line** with the axis spanning the full ±range so 0 is always
   visible.  **Auto-extension:** the registry drives the simulator/patient/insights/Methods
   outcome-selector with **zero new callbacks**.  **Scope boundary — the heavier diagnostic Methods
-  surfaces (temporal F24, landmark/VOI G1/G2) do NOT cover the Δ heads:** those modules carry
+  surfaces (temporal F24, landmark/VOI G1/G2) stop short of the Δ heads:** those modules carry
   pre-computed bundles keyed to the original 6 outcomes and their loops **gracefully skip** an absent
   outcome (`if not info: continue` / `SUBGROUPS.get(key, {})`), so a Δ selection simply shows no
   temporal/landmark panel — an accepted boundary, not a bug (re-running those for Δ was out of scope).
@@ -855,7 +876,7 @@ superseded, duplicated elsewhere, or has gone stale.
   a *calibrated binary* descent head P(Δ≥1) (no `class_weight`, Platt — cohort near-balanced ~57–61 %)
   + an *ordinal magnitude* head {0,+1,≥+2} (`MAG_CAP`=2, `class_weight="balanced"`, APS) — the same
   calibrated-binary-vs-balanced-magnitude non-comparability CRUX as G4 (surface the binary as the
-  probability, the magnitude as APS set / argmax, never a competing probability).  Methodology + all
+  probability, the magnitude as APS set / argmax, rather than a competing probability).  Methodology + all
   binary plumbing reused **verbatim from `conversion.py`** (grouped-5fold-CV by IDNumber → OOF metrics
   + Platt + cross-conformal APS q; refit full cohort; descriptive in-sample SHAP); `MIN_COHORT`=120.
   Diagnostic + inference layer like conversion/topography: tracked identifier-free
@@ -904,7 +925,7 @@ superseded, duplicated elsewhere, or has gone stale.
   conversion/topography: tracked identifier-free `models/dissociation_metrics.json` + git-ignored
   `models/dissociation/bundle.joblib`; **production `train.py` artifacts untouched (byte-repro
   verified)**.  Bundle shape documented inline at the top of `dissociation.py`; mirror `_apply_platt`
-  inline in compute.py for Part 2 (never import this module — it pulls shap via conversion→train).
+  inline in compute.py for Part 2 (use the inline mirror rather than importing the module, which pulls shap via conversion→train).
   Back-translate a magnitude D to functional points in the UI via `axis_meta[key].zparams`
   (D ≈ Δfunction-equivalent × `sd_f`).  **Findings — all three axes are well-predicted from admission**
   (binary AUC 0.93–0.95, Brier well below base; magnitude R² 0.69–0.76, RMSE 0.62–0.74, PI half-width
@@ -919,7 +940,7 @@ superseded, duplicated elsewhere, or has gone stale.
   **Fully shipped: model + tracked metrics (s45) + dashboard surfaces (s46).**
   **Dashboard contract (s46) — user chose the unified QUADRANT-SCATTER design** (3 cohort quadrants on
   Methods; the same cloud + a patient "star" on Patient/Simulator).  Pure `compute.predict_dissociation(X)`
-  (inline `_apply_platt` mirror — never import `models.dissociation`, it pulls shap via conversion→train)
+  (inline `_apply_platt` mirror, used rather than importing `models.dissociation`, which pulls shap via conversion→train)
   returns per axis the calibrated `p_over` = P(D>0) + `base_rate`, the signed `d` + 80% PI (`d_lo/d_hi`),
   the functional-point translation `d_points` = sd_f·D (`±_lo/_hi`), and the 2D **star**.  **Star-placement
   CRUX — a 1-D dissociation has no 2-D position without an external anchor for the neuro axis:** x = the
@@ -993,7 +1014,7 @@ superseded, duplicated elsewhere, or has gone stale.
   reference episode.  (`simulate` returns 5 outputs incl. `sim-reliability`.)
 * Plotly template name: `"medical"` (registered in `theme.py`).  Palettes:
   `PALETTE_CATEGORICAL`, `PALETTE_AIS` (A→E cool→warm), `PALETTE_PARA`,
-  `PALETTE_ARCHETYPE`.  Use them — do not hand-pick per-chart colors.
+  `PALETTE_ARCHETYPE`.  Use them for every chart's colors.
 * Japanese rendering needs the font stack `"Hiragino Sans","Noto Sans
   JP","Yu Gothic UI"` in both Plotly and CSS.
 * `dcc.Store("patient-ref")` (session-scoped) carries the What-if
@@ -1012,7 +1033,7 @@ superseded, duplicated elsewhere, or has gone stale.
   shell** (the pattern string is in its own argv), so the shell is signalled
   too.  Two consequences you must design around: (1) it still kills the
   dashboard, so it is fine as the *last* statement of a cleanup-only command —
-  but (2) **never put it before anything you need to run after** (e.g. a launch),
+  but (2) **always put it after anything you still need to run** (e.g. a launch),
   or the shell dies at signal 16 before reaching it (empty logs, nothing
   listening — looks like a boot failure but is not).  Prefer: launch with the
   Bash tool's background mode (no pkill), poll readiness in a *separate* command
@@ -1024,7 +1045,7 @@ superseded, duplicated elsewhere, or has gone stale.
   `pd.concat([df, new_cols_df], axis=1)`.  Loader already does this.
 * **`@dataclass(frozen=True)` + dict fields** breaks under `@lru_cache` on
   instance methods (unhashable).  `Schema` is a plain `__slots__` class for this
-  reason — do not "modernize" it.
+  reason — keep it as a plain `__slots__` class.
 * **`kaleido<1`** has no Linux x86_64 wheel under the current resolver.  Keep
   `kaleido>=1.0,<2`.  Plotly→PNG export needs Chrome (`kaleido.get_chrome_sync()`
   at first use).
@@ -1084,6 +1105,17 @@ bgcmd 'exit()'; rm -rf "$BGCMDDIR"               # stop + clean
 
 One line per session; full detail is in Git history (`git log`, diffs).
 
+* **s48** — CLAUDE.md-response prose/policy pass (no feature; user updated CLAUDE.md
+  lines 11 + 26).  Flattened em/en-dashes → ASCII hyphens + cleared LLM smells on the
+  two human-facing surfaces: `README.md` (36 em + 7 en-range types; ×/→/↔/κ/≈ glyphs
+  + one reworded `not just`-comparative) and the `en` values of `schema/ui_strings.yaml`
+  (codepoint-precise on `en:` lines only — 29 em + 17 en; JA typography + math minus
+  `−` U+2212 preserved; YAML re-validated, 346 keys).  Reframed 24 behavioral negative
+  directives + 3 stock `never import` phrases in AGENT_NOTES §0–§5 to positive framing,
+  leaving factual `never`s + the archival §7/§8.  New §0b lessons: human-prose-vs-code-
+  glyph surface distinction + positive-framing/factual-`never` meta-note.  Verified:
+  ruff clean · F26 32/32 (render both langs) · git-diff audited.  (Bundles carry a
+  pre-existing sklearn 1.9.0→1.8.0 unpickle warning — orthogonal.)
 * **s47** — F26 invariant test harness (user chose hardening over a 12th G-series — data exhausted of
   new field families).  New `tests/` (pytest 8, dev-group + `[tool.pytest.ini_options]`):
   `conftest.py` skip-if-absent fixtures (CSV-only `af`/`ep`/`long_df`/`schema`; CSV+bundles `state`;

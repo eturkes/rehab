@@ -1,4 +1,4 @@
-# All UI labels live here, NEVER hard-coded in Python. Dashboard reads ja/en at render time.
+# All UI labels live here; Python always reads ja/en from this file at render time.
 
 app_title:
   ja: "脊髄損傷リハビリ解析・予測スイート"
@@ -83,7 +83,7 @@ chart_recovery_curves:
 # --- simulator ---
 sim_intro:
   ja: "わかる範囲で入院時の状態を入力してください（空欄は「不明」として扱われます）。退院時 SCIM-III 合計の予測、寄与要因、入力の信頼度が表示されます。"
-  en: "Enter whatever admission characteristics are known — blank fields are treated as unknown. The predicted discharge SCIM-III total, its drivers, and an input-reliability badge are shown."
+  en: "Enter whatever admission characteristics are known - blank fields are treated as unknown. The predicted discharge SCIM-III total, its drivers, and an input-reliability badge are shown."
 sim_input_demographics:
   ja: "人口統計"
   en: "Demographics"
@@ -107,7 +107,7 @@ sim_predicted_label:
   en: "Predicted discharge SCIM-III total"
 sim_prediction_interval:
   ja: "予測区間 (10%–90%)"
-  en: "Prediction interval (10–90%)"
+  en: "Prediction interval (10-90%)"
 sim_local_explanation:
   ja: "この症例の寄与要因 (SHAP)"
   en: "Local feature contributions (SHAP)"
@@ -260,7 +260,7 @@ methods_outcome:
   en: "Primary outcome"
 methods_outcome_def:
   ja: "退院時 SCIM-III 合計スコア (0–100)。値が高いほど ADL 自立度が高いことを示す。"
-  en: "Discharge SCIM-III total score (0–100). Higher = more ADL independence."
+  en: "Discharge SCIM-III total score (0-100). Higher = more ADL independence."
 methods_model:
   ja: "モデル"
   en: "Model"
@@ -361,7 +361,7 @@ lm_landmark_select:
   en: "Landmark (observation time)"
 lm_observed_inputs_heading:
   ja: "観測済みスコア (任意・空欄可)"
-  en: "Observed scores (optional — leave blank if unknown)"
+  en: "Observed scores (optional - leave blank if unknown)"
 lm_admission_only:
   ja: "入院時のみ"
   en: "Admission only"
@@ -382,7 +382,7 @@ lm_none:
   en: "none"
 lm_no_obs_note:
   ja: "{L} までに観測スコアなし — 入院時のみと同等。"
-  en: "No scores observed by {L} — equivalent to admission-only."
+  en: "No scores observed by {L} - equivalent to admission-only."
 lm_not_modeled:
   ja: "このランドマークはこのアウトカムでは学習されていません (対象症例数が下限未満)。"
   en: "Not modelled for this outcome at this landmark (eligible cohort below the minimum)."
@@ -472,19 +472,19 @@ methods_dataquality_heading:
   en: "Data quality & consistency report"
 methods_dataquality_def:
   ja: "ローダーが欠損値に変換して隠してしまう入力エラーや臨床的矛盾を抽出する診断レポート。検出区分は、領域 (範囲外の数値・未定義カテゴリ)、項目間 (AIS↔仙髄温存・NLI 整合性など)、経時 (同一症例の時点間での悪化・大幅低下)。モデル学習には使用せず、データ確認用。"
-  en: "Diagnostic report surfacing data-entry errors and clinical inconsistencies that the defensive loader would otherwise mask as missing values. Categories: domain (out-of-range numbers, undefined categories), cross-field (clinical consistency such as AIS ↔ sacral sparing and NLI), and longitudinal (deterioration / large drops across an episode's timepoints). For data review only — not used in model training."
+  en: "Diagnostic report surfacing data-entry errors and clinical inconsistencies that the defensive loader would otherwise mask as missing values. Categories: domain (out-of-range numbers, undefined categories), cross-field (clinical consistency such as AIS ↔ sacral sparing and NLI), and longitudinal (deterioration / large drops across an episode's timepoints). For data review only - not used in model training."
 methods_temporal_heading:
   ja: "時間的検証 (期間外)"
   en: "Temporal validation (out-of-time)"
 methods_temporal_def:
   ja: "業務年度 (2014–2025) に基づく期間外評価。各テスト年 T について、それ以前の全年で学習し T 年のみで評価する拡張窓ローリングオリジン方式 (患者単位で分割を保持)。ランダムな患者分割では見えない経年ドリフトを測定する。左軸=点予測精度 (回帰: R²、AIS: 正解率) と基準 (ランダム分割) 線、右軸=80% 区間/APS カバレッジ と名目 80% 線。診断用であり、本番モデルは変更しない。"
-  en: "Out-of-time evaluation keyed on business year (2014–2025). For each test year T the model trains on all prior years and is tested on year T alone (expanding-window rolling origin, group-safe by patient). This measures the calendar drift the random patient split cannot see. Left axis = point accuracy (R² for regression, accuracy for AIS) with the random-split baseline line; right axis = 80% PI / APS coverage with the nominal-80% line. Diagnostic only — the production model is unchanged."
+  en: "Out-of-time evaluation keyed on business year (2014-2025). For each test year T the model trains on all prior years and is tested on year T alone (expanding-window rolling origin, group-safe by patient). This measures the calendar drift the random patient split cannot see. Left axis = point accuracy (R² for regression, accuracy for AIS) with the random-split baseline line; right axis = 80% PI / APS coverage with the nominal-80% line. Diagnostic only - the production model is unchanged."
 methods_landmark_heading:
   ja: "ランドマーク (動的) 予測 — 観測の価値"
-  en: "Landmark (dynamic) prediction — value of observation"
+  en: "Landmark (dynamic) prediction - value of observation"
 methods_landmark_def:
   ja: "退院時アウトカムを、入院時特徴に加えて各ランドマーク時点 (72h・2w・4w・6w・2m・3m) までに観測された臨床指標 (SCIM 合計/下位尺度・AIS・運動/感覚スコアの直近値) から予測する。ランドマークが進み実際の初期回復が観測されるほど、点予測精度は上がり予測区間は狭まる。これが「観測の価値」である。各ランドマークでは、その時点で在院中の症例 (リスク集合) のみを対象とし、同一集合・同一分割で入院時のみ基準モデルも学習することで、集合の縮小を補正した観測の正味価値を分離する。診断・推論層であり、本番モデルは変更しない。"
-  en: "Predict the discharge outcome from the admission features plus the clinical measures observed by each landmark time (72 h, 2 w, 4 w, 6 w, 2 m, 3 m) — the most-recent SCIM total / subscales, AIS grade, and motor / sensory scores. As the landmark advances and real early recovery is observed, point accuracy rises and the prediction interval narrows: the value of observation. Each landmark uses only the still-admitted episodes at that time (the risk set), and an admission-only baseline is fit on the same set and split, isolating the net value of the observed scores after correcting for the shrinking cohort. Diagnostic + inference layer — the production model is unchanged."
+  en: "Predict the discharge outcome from the admission features plus the clinical measures observed by each landmark time (72 h, 2 w, 4 w, 6 w, 2 m, 3 m) - the most-recent SCIM total / subscales, AIS grade, and motor / sensory scores. As the landmark advances and real early recovery is observed, point accuracy rises and the prediction interval narrows: the value of observation. Each landmark uses only the still-admitted episodes at that time (the risk set), and an admission-only baseline is fit on the same set and split, isolating the net value of the observed scores after correcting for the shrinking cohort. Diagnostic + inference layer - the production model is unchanged."
 # --- G4 AIS-grade conversion ---
 conv_card_heading:
   ja: "AIS グレード転換予測"
@@ -503,7 +503,7 @@ conv_endpoints_heading:
   en: "Clinical conversion endpoints (calibrated probability)"
 conv_magnitude_heading:
   ja: "改善幅 (順序・最尤クラス + 80%集合)"
-  en: "Improvement magnitude (ordinal — most-likely class + 80% set)"
+  en: "Improvement magnitude (ordinal - most-likely class + 80% set)"
 conv_adm_grade:
   ja: "入院時グレード"
   en: "Admission grade"
@@ -527,10 +527,10 @@ conv_need_ais:
   en: "Enter the admission AIS grade to see the conversion prediction."
 conv_at_ceiling:
   ja: "入院時 AIS E (天井) — 転換エンドポイントは適用されません。"
-  en: "Admission AIS E (ceiling) — no conversion endpoint applies."
+  en: "Admission AIS E (ceiling) - no conversion endpoint applies."
 conv_mag_caption:
   ja: "改善幅ヘッドは class_weight=balanced のため確率は較正されていない。較正済みの転換確率 (上) とは別物で、最尤クラスと APS 集合として解釈する。"
-  en: "The magnitude head is class-weighted, so its scores are uncalibrated — distinct from the calibrated conversion probabilities above; read it as the most-likely class and APS set."
+  en: "The magnitude head is class-weighted, so its scores are uncalibrated - distinct from the calibrated conversion probabilities above; read it as the most-likely class and APS set."
 conv_caption:
   ja: "エンドポイント確率は OOF 予測で Platt 較正済み (二値・near-balanced)。改善幅は交差コンフォーマル APS (α=0.2)。診断・推論層であり、本番の退院時 AIS モデルとは別。"
   en: "Endpoint probabilities are Platt-calibrated on OOF predictions (binary, near-balanced); the magnitude set is cross-conformal APS (α=0.2). Diagnostic + inference layer, distinct from the production discharge-AIS model."
@@ -539,7 +539,7 @@ methods_conversion_heading:
   en: "AIS-grade conversion modeling (G4)"
 methods_conversion_def:
   ja: "本番の退院時 AIS モデルが絶対グレードを予測するのに対し、本モデルは臨床的に重要な転換 (入院→退院の遷移) を予測する。転換は入院グレードに強く依存する (AIS D で天井、E は改善余地なし) ため、各ヘッドは適応コホートで入院グレードを特徴に含めて学習する。較正済み二値エンドポイント2つ (運動不全化 A/B→≥C、歩行獲得 A–C→≥D) と、改善幅の順序多クラス {0,+1,≥+2} (A–D)。小コホート向けに患者単位5分割の OOF 予測で全指標・Platt 較正・交差コンフォーマル APS を計算し、最終ヘッドは全コホートで再学習。SHAP は記述的な院内重要度。診断・推論層で本番アーティファクトは不変。"
-  en: "Where the production discharge-AIS head predicts the absolute grade, this models the clinically salient conversion (admission→discharge transition). Conversion is strongly admission-gated (ceiling at AIS D, no room at E), so each head trains on its at-risk cohort with the admission grade kept as a feature. Two calibrated binary endpoints (motor-incomplete A/B→≥C, ambulatory A–C→≥D) plus an ordinal magnitude head {0,+1,≥+2} on A–D. For the small cohorts, grouped 5-fold OOF predictions drive every metric, the Platt calibrator, and a cross-conformal APS q; the final heads refit on the full cohort. SHAP drivers are descriptive in-sample. Diagnostic + inference layer — production artifacts unchanged."
+  en: "Where the production discharge-AIS head predicts the absolute grade, this models the clinically salient conversion (admission→discharge transition). Conversion is strongly admission-gated (ceiling at AIS D, no room at E), so each head trains on its at-risk cohort with the admission grade kept as a feature. Two calibrated binary endpoints (motor-incomplete A/B→≥C, ambulatory A-C→≥D) plus an ordinal magnitude head {0,+1,≥+2} on A-D. For the small cohorts, grouped 5-fold OOF predictions drive every metric, the Platt calibrator, and a cross-conformal APS q; the final heads refit on the full cohort. SHAP drivers are descriptive in-sample. Diagnostic + inference layer - production artifacts unchanged."
 methods_conversion_landscape_heading:
   ja: "転換ランドスケープ (記述統計)"
   en: "Conversion landscape (descriptive)"
@@ -636,7 +636,7 @@ chart_phenotype_demographics:
   en: "AIS distribution by phenotype"
 phenotype_caption:
   ja: "早期の実測 SCIM・運動スコア軌道から成長混合モデルで発見した回復表現型。モデル予測に依存しないデータ駆動のパターンで、各色の曲線にカーソルを合わせると退院時 SCIM 中央値などの予後が表示される。"
-  en: "Recovery phenotypes discovered by a growth mixture model from the observed early SCIM + motor trajectories — data-driven patterns independent of any model prediction. Hover a curve for its conditioned prognosis (median discharge SCIM, LOS)."
+  en: "Recovery phenotypes discovered by a growth mixture model from the observed early SCIM + motor trajectories - data-driven patterns independent of any model prediction. Hover a curve for its conditioned prognosis (median discharge SCIM, LOS)."
 pheno_measure_scim:
   ja: "SCIM-III (機能)"
   en: "SCIM-III (function)"
@@ -658,7 +658,7 @@ pheno_select_prompt:
   en: "Select an observation cutoff"
 pheno_ineligible:
   ja: "この症例は早期回復期 (0日〜6か月) の実測 SCIM・運動スコアが少なく、表現型を割り当てられない。"
-  en: "This episode has too few observed early-recovery (0 d–6 mo) SCIM / motor points to assign a phenotype."
+  en: "This episode has too few observed early-recovery (0 d-6 mo) SCIM / motor points to assign a phenotype."
 pheno_patient_label:
   ja: "この患者 (実測)"
   en: "This patient (observed)"
@@ -688,7 +688,7 @@ pheno_obs_count:
   en: "Using {n} observed point(s) through {cutoff}"
 pheno_caption:
   ja: "メンバーシップは実測軌道のみから計算され、予測モデルや退院時の値には依存しない。条件付き予後は各表現型のコホート要約をメンバーシップで加重した参考値であり、個別の予測区間ではない。"
-  en: "Membership is computed from the observed trajectory alone — independent of any prediction model or discharge values. The conditioned prognosis is a membership-weighted blend of each phenotype's cohort summary (a reference cue, not an individual prediction interval)."
+  en: "Membership is computed from the observed trajectory alone - independent of any prediction model or discharge values. The conditioned prognosis is a membership-weighted blend of each phenotype's cohort summary (a reference cue, not an individual prediction interval)."
 
 # --- overview filters (F22) ---
 overview_filter_ais:
@@ -728,7 +728,7 @@ ms_need_ais:
   en: "Enter the admission AIS grade to see the multi-state recovery dynamics."
 ms_at_ceiling:
   ja: "入院時 AIS E (天井) — 改善エンドポイントは適用されません (コホートの占有ドリフトのみ表示)。"
-  en: "Admission AIS E (ceiling) — no improvement endpoint applies (only cohort occupancy drift is shown)."
+  en: "Admission AIS E (ceiling) - no improvement endpoint applies (only cohort occupancy drift is shown)."
 ms_improve_any:
   ja: "6か月以内の ≥1段階改善"
   en: "≥1-grade improvement by 6m"
@@ -746,7 +746,7 @@ methods_multistate_heading:
   en: "AIS multi-state recovery modeling (G6)"
 methods_multistate_def:
   ja: "AIS グレードが早期回復グリッド (0day–6m) をどう推移するかを、時間非斉次の離散時間マルコフ連鎖としてモデル化する (G4 の入院→退院エンドポイントを補完)。各ステップの遷移行列は両隣の時点で観測が揃う症例から推定し、入院グレードからの前進積で占有曲線・初到達曲線・状態別期待日数を導く。加えて、入院特徴から6か月改善を予測する較正済み二値ヘッドを併設する。"
-  en: "Models how the AIS grade moves across the early-recovery grid (0day–6m) as a time-inhomogeneous discrete-time Markov chain (complementing G4's admission→discharge endpoint). Each step's transition matrix is estimated from episodes observed at both adjacent timepoints; forward-multiplying from the admission grade yields occupancy curves, first-passage curves and expected days per state. A calibrated binary head additionally predicts 6-month improvement from admission features."
+  en: "Models how the AIS grade moves across the early-recovery grid (0day-6m) as a time-inhomogeneous discrete-time Markov chain (complementing G4's admission→discharge endpoint). Each step's transition matrix is estimated from episodes observed at both adjacent timepoints; forward-multiplying from the admission grade yields occupancy curves, first-passage curves and expected days per state. A calibrated binary head additionally predicts 6-month improvement from admission features."
 methods_ms_occupancy_heading:
   ja: "状態占有曲線 (入院グレード別)"
   en: "State-occupancy curves (by admission grade)"
@@ -770,13 +770,13 @@ methods_ms_sojourn_heading:
   en: "Expected days per state (by admission grade)"
 methods_ms_sojourn_caption:
   ja: "0day–6m の窓で各入院グレードが各 AIS 状態に滞在する期待日数 (積み上げ、合計≈窓長)。"
-  en: "Expected days each admission grade spends in each AIS state over the 0day–6m window (stacked, summing to ≈the window length)."
+  en: "Expected days each admission grade spends in each AIS state over the 0day-6m window (stacked, summing to ≈the window length)."
 methods_ms_improve_heading:
   ja: "6か月改善ヘッド (較正済み・共変量)"
   en: "6-month improvement head (calibrated, covariate)"
 methods_ms_improve_caption:
   ja: "入院特徴から ≥1段階改善を予測する二値ヘッド (A–D)。改善基準率は入院グレードで非単調 (B>C>A≫D): D の「改善」は AIS E 到達 (完全正常) を意味するため低い。"
-  en: "Binary head predicting ≥1-grade improvement from admission features (A–D). The base rate is non-monotone in admission grade (B>C>A≫D): for a D admission, 'improvement' means reaching AIS E (full-normal), hence the low rate."
+  en: "Binary head predicting ≥1-grade improvement from admission features (A-D). The base rate is non-monotone in admission grade (B>C>A≫D): for a D admission, 'improvement' means reaching AIS E (full-normal), hence the low rate."
 methods_ms_calibration_heading:
   ja: "信頼度曲線 (Platt 較正 vs 生)"
   en: "Reliability curve (Platt-calibrated vs raw)"
@@ -802,7 +802,7 @@ ind_card_heading:
   en: "Functional-independence profile (at discharge)"
 ind_card_intro:
   ja: "SCIM-III の各 ADL 項目について、退院時に人的介助なし (補助具・装具は可) で自立する較正済み確率。集計 SCIM スコアを「食事・排泄・歩行はできるようになるか」という具体的な行為へ翻訳する。"
-  en: "Calibrated probability of functional independence (no human assistance; aids/devices allowed) in each SCIM-III ADL item at discharge — reframing the aggregate SCIM score into the concrete acts patients ask about (feeding, bladder, walking)."
+  en: "Calibrated probability of functional independence (no human assistance; aids/devices allowed) in each SCIM-III ADL item at discharge - reframing the aggregate SCIM score into the concrete acts patients ask about (feeding, bladder, walking)."
 ind_profile_heading:
   ja: "項目別 自立確率 (領域別)"
   en: "Per-item independence probability (by domain)"
@@ -844,7 +844,7 @@ methods_ind_scorecard_heading:
   en: "Per-item scorecard (discrimination & calibration)"
 methods_ind_scorecard_caption:
   ja: "各項目の AUC と Brier スキルスコア (1 − Brier/基準分散)。全項目で AUC≈0.88–0.93、Brier は基準を大きく下回る。色は領域。"
-  en: "AUC and Brier skill score (1 − Brier/baseline variance) per item. Every item reaches AUC≈0.88–0.93 with Brier well below baseline. Color = domain."
+  en: "AUC and Brier skill score (1 − Brier/baseline variance) per item. Every item reaches AUC≈0.88-0.93 with Brier well below baseline. Color = domain."
 methods_ind_calibration_heading:
   ja: "信頼度曲線オーバーレイ (全 18 ヘッド)"
   en: "Reliability overlay (all 18 heads)"
@@ -878,7 +878,7 @@ topo_card_heading:
   en: "Recovery topography map (at discharge)"
 topo_card_intro:
   ja: "ISNCSCI の全 132 セグメント (運動 20 + 触覚 56 + 痛覚 56) について、退院時に機能的マイルストーンへ到達する較正済み確率。運動は P(MMT≧3 = 抗重力)、感覚は P(≧1 = 保護的感覚)。集計スコアに埋もれたセグメント別の回復地図を可視化する。"
-  en: "Calibrated probability that each of the 132 ISNCSCI segments (20 motor + 56 light-touch + 56 pin-prick) reaches a functional milestone at discharge — motor P(grade ≥3 = antigravity), sensory P(grade ≥1 = protective sensation). A per-segment recovery map otherwise buried in the aggregate scores."
+  en: "Calibrated probability that each of the 132 ISNCSCI segments (20 motor + 56 light-touch + 56 pin-prick) reaches a functional milestone at discharge - motor P(grade ≥3 = antigravity), sensory P(grade ≥1 = protective sensation). A per-segment recovery map otherwise buried in the aggregate scores."
 topo_atlas_heading:
   ja: "セグメント別 機能到達確率 (皮膚分節 + 筋分節)"
   en: "Per-segment milestone probability (dermatomes + myotomes)"
@@ -932,13 +932,13 @@ topo_weakest:
   en: "Weakest motor segment (focus)"
 topo_caption:
   ja: "132 個の独立した較正済み二値ヘッド (運動 20 + 触覚 56 + 痛覚 56)。各ヘッドは 30 の入院特徴 + 当該分節自身の入院時グレード (adm_self — 支配的予測因子) から予測し、患者群 5 分割 OOF + Platt 較正。高位頚髄の天井分節 12 個は較正不能のため一定の基準率を表示。APS なし (二値では退化)。"
-  en: "132 independent calibrated binary heads (20 motor + 56 light-touch + 56 pin-prick). Each predicts from the 30 admission features + the segment's own admission grade (adm_self — the dominant predictor), grouped 5-fold OOF + Platt calibration. The 12 high-cervical ceiling dermatomes are degenerate (constant base rate). No APS layer (binary sets degenerate)."
+  en: "132 independent calibrated binary heads (20 motor + 56 light-touch + 56 pin-prick). Each predicts from the 30 admission features + the segment's own admission grade (adm_self - the dominant predictor), grouped 5-fold OOF + Platt calibration. The 12 high-cervical ceiling dermatomes are degenerate (constant base rate). No APS layer (binary sets degenerate)."
 methods_topography_heading:
   ja: "回復トポグラフィ地図 (G8)"
   en: "Recovery topography map (G8)"
 methods_topography_def:
   ja: "退院時の機能をセグメント別に分解する 132 個の較正済み二値ヘッド。各セグメント (運動 20 筋分節 + 触覚 56 + 痛覚 56 皮膚分節) について、入院特徴 + 当該分節自身の入院時グレードから機能的マイルストーン到達確率を予測。集計の運動・感覚スコアが 5 つの合計値へ畳み込む 132 列のセグメント別信号を活用する。"
-  en: "132 calibrated binary heads decomposing discharge function by segment. For each segment (20 motor myotomes + 56 light-touch + 56 pin-prick dermatomes) it predicts the probability of reaching a functional milestone from admission features + that segment's own admission grade — mining the 132 per-segment signals the aggregate motor/sensory scores collapse into five totals."
+  en: "132 calibrated binary heads decomposing discharge function by segment. For each segment (20 motor myotomes + 56 light-touch + 56 pin-prick dermatomes) it predicts the probability of reaching a functional milestone from admission features + that segment's own admission grade - mining the 132 per-segment signals the aggregate motor/sensory scores collapse into five totals."
 methods_topo_atlas_heading:
   ja: "コホート回復トポグラフィ (実測基準率)"
   en: "Cohort recovery topography (observed base rate)"
@@ -950,7 +950,7 @@ methods_topo_scorecard_heading:
   en: "Per-segment discrimination (distribution by modality)"
 methods_topo_scorecard_caption:
   ja: "モデル化された約 120 ヘッドの OOF AUC と Brier スキルの分布 (点 = 各セグメント)。全モダリティで AUC≈0.85–0.97 と良好に判別。退化した高位頚髄天井分節 12 個は除外。"
-  en: "Distribution of OOF AUC and Brier skill across the ~120 modelable heads (points = individual segments). All modalities discriminate well (AUC≈0.85–0.97). The 12 degenerate high-cervical ceiling dermatomes are excluded."
+  en: "Distribution of OOF AUC and Brier skill across the ~120 modelable heads (points = individual segments). All modalities discriminate well (AUC≈0.85-0.97). The 12 degenerate high-cervical ceiling dermatomes are excluded."
 methods_topo_calibration_heading:
   ja: "モダリティ別 信頼度曲線 (プール)"
   en: "Pooled reliability by modality"
@@ -974,7 +974,7 @@ topo_sim_worksheet_heading:
   en: "Admission ISNCSCI worksheet (per-segment grades)"
 topo_sim_worksheet_note:
   ja: "セグメント別の入院時グレードを編集 (運動 0–5、感覚 0–2)。当該分節自身のグレードが最も支配的な予測因子。参照患者から初期値を読込めます。空欄は不明 (NaN) として扱われます。"
-  en: "Edit each segment's admission grade (motor 0–5, sensory 0–2) — a segment's own grade is its most dominant predictor. Seed from a reference patient, or leave blanks (treated as unknown / NaN)."
+  en: "Edit each segment's admission grade (motor 0-5, sensory 0-2) - a segment's own grade is its most dominant predictor. Seed from a reference patient, or leave blanks (treated as unknown / NaN)."
 topo_sim_seed:
   ja: "参照患者から読込"
   en: "Seed from reference"
@@ -992,7 +992,7 @@ ld_descent_heading:
   en: "Per-level descent probability (calibrated)"
 ld_magnitude_heading:
   ja: "下降幅 (順序・最尤クラス + 80%集合)"
-  en: "Descent magnitude (ordinal — most-likely class + 80% set)"
+  en: "Descent magnitude (ordinal - most-likely class + 80% set)"
 ld_observed_heading:
   ja: "この患者の実測レベル変化 (入院→退院)"
   en: "This patient's observed level change (admission→discharge)"
@@ -1001,7 +1001,7 @@ ld_need_level:
   en: "Enter at least one admission level (NLI, motor, or sensory) to see the descent prediction."
 ld_mag_caption:
   ja: "下降幅ヘッドは class_weight=balanced のため確率は較正されていない。較正済みの下降確率 (上) とは別物で、最尤クラスと APS 集合として解釈する。ヘッドはほぼ縮退 (APS≈3) しており判別力は乏しい。"
-  en: "The magnitude head is class-weighted, so its scores are uncalibrated — distinct from the calibrated descent probabilities above; read it as the most-likely class and APS set. The head is near-degenerate (APS≈3) with little resolving power."
+  en: "The magnitude head is class-weighted, so its scores are uncalibrated - distinct from the calibrated descent probabilities above; read it as the most-likely class and APS set. The head is near-degenerate (APS≈3) with little resolving power."
 ld_caption:
   ja: "下降確率は患者単位5分割の OOF 予測で Platt 較正済み (二値・near-balanced)。下降幅は交差コンフォーマル APS (α=0.2)。診断・推論層であり、本番の退院時アウトカムモデルとは別。NLI 以外の判別力は限定的 (Methods 参照)。"
   en: "Descent probabilities are Platt-calibrated on grouped 5-fold OOF predictions (binary, near-balanced); the magnitude set is cross-conformal APS (α=0.2). Diagnostic + inference layer, distinct from the production discharge-outcome models. Discrimination beyond NLI is limited (see Methods)."
@@ -1010,7 +1010,7 @@ methods_ld_heading:
   en: "Neurological-level descent modeling (G10)"
 methods_ld_def:
   ja: "ISNCSCI の5つの神経学的高位 (NLI、左右の運動・感覚レベル) について、入院→退院の尾側下降を予測する。脊髄分節を順序符号化し (吻側 C1=0 …尾側 S45=28、INT=29 を天井)、Δ>0 を尾側下降 = 改善とする。入院時 INT/欠測は改善余地なしとして除外。レベルごとに2ヘッド: 下降 = 較正済み二値 P(Δ≥1)、下降幅 = 順序多クラス {0,+1,≥+2} (class_weight=balanced ゆえ較正なし)。小コホート向けに患者単位5分割の OOF 予測で全指標・Platt 較正・交差コンフォーマル APS (α=0.2) を計算し、最終ヘッドは全コホートで再学習。SHAP は記述的な院内重要度。診断・推論層で本番アーティファクトは不変。"
-  en: "Models the admission→discharge caudal descent of the five ISNCSCI neurological levels (NLI, bilateral motor and sensory). Cord segments are ordinally encoded (rostral C1=0 … caudal S45=28, INT=29 as the ceiling) so that Δ>0 is a caudal descent = improvement. Admission INT/missing values are excluded (no room to improve). Each level carries two heads: descent = calibrated binary P(Δ≥1); magnitude = ordinal {0,+1,≥+2} (class-weighted, hence uncalibrated). For the small cohorts, grouped 5-fold OOF predictions drive every metric, the Platt calibrator, and a cross-conformal APS q (α=0.2); the final heads refit on the full cohort. SHAP drivers are descriptive in-sample. Diagnostic + inference layer — production artifacts unchanged."
+  en: "Models the admission→discharge caudal descent of the five ISNCSCI neurological levels (NLI, bilateral motor and sensory). Cord segments are ordinally encoded (rostral C1=0 … caudal S45=28, INT=29 as the ceiling) so that Δ>0 is a caudal descent = improvement. Admission INT/missing values are excluded (no room to improve). Each level carries two heads: descent = calibrated binary P(Δ≥1); magnitude = ordinal {0,+1,≥+2} (class-weighted, hence uncalibrated). For the small cohorts, grouped 5-fold OOF predictions drive every metric, the Platt calibrator, and a cross-conformal APS q (α=0.2); the final heads refit on the full cohort. SHAP drivers are descriptive in-sample. Diagnostic + inference layer - production artifacts unchanged."
 methods_ld_scorecard_heading:
   ja: "レベル別 下降判別 (AUC)"
   en: "Per-level descent discrimination (AUC)"
@@ -1034,7 +1034,7 @@ diss_card_heading:
   en: "Neuro-functional dissociation profile"
 diss_card_intro:
   ja: "神経学的回復 (Δ ISNCSCI スコア) と機能的回復 (Δ SCIM) の「ずれ」を予測する。標準化対比 D = z(Δ機能) − z(Δ神経): D>0 は機能優位 (代償・適応で神経回復以上に自立を獲得)、D<0 は神経優位 (筋力回復が自立に転換できていない = 機能転換に注力すべき指標)。Δ神経×Δ機能の散布図上で、患者を★として配置 (横位置=予測 Δ神経、対角線=同等回復 D=0 からの上下のずれ=乖離) する。"
-  en: "Predicts the mismatch between neurological recovery (Δ ISNCSCI score) and functional recovery (Δ SCIM). The standardized contrast D = z(Δfunction) − z(Δneuro): D>0 = functional over-achiever (independence regained through compensation/adaptation beyond neurological gain); D<0 = functional under-achiever (strength not yet translated into independence — a functional-translation flag). The patient is placed as a star on the Δneuro×Δfunction plane (x = predicted Δneuro; vertical offset from the equal-recovery D=0 diagonal = the dissociation)."
+  en: "Predicts the mismatch between neurological recovery (Δ ISNCSCI score) and functional recovery (Δ SCIM). The standardized contrast D = z(Δfunction) − z(Δneuro): D>0 = functional over-achiever (independence regained through compensation/adaptation beyond neurological gain); D<0 = functional under-achiever (strength not yet translated into independence - a functional-translation flag). The patient is placed as a star on the Δneuro×Δfunction plane (x = predicted Δneuro; vertical offset from the equal-recovery D=0 diagonal = the dissociation)."
 diss_landscape_heading:
   ja: "乖離マップ (Δ神経 × Δ機能)"
   en: "Dissociation map (Δneuro × Δfunction)"
@@ -1046,25 +1046,25 @@ diss_headline:
   en: "Most dissociated axis"
 diss_caption:
   ja: "方向 (機能優位 P(D>0)) は患者単位5分割の OOF 予測で Platt 較正済み・near-balanced。大きさ D は連続回帰 + 周辺交差コンフォーマル80%予測区間 (重み付けなしのため二値の方向と整合)。点数は sd_f·D で機能スコア換算。診断・推論層で本番アウトカムモデルとは別。予測 D は2軸を個別予測して差し引いた値とほぼ等価 (r≈0.97) であり、新規性は単一の符号付き乖離信号という提示面にある。"
-  en: "Direction (P(over-achiever) = P(D>0)) is Platt-calibrated on grouped 5-fold OOF predictions (near-balanced); the magnitude D is a continuous regression + a marginal cross-conformal 80% PI (unweighted, so it agrees with the binary direction). Points are D back-translated to functional-score units via sd_f·D. Diagnostic + inference layer, distinct from the production outcome models. Predicted D is near-equivalent (r≈0.97) to differencing two separately-modeled axes — the novelty is the single signed dissociation signal, framing-side."
+  en: "Direction (P(over-achiever) = P(D>0)) is Platt-calibrated on grouped 5-fold OOF predictions (near-balanced); the magnitude D is a continuous regression + a marginal cross-conformal 80% PI (unweighted, so it agrees with the binary direction). Points are D back-translated to functional-score units via sd_f·D. Diagnostic + inference layer, distinct from the production outcome models. Predicted D is near-equivalent (r≈0.97) to differencing two separately-modeled axes - the novelty is the single signed dissociation signal, framing-side."
 methods_diss_heading:
   ja: "神経-機能 乖離モデル (G11)"
   en: "Neuro-functional dissociation modeling (G11)"
 methods_diss_def:
   ja: "SCI の回復は神経学的軸 (運動・感覚スコアの増分) と機能的軸 (ADL 自立の増分) に分かれ、両者は弱くしか連関しない (Pearson r≈0.12–0.27、約41–45%が乖離象限) ため、試験では別々に報告される。本モデルは入院時特徴量からその乖離 D = z(Δ機能) − z(Δ神経) を予測する。連関が弱いため残差ではなく標準化対比を用いる (残差は機能軸そのものに退化する)。ドメイン対の3軸 (UEMS↔セルフケア、LEMS↔移動、運動合計↔SCIM合計)、各2ヘッド: 機能優位 = 較正済み二値 P(D>0)、大きさ = D の連続回帰 + 周辺コンフォーマル80%区間。小コホート向けに患者単位5分割の OOF で全指標・Platt・コンフォーマル q を計算し全コホートで再学習、SHAP は記述的院内重要度。本番アーティファクトは不変。"
-  en: "SCI recovery splits into a neurological axis (motor/sensory score gain) and a functional axis (ADL-independence gain) that are only weakly coupled (Pearson r≈0.12–0.27; ~41–45% of episodes off-diagonal), so trials report them separately. This model predicts the dissociation D = z(Δfunction) − z(Δneuro) from admission features. Because the coupling is weak, a standardized contrast — not a residual — is used (a residual would collapse onto the functional axis itself). Three domain-paired axes (UEMS↔self-care, LEMS↔mobility, total-motor↔SCIM-total), each with two heads: over_achiever = calibrated binary P(D>0); magnitude = continuous regression on D + a marginal conformal 80% PI. For the small cohorts, grouped 5-fold OOF predictions drive every metric, the Platt calibrator and the conformal q; the heads refit on the full cohort; SHAP drivers are descriptive in-sample. Production artifacts unchanged."
+  en: "SCI recovery splits into a neurological axis (motor/sensory score gain) and a functional axis (ADL-independence gain) that are only weakly coupled (Pearson r≈0.12-0.27; ~41-45% of episodes off-diagonal), so trials report them separately. This model predicts the dissociation D = z(Δfunction) − z(Δneuro) from admission features. Because the coupling is weak, a standardized contrast - not a residual - is used (a residual would collapse onto the functional axis itself). Three domain-paired axes (UEMS↔self-care, LEMS↔mobility, total-motor↔SCIM-total), each with two heads: over_achiever = calibrated binary P(D>0); magnitude = continuous regression on D + a marginal conformal 80% PI. For the small cohorts, grouped 5-fold OOF predictions drive every metric, the Platt calibrator and the conformal q; the heads refit on the full cohort; SHAP drivers are descriptive in-sample. Production artifacts unchanged."
 methods_diss_landscape_heading:
   ja: "コホート乖離マップ (軸別)"
   en: "Cohort dissociation map (per axis)"
 methods_diss_landscape_caption:
   ja: "各軸の Δ神経×Δ機能 散布図。破線は同等回復の対角線 (D=0 = 機能優位/神経優位の境界)、点線はコホート回帰直線 (傾きが対角線より緩い = 機能は神経回復に追従しないという視覚的証拠)。点はティール=機能優位 / クリムゾン=神経優位。"
-  en: "Per-axis Δneuro×Δfunction scatter. The dashed line is the equal-recovery diagonal (D=0 — the over/under boundary); the dotted line is the cohort regression (shallower than the diagonal — the visual proof that function does not keep pace with neurological recovery). Points are teal = over-achiever / crimson = under-achiever."
+  en: "Per-axis Δneuro×Δfunction scatter. The dashed line is the equal-recovery diagonal (D=0 - the over/under boundary); the dotted line is the cohort regression (shallower than the diagonal - the visual proof that function does not keep pace with neurological recovery). Points are teal = over-achiever / crimson = under-achiever."
 methods_diss_scorecard_heading:
   ja: "軸別 予測性能 (方向 AUC・大きさ R²)"
   en: "Per-axis predictability (direction AUC, magnitude R²)"
 methods_diss_scorecard_caption:
   ja: "入院時特徴量からの予測性能。3軸とも良好 (機能優位 AUC 0.93–0.95、大きさ R² 0.69–0.76)。最大寄与因子は常に神経軸のベースラインスコア (天井/伸び代)、次いで年齢 (代償能力)。"
-  en: "How well admission features predict the dissociation. All three axes are well-predicted (over-achiever AUC 0.93–0.95; magnitude R² 0.69–0.76). The top driver is always the neuro-axis baseline score (ceiling/room), with age second (compensation capacity)."
+  en: "How well admission features predict the dissociation. All three axes are well-predicted (over-achiever AUC 0.93-0.95; magnitude R² 0.69-0.76). The top driver is always the neuro-axis baseline score (ceiling/room), with age second (compensation capacity)."
 methods_diss_drilldown_heading:
   ja: "軸別ドリルダウン (機能優位ヘッドの較正・寄与因子)"
   en: "Per-axis drilldown (over-achiever head: calibration + drivers)"
