@@ -99,3 +99,10 @@ Thumbs.db
 .claude/*.lock
 .aider*
 .specstory/
+
+# serena / headroom local scratch — the AGENT_NOTES memory system is the sole
+# memory store and supersedes Serena's memories; .serena/project.yml (tracked
+# LSP config) is the only .serena file under version control.
+.serena/cache/
+.serena/memories/
+.serena/project.local.yml

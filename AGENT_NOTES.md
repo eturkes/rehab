@@ -43,19 +43,28 @@ superseded, duplicated elsewhere, or has gone stale.
   stays single-mode (an earlier stdin/JSON branch here was dead code, since removed
   — resist re-adding env-var-keyed dual mode).  Per CLAUDE.md, wrap to a clean
   boundary at ≥80 % for a manual `/compact`.
-* `.claude/settings.json` — `permissions.deny` `Read()` rules (CLAUDE.md policy)
-  that hide low-benefit paths from the Read tool, Grep/Glob, and `cat`/`head`/
-  `sed`: the venv, `.git`, caches, raw `ALL_SCIDATA.csv`, `uv.lock`, every
-  `*.joblib` (+ `*.pkl/.npy/.npz/.parquet`), and the 3 oversized generated dumps
+* `.claude/settings.json` — `permissions.deny` `Read()` rules (CLAUDE.md
+  "do-not-read" policy).  Deny-`Read()` masks the **Read tool and Bash**
+  (`cat`/`head`/`sed`, plus any command whose text merely *contains* a denied
+  literal — see §0b); **Grep/Glob, the `@`-picker, and Serena honor `.gitignore`
+  instead**, so a gitignored path needs no extra masking on those surfaces.
+  Denied set: the venv, `.git`, caches, raw `ALL_SCIDATA.csv`, `uv.lock`, every
+  `*.joblib` (+ `*.pkl/.npy/.npz/.parquet`), the 3 oversized generated dumps
   `models/subgroups.json`, `models/dataquality_report.json`,
   `schema/raw_profile.json`, plus the Serena/Headroom local scratch
-  `.serena/{cache,memories,project.local.yml}` (`.serena/project.yml`, the
-  tracked LSP config, stays readable).  Deny does **not** touch
-  `python`/`jq`/`ls`/`git`,
-  so query a denied JSON with `jq` and confirm artifacts via `ls`/`git
-  ls-files`.  The canonical `models/*_metrics.json` stay readable on purpose
-  (model-performance source of truth).  Rules reload live; inspect with
-  `/permissions`; grow the list as new low-value paths appear.
+  `.serena/{cache,memories,project.local.yml}` — now gitignored at the **repo
+  root** (the nested `.serena/.gitignore` was removed); `.serena/project.yml`
+  (tracked LSP config) stays readable.  **Sync invariant (CLAUDE.md):** every
+  deny target that is *not* gitignored — i.e. the two tracked low-value files
+  `uv.lock` and `models/subgroups.json` — is mirrored in Serena's
+  `ignored_paths` (`.serena/project.yml`); gitignored deny targets are already
+  skipped by Serena via `ignore_all_files_in_gitignore`.  Keep deny ⇄
+  `ignored_paths` in lockstep whenever a *tracked* low-value path is added.
+  Deny does **not** touch `python`/`jq`/`ls`/`git`, so query a denied JSON with
+  `jq` and confirm artifacts via `ls`/`git ls-files`.  The canonical
+  `models/*_metrics.json` stay readable on purpose (model-performance source of
+  truth).  Rules reload live; inspect with `/permissions`; grow the list as new
+  low-value paths appear.
 * This file — agent-facing scratchpad.  Read before planning; update after each
   session; prune duplication per the inclusion rule above.
 * **Default-work pool: §8 backlog.**  F1–F25 + G1 (s29/s30) + G2 (s31) + G3
