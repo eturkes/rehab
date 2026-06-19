@@ -20,7 +20,7 @@ dependencies = [
   # ML
   "scikit-learn>=1.5,<2",
   "lightgbm>=4.5,<5",
-  "shap>=0.46,<0.52",
+  "shap>=0.46,<0.53",
   "numba>=0.61",
   "llvmlite>=0.44",
   # plotting / dashboard
@@ -42,7 +42,7 @@ dev = [
   "ipython>=8.20,<10",
   "jupyterlab>=4.2,<5",
   "pip-audit>=2.10.0",
-  "pytest>=8,<9",
+  "pytest>=9.0.3,<10",
 ]
 
 [tool.ruff]

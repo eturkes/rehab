@@ -439,9 +439,9 @@
     "ais_discharge": {
       "task": "multiclass",
       "baseline": {
-        "accuracy": 0.6687492063492064,
-        "kappa_quadratic": 0.735966275332415,
-        "ordinal_mae": 0.4331936507936508,
+        "accuracy": 0.6752,
+        "kappa_quadratic": 0.7497807779961376,
+        "ordinal_mae": 0.4203428571428571,
         "aps_coverage_80": 0.9921,
         "aps_avg_set_size": 2.77,
         "source": "random GroupKFold CV (point) + random holdout (APS coverage)"
@@ -580,16 +580,16 @@
         "ordinal_mae_oot_mean": 0.3917085828789551,
         "aps_coverage_oot_mean": 0.9938333333333333,
         "aps_avg_set_size_oot_mean": 3.0233333333333334,
-        "accuracy_delta_vs_baseline": 0.05127200387371145,
+        "accuracy_delta_vs_baseline": 0.04482121022291785,
         "aps_coverage_delta_vs_baseline": 0.0017333333333333645
       }
     },
     "los_days": {
       "task": "regression",
       "baseline": {
-        "r2": 0.20276524096819176,
-        "rmse": 106.1137140663053,
-        "mae": 76.51571708305711,
+        "r2": 0.23860983995261317,
+        "rmse": 104.26069435138302,
+        "mae": 74.21713883502562,
         "conformal_coverage_80": 0.8134328358208955,
         "source": "random GroupKFold CV (point) + random holdout (coverage)"
       },
@@ -657,8 +657,533 @@
         "mae_oot_mean": 77.66938856097087,
         "coverage_oot_mean": 0.7858353995402189,
         "pi_mean_width_oot_mean": 252.4312502787081,
-        "r2_delta_vs_baseline": -0.036726889269355134,
+        "r2_delta_vs_baseline": -0.07257148825377654,
         "coverage_delta_vs_baseline": -0.02759743628067668
+      }
+    },
+    "delta_uems": {
+      "task": "regression",
+      "baseline": {
+        "r2": 0.5953088653627824,
+        "rmse": 7.302281416227541,
+        "mae": 5.164123695218696,
+        "conformal_coverage_80": 0.8253968253968254,
+        "source": "random GroupKFold CV (point) + random holdout (coverage)"
+      },
+      "origins": [
+        {
+          "test_year": 2020,
+          "n_train": 299,
+          "n_calib": 74,
+          "n_test": 53,
+          "n_test_patients": 53,
+          "n_dropped_overlap": 0,
+          "r2": 0.7095336571105508,
+          "rmse": 7.0505737247299285,
+          "mae": 4.741358180134828,
+          "conformal_coverage_80": 0.8113207547169812,
+          "pi_mean_width": 16.314190703387453,
+          "conformal_q_transformed": 8.157095351693727
+        },
+        {
+          "test_year": 2021,
+          "n_train": 340,
+          "n_calib": 86,
+          "n_test": 29,
+          "n_test_patients": 29,
+          "n_dropped_overlap": 0,
+          "r2": 0.5174593741988305,
+          "rmse": 7.940647811833363,
+          "mae": 5.228890736054077,
+          "conformal_coverage_80": 0.7931034482758621,
+          "pi_mean_width": 19.691564503919082,
+          "conformal_q_transformed": 9.845782251959545
+        },
+        {
+          "test_year": 2022,
+          "n_train": 363,
+          "n_calib": 92,
+          "n_test": 45,
+          "n_test_patients": 45,
+          "n_dropped_overlap": 0,
+          "r2": 0.5697476523696167,
+          "rmse": 9.360430034081068,
+          "mae": 6.527809108232284,
+          "conformal_coverage_80": 0.6666666666666666,
+          "pi_mean_width": 15.044505010247839,
+          "conformal_q_transformed": 7.522252505123921
+        },
+        {
+          "test_year": 2023,
+          "n_train": 399,
+          "n_calib": 101,
+          "n_test": 56,
+          "n_test_patients": 56,
+          "n_dropped_overlap": 0,
+          "r2": 0.6713316432762917,
+          "rmse": 5.728123065033245,
+          "mae": 4.232364201241536,
+          "conformal_coverage_80": 0.9107142857142857,
+          "pi_mean_width": 23.53353284644026,
+          "conformal_q_transformed": 11.76676642322013
+        },
+        {
+          "test_year": 2024,
+          "n_train": 445,
+          "n_calib": 111,
+          "n_test": 50,
+          "n_test_patients": 50,
+          "n_dropped_overlap": 0,
+          "r2": 0.5585397307972684,
+          "rmse": 7.778493121418651,
+          "mae": 5.7191800378609265,
+          "conformal_coverage_80": 0.7,
+          "pi_mean_width": 17.428497185252283,
+          "conformal_q_transformed": 8.714248592626141
+        },
+        {
+          "test_year": 2025,
+          "n_train": 483,
+          "n_calib": 123,
+          "n_test": 26,
+          "n_test_patients": 26,
+          "n_dropped_overlap": 0,
+          "r2": 0.6889949771294042,
+          "rmse": 5.437267681177907,
+          "mae": 3.9771443912174766,
+          "conformal_coverage_80": 0.8846153846153846,
+          "pi_mean_width": 16.49402280909218,
+          "conformal_q_transformed": 8.24701140454609
+        }
+      ],
+      "summary": {
+        "r2_oot_mean": 0.6192678391469938,
+        "rmse_oot_mean": 7.215922573045693,
+        "mae_oot_mean": 5.071124442456854,
+        "coverage_oot_mean": 0.7944034233315301,
+        "pi_mean_width_oot_mean": 18.08438550972318,
+        "r2_delta_vs_baseline": 0.023958973784211413,
+        "coverage_delta_vs_baseline": -0.030993402065295217
+      }
+    },
+    "delta_lems": {
+      "task": "regression",
+      "baseline": {
+        "r2": 0.4310164629555023,
+        "rmse": 9.639852254942515,
+        "mae": 6.555232100696702,
+        "conformal_coverage_80": 0.8412698412698413,
+        "source": "random GroupKFold CV (point) + random holdout (coverage)"
+      },
+      "origins": [
+        {
+          "test_year": 2020,
+          "n_train": 298,
+          "n_calib": 74,
+          "n_test": 53,
+          "n_test_patients": 53,
+          "n_dropped_overlap": 0,
+          "r2": 0.31610720305610585,
+          "rmse": 10.996528572927694,
+          "mae": 7.522044586618468,
+          "conformal_coverage_80": 0.7924528301886793,
+          "pi_mean_width": 21.308436529567953,
+          "conformal_q_transformed": 10.654218264783982
+        },
+        {
+          "test_year": 2021,
+          "n_train": 340,
+          "n_calib": 85,
+          "n_test": 29,
+          "n_test_patients": 29,
+          "n_dropped_overlap": 0,
+          "r2": 0.36293378324827974,
+          "rmse": 10.066387708216169,
+          "mae": 6.65166686099517,
+          "conformal_coverage_80": 0.896551724137931,
+          "pi_mean_width": 25.72545984151864,
+          "conformal_q_transformed": 12.862729920759321
+        },
+        {
+          "test_year": 2022,
+          "n_train": 362,
+          "n_calib": 92,
+          "n_test": 45,
+          "n_test_patients": 45,
+          "n_dropped_overlap": 0,
+          "r2": 0.41550403394944246,
+          "rmse": 11.114838940102207,
+          "mae": 7.772260202380917,
+          "conformal_coverage_80": 0.7333333333333333,
+          "pi_mean_width": 19.523309888043197,
+          "conformal_q_transformed": 9.7616549440216
+        },
+        {
+          "test_year": 2023,
+          "n_train": 398,
+          "n_calib": 101,
+          "n_test": 56,
+          "n_test_patients": 56,
+          "n_dropped_overlap": 0,
+          "r2": 0.4841892131078356,
+          "rmse": 8.529190163414736,
+          "mae": 6.275142660239084,
+          "conformal_coverage_80": 0.875,
+          "pi_mean_width": 24.657821796111364,
+          "conformal_q_transformed": 12.328910898055684
+        },
+        {
+          "test_year": 2024,
+          "n_train": 444,
+          "n_calib": 111,
+          "n_test": 50,
+          "n_test_patients": 50,
+          "n_dropped_overlap": 0,
+          "r2": 0.16323414904146694,
+          "rmse": 9.214279631475167,
+          "mae": 5.559829444929261,
+          "conformal_coverage_80": 0.84,
+          "pi_mean_width": 24.590736433515985,
+          "conformal_q_transformed": 12.295368216757993
+        },
+        {
+          "test_year": 2025,
+          "n_train": 482,
+          "n_calib": 123,
+          "n_test": 26,
+          "n_test_patients": 26,
+          "n_dropped_overlap": 0,
+          "r2": 0.5064980730405225,
+          "rmse": 4.429898635522322,
+          "mae": 2.8374552439385523,
+          "conformal_coverage_80": 0.9615384615384616,
+          "pi_mean_width": 21.72056653274111,
+          "conformal_q_transformed": 10.860283266370555
+        }
+      ],
+      "summary": {
+        "r2_oot_mean": 0.37474440924060887,
+        "rmse_oot_mean": 9.058520608609717,
+        "mae_oot_mean": 6.103066499850242,
+        "coverage_oot_mean": 0.8498127248664008,
+        "pi_mean_width_oot_mean": 22.921055170249705,
+        "r2_delta_vs_baseline": -0.05627205371489341,
+        "coverage_delta_vs_baseline": 0.008542883596559525
+      }
+    },
+    "delta_totalmotor": {
+      "task": "regression",
+      "baseline": {
+        "r2": 0.5141888487306814,
+        "rmse": 15.307118346151313,
+        "mae": 10.819137651719432,
+        "conformal_coverage_80": 0.7222222222222222,
+        "source": "random GroupKFold CV (point) + random holdout (coverage)"
+      },
+      "origins": [
+        {
+          "test_year": 2020,
+          "n_train": 299,
+          "n_calib": 75,
+          "n_test": 53,
+          "n_test_patients": 53,
+          "n_dropped_overlap": 0,
+          "r2": 0.4945281085301433,
+          "rmse": 16.483975939701114,
+          "mae": 11.631851064617278,
+          "conformal_coverage_80": 0.8113207547169812,
+          "pi_mean_width": 36.16136795433231,
+          "conformal_q_transformed": 18.08068397716616
+        },
+        {
+          "test_year": 2021,
+          "n_train": 341,
+          "n_calib": 86,
+          "n_test": 29,
+          "n_test_patients": 29,
+          "n_dropped_overlap": 0,
+          "r2": 0.4304384472895867,
+          "rmse": 15.424994148985213,
+          "mae": 9.386615973129928,
+          "conformal_coverage_80": 0.9310344827586207,
+          "pi_mean_width": 45.32005300142391,
+          "conformal_q_transformed": 22.66002650071195
+        },
+        {
+          "test_year": 2022,
+          "n_train": 364,
+          "n_calib": 92,
+          "n_test": 45,
+          "n_test_patients": 45,
+          "n_dropped_overlap": 0,
+          "r2": 0.3735117569090155,
+          "rmse": 20.91621458122037,
+          "mae": 16.26874362741216,
+          "conformal_coverage_80": 0.6666666666666666,
+          "pi_mean_width": 37.781779451902544,
+          "conformal_q_transformed": 18.89088972595127
+        },
+        {
+          "test_year": 2023,
+          "n_train": 400,
+          "n_calib": 101,
+          "n_test": 56,
+          "n_test_patients": 56,
+          "n_dropped_overlap": 0,
+          "r2": 0.5662229306701915,
+          "rmse": 14.458273721289215,
+          "mae": 11.376473980306104,
+          "conformal_coverage_80": 0.75,
+          "pi_mean_width": 35.562192201000784,
+          "conformal_q_transformed": 17.781096100500392
+        },
+        {
+          "test_year": 2024,
+          "n_train": 446,
+          "n_calib": 111,
+          "n_test": 50,
+          "n_test_patients": 50,
+          "n_dropped_overlap": 0,
+          "r2": 0.45275035270765696,
+          "rmse": 14.17986231630697,
+          "mae": 10.241926191992489,
+          "conformal_coverage_80": 0.84,
+          "pi_mean_width": 37.8026666756742,
+          "conformal_q_transformed": 18.9013333378371
+        },
+        {
+          "test_year": 2025,
+          "n_train": 484,
+          "n_calib": 123,
+          "n_test": 26,
+          "n_test_patients": 26,
+          "n_dropped_overlap": 0,
+          "r2": 0.5630236439575262,
+          "rmse": 9.22649959398701,
+          "mae": 6.34260221716128,
+          "conformal_coverage_80": 0.9615384615384616,
+          "pi_mean_width": 35.462596919197,
+          "conformal_q_transformed": 17.7312984595985
+        }
+      ],
+      "summary": {
+        "r2_oot_mean": 0.4800792066773533,
+        "rmse_oot_mean": 15.114970050248315,
+        "mae_oot_mean": 10.874702175769874,
+        "coverage_oot_mean": 0.8267600609467882,
+        "pi_mean_width_oot_mean": 38.01510936725512,
+        "r2_delta_vs_baseline": -0.03410964205332806,
+        "coverage_delta_vs_baseline": 0.10453783872456601
+      }
+    },
+    "delta_lighttouch": {
+      "task": "regression",
+      "baseline": {
+        "r2": 0.3332899152713857,
+        "rmse": 17.69840363953154,
+        "mae": 13.00489027497996,
+        "conformal_coverage_80": 0.7924528301886793,
+        "source": "random GroupKFold CV (point) + random holdout (coverage)"
+      },
+      "origins": [
+        {
+          "test_year": 2020,
+          "n_train": 226,
+          "n_calib": 57,
+          "n_test": 50,
+          "n_test_patients": 50,
+          "n_dropped_overlap": 0,
+          "r2": 0.33391208547345363,
+          "rmse": 20.39114970273175,
+          "mae": 16.25302619195281,
+          "conformal_coverage_80": 0.7,
+          "pi_mean_width": 49.541663195767605,
+          "conformal_q_transformed": 24.7708315978838
+        },
+        {
+          "test_year": 2021,
+          "n_train": 265,
+          "n_calib": 68,
+          "n_test": 29,
+          "n_test_patients": 29,
+          "n_dropped_overlap": 0,
+          "r2": 0.1785471256925687,
+          "rmse": 19.643124400306075,
+          "mae": 13.873149035410062,
+          "conformal_coverage_80": 0.7586206896551724,
+          "pi_mean_width": 45.77516582052757,
+          "conformal_q_transformed": 22.887582910263795
+        },
+        {
+          "test_year": 2022,
+          "n_train": 288,
+          "n_calib": 74,
+          "n_test": 43,
+          "n_test_patients": 43,
+          "n_dropped_overlap": 0,
+          "r2": 0.2943385544678896,
+          "rmse": 18.764741410359996,
+          "mae": 14.461199761550061,
+          "conformal_coverage_80": 0.627906976744186,
+          "pi_mean_width": 37.406462675275606,
+          "conformal_q_transformed": 18.703231337637803
+        },
+        {
+          "test_year": 2023,
+          "n_train": 324,
+          "n_calib": 81,
+          "n_test": 50,
+          "n_test_patients": 50,
+          "n_dropped_overlap": 0,
+          "r2": 0.4449198557451274,
+          "rmse": 14.39571913816472,
+          "mae": 9.90819309310232,
+          "conformal_coverage_80": 0.84,
+          "pi_mean_width": 50.91556538659147,
+          "conformal_q_transformed": 25.457782693295734
+        },
+        {
+          "test_year": 2024,
+          "n_train": 364,
+          "n_calib": 91,
+          "n_test": 46,
+          "n_test_patients": 46,
+          "n_dropped_overlap": 0,
+          "r2": 0.05231662483979205,
+          "rmse": 19.673343113247714,
+          "mae": 14.426547839262865,
+          "conformal_coverage_80": 0.7608695652173914,
+          "pi_mean_width": 47.463651981167885,
+          "conformal_q_transformed": 23.73182599058394
+        },
+        {
+          "test_year": 2025,
+          "n_train": 401,
+          "n_calib": 100,
+          "n_test": 24,
+          "n_test_patients": 24,
+          "n_dropped_overlap": 0,
+          "r2": 0.270342866461055,
+          "rmse": 12.4414088261259,
+          "mae": 8.483090788593918,
+          "conformal_coverage_80": 0.9166666666666666,
+          "pi_mean_width": 46.92292015967073,
+          "conformal_q_transformed": 23.461460079835366
+        }
+      ],
+      "summary": {
+        "r2_oot_mean": 0.2623961854466477,
+        "rmse_oot_mean": 17.551581098489358,
+        "mae_oot_mean": 12.900867784978672,
+        "coverage_oot_mean": 0.7673439830472361,
+        "pi_mean_width_oot_mean": 46.33757153650014,
+        "r2_delta_vs_baseline": -0.07089372982473796,
+        "coverage_delta_vs_baseline": -0.025108847141443236
+      }
+    },
+    "delta_pinprick": {
+      "task": "regression",
+      "baseline": {
+        "r2": 0.35713555492515026,
+        "rmse": 20.14056728357667,
+        "mae": 14.258910764445167,
+        "conformal_coverage_80": 0.7889908256880734,
+        "source": "random GroupKFold CV (point) + random holdout (coverage)"
+      },
+      "origins": [
+        {
+          "test_year": 2020,
+          "n_train": 241,
+          "n_calib": 61,
+          "n_test": 51,
+          "n_test_patients": 51,
+          "n_dropped_overlap": 0,
+          "r2": 0.3958263948433257,
+          "rmse": 22.959336528114676,
+          "mae": 17.625760521046583,
+          "conformal_coverage_80": 0.7450980392156863,
+          "pi_mean_width": 51.63128060680634,
+          "conformal_q_transformed": 25.81564030340317
+        },
+        {
+          "test_year": 2021,
+          "n_train": 282,
+          "n_calib": 71,
+          "n_test": 29,
+          "n_test_patients": 29,
+          "n_dropped_overlap": 0,
+          "r2": 0.12540212872972822,
+          "rmse": 23.958174202765992,
+          "mae": 17.58751669962486,
+          "conformal_coverage_80": 0.7931034482758621,
+          "pi_mean_width": 54.2825717664576,
+          "conformal_q_transformed": 27.14128588322881
+        },
+        {
+          "test_year": 2022,
+          "n_train": 304,
+          "n_calib": 78,
+          "n_test": 44,
+          "n_test_patients": 44,
+          "n_dropped_overlap": 0,
+          "r2": 0.408142366552693,
+          "rmse": 23.427309192172096,
+          "mae": 17.04092980889772,
+          "conformal_coverage_80": 0.8636363636363636,
+          "pi_mean_width": 59.71027381241693,
+          "conformal_q_transformed": 29.85513690620847
+        },
+        {
+          "test_year": 2023,
+          "n_train": 340,
+          "n_calib": 86,
+          "n_test": 50,
+          "n_test_patients": 50,
+          "n_dropped_overlap": 0,
+          "r2": 0.45690491300518143,
+          "rmse": 13.676240650947642,
+          "mae": 10.513397115134767,
+          "conformal_coverage_80": 0.96,
+          "pi_mean_width": 67.52665228599882,
+          "conformal_q_transformed": 33.76332614299942
+        },
+        {
+          "test_year": 2024,
+          "n_train": 381,
+          "n_calib": 95,
+          "n_test": 46,
+          "n_test_patients": 46,
+          "n_dropped_overlap": 0,
+          "r2": -0.12322386762751303,
+          "rmse": 20.729834142871976,
+          "mae": 13.715877066219619,
+          "conformal_coverage_80": 0.8043478260869565,
+          "pi_mean_width": 52.52036380444148,
+          "conformal_q_transformed": 26.26018190222075
+        },
+        {
+          "test_year": 2025,
+          "n_train": 416,
+          "n_calib": 106,
+          "n_test": 24,
+          "n_test_patients": 24,
+          "n_dropped_overlap": 0,
+          "r2": 0.5248606549124171,
+          "rmse": 14.682433567569186,
+          "mae": 9.187997447425635,
+          "conformal_coverage_80": 0.9166666666666666,
+          "pi_mean_width": 50.23541743603653,
+          "conformal_q_transformed": 25.117708718018264
+        }
+      ],
+      "summary": {
+        "r2_oot_mean": 0.2979854317359721,
+        "rmse_oot_mean": 19.9055547140736,
+        "mae_oot_mean": 14.27857977639153,
+        "coverage_oot_mean": 0.8471420573135893,
+        "pi_mean_width_oot_mean": 55.98442661869296,
+        "r2_delta_vs_baseline": -0.05915012318917817,
+        "coverage_delta_vs_baseline": 0.05815123162551583
       }
     }
   }
