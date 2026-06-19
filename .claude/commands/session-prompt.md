@@ -1,23 +1,18 @@
----
-description: Bootstrap a work session — read project context, then continue the roadmap or run a steered one-off task
-argument-hint: [TASK]   (blank = pull the next backlog item)
----
+Continue this project (fresh session). `CLAUDE.md`: operating contract.
+`.agent/roadmap.md`: canonical plan and status. `.agent/memory.md`:
+carried-forward learnings and gotchas. Load those three first, in that order,
+then read whatever the next step implicates; on a brand-new project the `.agent/`
+files may be absent, so creating them is your first contribution.
 
-Read `CLAUDE.md` (project policy) and `AGENT_NOTES.md` (sticky knowledge,
-lessons, session history, feature backlog) before doing anything else.
-Together they contain all context you need to continue this project.
+Act on the task below:
+- Non-empty ⇒ it is your sole task this session; do exactly it and override the
+  roadmap (touch the roadmap only if the task directs it).
+- Empty ⇒ take the next open step from `.agent/roadmap.md`.
 
-## This session's task
+Verify a known-good state (build, tests, defined gates) before and after. Pace
+work with `.agent/compaction.sh` to land cleanly before the window fills. Per
+cohesive unit: record durable learnings in `.agent/memory.md`, advance
+`.agent/roadmap.md`, and make one scoped commit covering the work and those
+updates. Ask me whenever scope, design, or intent is ambiguous.
 
-<task>
-$ARGUMENTS
-</task>
-
-If the `<task>` block above is non-empty, treat it as this session's
-directive — it **overrides** the roadmap for this run. Otherwise, propose work
-from `AGENT_NOTES.md` **section 8 (Feature backlog)**, starting with the first
-item whose status is not "shipped".
-
-Watch the context gauge as you work (the status line, or run
-`./compaction.sh`); at ≥80 % bring the current step to a clean boundary so I
-can `/compact`.
+Task (may be empty): $ARGUMENTS

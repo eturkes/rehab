@@ -28,7 +28,7 @@ Eleven outcomes are currently registered:
   before clipping.
 
 WISCI is intentionally absent (only 50 episodes have a discharge value
-post-ghost-filter — below regression power; see AGENT_NOTES §1).
+post-ghost-filter — below regression power; see .agent/memory.md §1).
 """
 
 from __future__ import annotations

@@ -584,7 +584,7 @@ def predict_phenotype_membership(key_record: int, cutoff: str) -> dict | None:
 # Admission->discharge AIS *transition* inference for one admission row, gated by admission grade.
 # Two CALIBRATED binary endpoints (motor_incomplete A/B->>=C, ambulatory A-C->>=D) plus an ORDINAL
 # magnitude head {0,+1,>=+2} on A-D.  The two head families are NOT numerically comparable (see
-# AGENT_NOTES s3 CRUX): the binary heads are Platt-calibrated probabilities, the magnitude head is
+# .agent/memory.md s3 CRUX): the binary heads are Platt-calibrated probabilities, the magnitude head is
 # class_weight="balanced" so its class scores are uncalibrated — surface it as its APS set /
 # most-likely class, never as a competing probability.  `_apply_platt` is mirrored here (logit ->
 # calibrator.predict_proba) so the dashboard never imports models.conversion (which pulls shap).

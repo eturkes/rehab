@@ -7,7 +7,7 @@ Key choices baked in here:
 
 * The canonical longitudinal axis is :data:`PATIENT_TIMELINE` — the same
   subset used by ``fig_recovery_curves`` (admission → 6m → discharge).
-  Beyond 6m the raw frame is almost entirely empty (see AGENT_NOTES §1),
+  Beyond 6m the raw frame is almost entirely empty (see .agent/memory.md §1),
   so showing them would be visual noise.
 * Cohort percentile bands are stratified by **admission** attributes
   (``対麻痺_四肢麻痺``, ``AIS``) from the episode frame, not by each

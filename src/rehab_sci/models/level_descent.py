@@ -45,7 +45,7 @@ target is the *change*, never the discharge level itself.
 (A G8-style enrichment — concatenating the modality-matched per-segment admission grades, 20/112/132
 columns — was tried and **rejected**: it left descent AUC flat-to-worse on every head (within OOF
 noise).  Granular grades nail segment *state* (autocorrelation) but not a level boundary's *threshold
-crossing*, which depends on recovery dynamics the static grades don't encode.  See AGENT_NOTES.)
+crossing*, which depends on recovery dynamics the static grades don't encode.  See .agent/memory.md.)
 
 Methodology (robust for small cohorts; few heads)
 -------------------------------------------------
@@ -53,7 +53,7 @@ Identical to :mod:`rehab_sci.models.conversion` (whose binary plumbing is import
 grouped 5-fold CV by ``IDNumber`` → out-of-fold (OOF) predictions drive every reported metric, the
 Platt calibrator (binary), and the cross-conformal APS q (magnitude); final heads refit on the full
 cohort reusing the OOF calibrator / APS q (conservative).  SHAP drivers are *descriptive* in-sample.
-**No conformal PI on the binary head** (binary APS degenerates — see AGENT_NOTES §0b); its
+**No conformal PI on the binary head** (binary APS degenerates — see .agent/memory.md §0b); its
 uncertainty surface is the calibrated probability + reliability curve.
 
 Diagnostic + inference layer, like conversion/independence/multistate/topography: writes a tracked
@@ -147,7 +147,7 @@ def _level_delta(level: dict, ep: pd.DataFrame, disc: pd.DataFrame, idx_kr: np.n
     INT/missing → NaN (so admission-INT episodes, having no room to descend, drop from the cohort).
     Discharge = the discharge-slot ``*_ord`` with raw ``INT`` lifted to ``INT_ORD`` (full recovery
     becomes the Δ ceiling, not a dropped NaN).  ``disc`` is the discharge slot indexed by
-    KeyRecordNumber; align by ``ep["KeyRecordNumber"]`` — never ``ep.index`` (AGENT_NOTES §0b).
+    KeyRecordNumber; align by ``ep["KeyRecordNumber"]`` — never ``ep.index`` (.agent/memory.md §0b).
     """
     adm = pd.to_numeric(ep[level["ord"]], errors="coerce").to_numpy()
     dord = pd.to_numeric(disc[level["ord"]].reindex(idx_kr), errors="coerce").to_numpy()

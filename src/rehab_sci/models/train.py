@@ -14,7 +14,7 @@ per outcome under ``models/{spec.key}/``::
     models/training_metrics.json   — dict keyed by spec.key
     models/simulator_defaults.json — outcome-independent feature defaults
 
-Design choices (see also AGENT_NOTES §3)
+Design choices (see also .agent/memory.md §3)
 ----------------------------------------
 * **Group split by patient (IDNumber)** prevents leakage when a patient has
   multiple episodes.  Used for every outcome.

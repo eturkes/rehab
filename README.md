@@ -45,7 +45,6 @@ src/rehab_sci/
 
 models/                           # trained artifacts (gitignored)
 reports/                          # exported figures (gitignored)
-MAP.md                            # generated code index: uv run python scripts/gen_map.py
 ```
 
 ## Single-command setup

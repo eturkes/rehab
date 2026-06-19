@@ -103,7 +103,7 @@ Thumbs.db
 # serena / headroom local scratch.  The nested .serena/.gitignore (tracked,
 # committed as-is per CLAUDE.md) ignores /cache + /project.local.yml; this
 # repo-root line covers the one path it omits.  Serena's memory system is
-# disabled globally (the AGENT_NOTES system is the sole memory store), so
+# disabled globally (`.agent/memory.md` is the sole memory store), so
 # .serena/memories/ stays empty — ignored here as a safety net.  Tracked .serena
 # files: project.yml (LSP config) + .gitignore.
 .serena/memories/

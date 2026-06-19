@@ -1,6 +1,6 @@
 """§1 data invariants — exact cohort shapes a loader / ghost-filter regression would break.
 
-Every constant here is load-bearing and cited in AGENT_NOTES §1.  A drift means
+Every constant here is load-bearing and cited in .agent/memory.md §1.  A drift means
 ``build_analysis_dataset`` changed behavior (or the raw file changed), not that
 the test is wrong — confirm against the data before editing a number.
 """

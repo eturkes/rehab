@@ -12,7 +12,7 @@ A binary label per item: independent iff the discharge item score is at/above a 
 threshold that the SCIM-III rubric places at the boundary "independent (no human help), adaptive
 devices / set-up permitted".  The thresholds (mapped to the rubric, validated against the
 observed score distributions) live in :data:`ITEMS`; the full mapping + rationale is in
-AGENT_NOTES §3.  Notable choices: dressing/bathing/grooming/feeding at >=2 (independent with
+.agent/memory.md §3.  Notable choices: dressing/bathing/grooming/feeding at >=2 (independent with
 devices, simple clothes); bladder >=9 / bowel >=8 (self-manages, no caregiver); toilet >=3; the
 0--2 transfer items + bed-mobility at their top score (the scale lumps human-assist with
 device-use, so no clean "with-aids" middle exists); the three **walking** items (indoors /
@@ -32,7 +32,7 @@ a real IDNumber — no admission-grade gating; independence is predicted for eve
 binary head.  A conformal *prediction set* is deliberately NOT surfaced: an APS set over the two
 classes degenerates here — ~(1 - accuracy) of the nonconformity scores pin at exactly 1.0, which
 drags the 80%-coverage q to ~0.98-1.0 and forces a {both = uncertain} set for ~99% of patients
-(verified; see AGENT_NOTES §0b).  Descriptive in-sample SHAP drivers rank what predicts each
+(verified; see .agent/memory.md §0b).  Descriptive in-sample SHAP drivers rank what predicts each
 function (not an OOS claim).
 
 Diagnostic + inference layer, like :mod:`~.conversion` / :mod:`~.multistate` / :mod:`~.landmark`:
@@ -86,7 +86,7 @@ DISCHARGE_TP = "discharge"  # TIME_Name of the discharge slot in the longitudina
 
 # Item registry: (key, raw discharge column, independence threshold, SCIM domain).
 # ``thr`` = the minimum item score counting as *functional* independence (aids/devices allowed,
-# no human assistance) per the SCIM-III rubric.  Ordered by domain for display.  See AGENT_NOTES
+# no human assistance) per the SCIM-III rubric.  Ordered by domain for display.  See .agent/memory.md
 # §3 for the full threshold mapping and the data-validated rationale.
 ITEMS: tuple[dict, ...] = (
     # self-care (0--20 subscale)

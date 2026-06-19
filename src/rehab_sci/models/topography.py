@@ -39,7 +39,7 @@ Methodology (small per-segment cohorts; many heads)
 Grouped 5-fold CV by ``IDNumber`` -> out-of-fold (OOF) predictions drive every reported metric and
 the Platt calibrator; the head is refit on the full cohort for the bundle (conservative, mirroring
 ``conversion.py``).  SHAP drivers are *descriptive* in-sample importances.  No conformal/APS layer:
-a prediction set over a binary head degenerates (see AGENT_NOTES 0b), so the calibrated probability
+a prediction set over a binary head degenerates (see .agent/memory.md 0b), so the calibrated probability
 + reliability curve is the uncertainty surface (as in G7).
 
 Diagnostic + inference layer, like :mod:`~.conversion` / :mod:`~.independence` / :mod:`~.multistate`:
