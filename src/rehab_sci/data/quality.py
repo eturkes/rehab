@@ -53,7 +53,7 @@ from rehab_sci.data.loader import (
 from rehab_sci.schema import Schema, load_schema
 
 # Artifact paths (mirror the models/ aggregate-vs-detail split used elsewhere).
-MODELS_DIR: Final[Path] = RAW_PATH_DEFAULT.parent / "models"
+MODELS_DIR: Final[Path] = Path(__file__).resolve().parents[3] / "models"
 SUMMARY_PATH: Final[Path] = MODELS_DIR / "dataquality_summary.json"   # tracked: counts only
 DETAIL_PATH: Final[Path] = MODELS_DIR / "dataquality_report.json"     # git-ignored: row-level
 
@@ -618,7 +618,7 @@ def _print_summary(summary: dict[str, Any]) -> None:
 
 def main(argv: list[str] | None = None) -> None:
     ap = argparse.ArgumentParser(description="SCI data-quality / clinical-consistency report.")
-    ap.add_argument("--csv", default=None, help="Path to ALL_SCIDATA.csv (default: repo root).")
+    ap.add_argument("--csv", default=None, help="Path to ALL_SCIDATA.csv (default: data/raw/).")
     ap.add_argument("--no-write", action="store_true", help="Print only; do not write artifacts.")
     args = ap.parse_args(argv)
 

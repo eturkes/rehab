@@ -17,7 +17,7 @@ from pathlib import Path
 import pandas as pd
 
 ROOT = Path(__file__).resolve().parents[1]
-RAW = ROOT / "ALL_SCIDATA.csv"
+RAW = ROOT / "data" / "raw" / "ALL_SCIDATA.csv"
 OUT = ROOT / "schema" / "raw_profile.json"
 
 # Identifier / bookkeeping columns: emit existence + missingness ONLY, never their

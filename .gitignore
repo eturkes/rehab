@@ -1,5 +1,4 @@
 # raw + processed data (NEVER commit patient data)
-ALL_SCIDATA.csv
 ALL_SCIDATA*.csv
 data/raw/
 data/processed/

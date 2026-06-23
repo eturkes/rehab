@@ -11,7 +11,7 @@ import pandas as pd
 from rehab_sci.constants import AIS_LETTER_TO_ORD
 from rehab_sci.schema import Schema, load_schema
 
-RAW_PATH_DEFAULT: Final[Path] = Path(__file__).resolve().parents[3] / "ALL_SCIDATA.csv"
+RAW_PATH_DEFAULT: Final[Path] = Path(__file__).resolve().parents[3] / "data" / "raw" / "ALL_SCIDATA.csv"
 
 # Cord level → ordinal index (smaller = more rostral / more severe lesion when used as NLI).
 _CORD_ORDER: Final[list[str]] = [
@@ -75,7 +75,7 @@ def load_raw(path: Path | str | None = None) -> pd.DataFrame:
     p = Path(path) if path else RAW_PATH_DEFAULT
     if not p.exists():
         raise FileNotFoundError(
-            f"{p} not found. Please place ALL_SCIDATA.csv in the project root."
+            f"{p} not found. Please place ALL_SCIDATA.csv under data/raw/."
         )
     return pd.read_csv(
         p,

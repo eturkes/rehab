@@ -15,7 +15,7 @@ identical results in Japanese and English.
 ## Repository layout
 
 ```
-ALL_SCIDATA.csv                   # raw input (NOT committed; provided locally)
+data/raw/ALL_SCIDATA.csv          # raw input (NOT committed; provided locally)
 pyproject.toml                    # uv project, pinned deps
 uv.lock                           # reproducible resolution
 
@@ -53,8 +53,8 @@ reports/                          # exported figures (gitignored)
 # 1. install deps in a local venv (pinned by uv.lock)
 uv sync
 
-# 2. drop the raw CSV at the repo root
-cp /path/to/ALL_SCIDATA.csv .
+# 2. drop the raw CSV into data/raw/
+cp /path/to/ALL_SCIDATA.csv data/raw/
 
 # 3. (optional) regenerate descriptive schema profile
 uv run python scripts/01_profile_raw.py
