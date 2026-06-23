@@ -143,7 +143,7 @@ uv cache prune                                   # reclaim uv cache space
 uv run pip-audit                                 # dependency vuln scan (dev dep)
 uv run ruff check src/ scripts/                  # lint; --select F = regression gate; --fix = safe autofix
 uv run pytest                                    # F26 invariant + smoke + behavioral harness (~11 s; skips if CSV/bundles absent)
-sh .agent/compaction.sh                          # context-usage gauge (manual; statusline is global)
+sh .agent/context.sh                          # context-usage gauge (manual; statusline is global)
 ```
 
 Persistent REPL — load data/models once, query across separate Bash calls:
