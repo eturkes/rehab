@@ -19,7 +19,8 @@
       "Read(/schema/raw_profile.json)",
       "Read(/.serena/cache/**)",
       "Read(/.serena/memories/**)",
-      "Read(/.serena/project.local.yml)"
+      "Read(/.serena/project.local.yml)",
+      "Read(/.tokensave/**)"
     ]
   }
 }

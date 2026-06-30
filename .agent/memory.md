@@ -1,6 +1,6 @@
 # memory.md — durable contracts, invariants & learnings
 
-Load after CLAUDE.md and roadmap.md. Section numbers are stable citation anchors (code references `.agent/memory.md §N`) — keep them. Navigate code via Serena LSP (`get_symbols_overview`, `find_symbol`, `find_referencing_symbols`).
+Load after CLAUDE.md and roadmap.md. Section numbers are stable citation anchors (code references `.agent/memory.md §N`) — keep them. Navigate code via tokensave (`tokensave_context`/`search`, primary) or Serena LSP (`get_symbols_overview`, `find_symbol`, `find_referencing_symbols`).
 
 ## 0b. Lessons & mistakes (append; prune when superseded)
 
@@ -96,7 +96,7 @@ Load after CLAUDE.md and roadmap.md. Section numbers are stable citation anchors
 
 ## 4. Dashboard conventions
 
-* **Module layout** (`src/rehab_sci/dashboard/`) — browse the per-file symbol inventory via Serena LSP (`get_symbols_overview`); only the non-obvious contracts live here:
+* **Module layout** (`src/rehab_sci/dashboard/`) — browse the per-file symbol inventory via tokensave or Serena LSP; only the non-obvious contracts live here:
   - `state.py` — all startup globals, loaded once; depends only on theme + data/model layers (no other dashboard module imports it transitively).
   - `compute.py` — pure (model inference, conformal-q, APS, SHAP, row-prep), **no Dash/Plotly**. Landmark inference lives here: `predict_landmark` (paired baseline+landmark heads from `LANDMARK_BUNDLE`), `landmark_observed_for_episode` (real LOCF block on the still-admitted risk set), `episode_landmark_eligibility` (per-L still-admitted gate).
   - `reliability.py` — pure; `assess_input(X, bundle, feature_spec)` → importance-weighted completeness + OOD (range violations / atypicality vs `feature_spec['ranges']` q05–q95) for the simulator partial-input badge.
