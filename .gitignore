@@ -96,6 +96,8 @@ Thumbs.db
 .claude/local/
 .claude/settings.local.json
 .claude/*.lock
+# Headroom live-wrap marker (pid/port/env key) — written per session, removed on exit.
+.claude/.headroom_wrap_marker.json
 .aider*
 .specstory/
 
