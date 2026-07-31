@@ -1,6 +1,6 @@
 # Project technical reference
 
-This is project documentation, not an instruction source; operational instructions live in `AGENTS.md`. It records durable data, model, and dashboard contracts, with stable section numbers for source comments and tests.
+This is project documentation, not an instruction source; operational instructions live in the applicable global and repository `AGENTS.md` files. It records durable data, model, and dashboard contracts, with stable section numbers for source comments and tests.
 
 ## 0b. Lessons and pitfalls
 
@@ -12,7 +12,7 @@ This is project documentation, not an instruction source; operational instructio
 * **Investigate NaN / row-count anomalies immediately.** 301 ghost episodes inflated counts for ~5 sessions though visible from session 1 (filter now in loader, §1).
 * **uv resolves unconstrained transitive deps to their MIN-compatible version.** shap's unconstrained `numba` pulled 2021 numba/llvmlite (no Py3.13). Add explicit lower bounds in `pyproject.toml`, then verify resolved versions in `uv.lock` after any upgrade.
 * **`shap_interaction_values()` rejects category-dtype columns** (stricter than `shap_values()`). Encode categoricals to int codes (`cat.codes.astype(float)`) first; `shap_values()` handles LightGBM categoricals internally.
-* **Relocating the project root breaks `.venv` wholesale (incl. `uv run`).** Stale absolute paths live in `.venv/bin` shebangs, `activate`'s `VIRTUAL_ENV=`, and the editable `rehab_sci` install. Fix: `rm -rf .venv && uv sync` (~1 min, offline via warm cache). The repo tree and `uv.lock` hold no absolute paths.
+* **Relocating the project root breaks its active uv environment (`.venv` or `.venv-host`) wholesale (incl. `uv run`).** Stale absolute paths live in the environment's `bin` shebangs, `activate`'s `VIRTUAL_ENV=`, and the editable `rehab_sci` install. Recreate that environment with the same `UV_PROJECT_ENVIRONMENT`, then run `uv sync` (~1 min, offline via warm cache). The repo tree and `uv.lock` hold no absolute paths.
 * **Split a megafile by carving line-ranges + an AST-equivalence assert, not by retyping.** Slice each top-level symbol by its def-to-def range; assert every `FunctionDef`/const survives byte-identical (`ast.dump`) before deleting the monolith. Give each submodule the full import header; `ruff check --fix` prunes unused (F401); `ruff check --select F` (F401+F821) gates that no symbol was misplaced.
 * **Confirm dead code via a repo-wide grep of every call form before deleting.** `figures.kpi_card` was a stale dup of `layout.kpi_card`.
 * **ruff ambiguous-unicode rules (RUF001/2/3) fire on intentional text — keep them ignored, leave the literals.** Deliberate glyphs: full-width Japanese punctuation in Python literals (有/無) and scientific typography (en-dash ranges `0–100`, `×`, `σ`, thin spaces). They sit in `[tool.ruff.lint] ignore` beside `E501`/`B008`.
@@ -141,10 +141,10 @@ uv run ruff check src/ scripts/                  # lint; --select F = regression
 uv run pytest                                    # F26 invariant + smoke + behavioral harness (~11 s; skips if CSV/bundles absent)
 ```
 
-Persistent REPL (bgcmd mechanics are documented in `AGENTS.md`) — load this project's data/models once:
+Persistent REPL (global instructions define `bgcmd`; commands below are project-specific) — load this project's data/models once:
 
 ```bash
-bgcmd START .venv/bin/python -i -q               # filesystem-backed; survives across Bash calls
+bgcmd START "${UV_PROJECT_ENVIRONMENT:-.venv}/bin/python" -i -q  # active per-layer env
 bgcmd 'from rehab_sci.dashboard import state as S, compute as C; import rehab_sci.dashboard.figures as fg'
 bgcmd 'S.EP.shape'                               # single-line sends; reuses loaded objects
 ```
