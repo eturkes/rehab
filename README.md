@@ -19,6 +19,10 @@ data/raw/ALL_SCIDATA.csv          # raw input (NOT committed; provided locally)
 pyproject.toml                    # uv project, pinned deps
 uv.lock                           # reproducible resolution
 
+docs/
+  project-reference.md           # technical contracts, invariants, and operating notes
+  roadmap.md                     # current project status and backlog
+
 schema/                           # bilingual schema (committed)
   columns.yaml                    # 219 columns × {ja,en,group,role,dtype,range,levels}
   categorical_levels.yaml         # factor levels (raw -> display + ja/en labels)
