@@ -26,6 +26,16 @@ def _insight_outcome_options(lang: str) -> list[dict]:
     return [{"label": t(SCHEMA, s.display_key, lang), "value": s.key} for s in OUTCOMES]
 
 
+def _top_subgroup_feature(outcome_key: str | None) -> str:
+    """Leading SHAP feature that the subgroup explorer can actually display."""
+    outcome_key = outcome_key or DEFAULT_OUTCOME
+    available = set(CATEGORICAL_FEATURES + NUMERIC_FEATURES) & set(EP.columns)
+    for item in METRICS["outcomes"].get(outcome_key, {}).get("global_importance_top25", []):
+        if item["feature"] in available:
+            return item["feature"]
+    return "対麻痺_四肢麻痺"
+
+
 # ---------- layout ----------
 def render_insights(lang: str) -> html.Div:
     cat_features_in_data = [c for c in CATEGORICAL_FEATURES if c in EP.columns]
@@ -34,6 +44,7 @@ def render_insights(lang: str) -> html.Div:
         {"label": col_label(SCHEMA, c, lang), "value": c}
         for c in cat_features_in_data + num_features_in_data
     ]
+    top_feature = _top_subgroup_feature(DEFAULT_OUTCOME)
 
     outcome_selector = html.Div(
         className="sim-outcome-selector",
@@ -65,7 +76,7 @@ def render_insights(lang: str) -> html.Div:
                     html.Label(t(SCHEMA, "insight_choose_strata", lang),
                                style={"fontSize": "12px", "color": INK["500"]}),
                     dcc.Dropdown(id="ins-subgroup-feature", options=sub_options,
-                                 value="対麻痺_四肢麻痺", clearable=False),
+                                 value=top_feature, clearable=False),
                 ])],
             ),
             dcc.Graph(id="ins-subgroup-graph", config={"displayModeBar": False}),
@@ -123,11 +134,28 @@ def render_insights(lang: str) -> html.Div:
         ]),
     )
 
-    return html.Div([
-        outcome_selector,
-        html.Div(className="chart-row", children=[importance_card, subgroup_card]),
+    advanced = html.Details(className="insights-details", children=[
+        html.Summary(t(SCHEMA, "insight_advanced_summary", lang)),
+        html.P(t(SCHEMA, "insight_advanced_deck", lang), className="insights-details__intro"),
         html.Div(className="chart-row", children=[dep_card]),
         html.Div(className="chart-row", children=[interaction_card]),
+    ])
+
+    return html.Div(className="insights-page", children=[
+        html.Div(className="insights-lead", children=[
+            html.Div(className="insights-lead__copy", children=[
+                html.Div(
+                    t(SCHEMA, "insight_hero_eyebrow", lang),
+                    className="section-eyebrow section-eyebrow--dark",
+                ),
+                html.H1(t(SCHEMA, "insight_hero_title", lang)),
+                html.P(t(SCHEMA, "insight_hero_deck", lang)),
+            ]),
+            outcome_selector,
+        ]),
+        html.Div(id="ins-summary", className="insight-summary"),
+        html.Div(className="chart-row", children=[importance_card, subgroup_card]),
+        advanced,
     ])
 
 
@@ -141,6 +169,42 @@ def update_insight_outcome_options(lang):
 
 
 @callback(
+    Output("ins-summary", "children"),
+    Input("ins-outcome", "value"),
+    Input("lang-store", "data"),
+)
+def update_insight_summary(outcome_key, lang):
+    outcome_key = outcome_key or DEFAULT_OUTCOME
+    bundle = OUTCOME_BUNDLES.get(outcome_key) or SCIM_TOTAL_BUNDLE
+    outcome_label = t(SCHEMA, bundle["spec"].display_key, lang)
+    items = METRICS["outcomes"].get(outcome_key, {}).get("global_importance_top25", [])[:3]
+    features = [col_label(SCHEMA, item["feature"], lang) for item in items]
+    if not features:
+        return ""
+    if len(features) == 1:
+        feature_text = features[0]
+    else:
+        separator = "、" if lang == "ja" else ", "
+        conjunction = "、" if lang == "ja" else " and "
+        feature_text = separator.join(features[:-1]) + conjunction + features[-1]
+    return [
+        html.Div(
+            t(SCHEMA, "insight_summary_badge", lang),
+            className="insight-summary__badge",
+        ),
+        html.H2(outcome_label),
+        html.P(
+            t(SCHEMA, "insight_summary_body", lang).format(features=feature_text),
+            className="insight-summary__body",
+        ),
+        html.P(
+            t(SCHEMA, "insight_summary_caveat", lang),
+            className="insight-summary__caveat",
+        ),
+    ]
+
+
+@callback(
     Output("ins-importance-graph", "figure"),
     Input("ins-outcome", "value"),
     Input("lang-store", "data"),
@@ -148,6 +212,14 @@ def update_insight_outcome_options(lang):
 def update_importance(outcome_key, lang):
     m = METRICS["outcomes"].get(outcome_key or DEFAULT_OUTCOME, METRICS["outcomes"][DEFAULT_OUTCOME])
     return fg.fig_global_shap_importance(m, SCHEMA, lang)
+
+
+@callback(
+    Output("ins-subgroup-feature", "value"),
+    Input("ins-outcome", "value"),
+)
+def update_subgroup_feature(outcome_key):
+    return _top_subgroup_feature(outcome_key)
 
 
 @callback(

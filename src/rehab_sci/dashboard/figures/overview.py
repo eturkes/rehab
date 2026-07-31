@@ -2,15 +2,102 @@
 
 from __future__ import annotations
 
+import re
+
 import numpy as np
 import pandas as pd
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 
-from rehab_sci.dashboard.figures._common import _hex_to_rgba
 from rehab_sci.dashboard.i18n import col_label, level_label, t
-from rehab_sci.dashboard.theme import INK, PALETTE_AIS, PALETTE_CATEGORICAL, PALETTE_PARA
+from rehab_sci.dashboard.theme import (
+    INK,
+    PALETTE_AIS,
+    PALETTE_CATEGORICAL,
+    PALETTE_MOTOR_STRATA,
+    PALETTE_PARA,
+)
 from rehab_sci.schema import Schema
+
+
+def fig_motor_strata_finding(motor: dict, lang: str) -> go.Figure:
+    """Admission Total Motor quartiles → discharge-SCIM medians with observed IQR.
+
+    ``motor`` is the compact source-bound block returned by
+    ``tabs.overview._finding_metrics``.  This is intentionally an observed
+    association chart: points encode the median and thick ranges the IQR; no fitted
+    values or causal effect estimates are shown.
+    """
+    groups = motor["groups"]
+    upper_bounds: list[int] = []
+    for group in groups:
+        numbers = re.findall(r"-?\d+(?:\.\d+)?", group["label"])
+        upper_bounds.append(round(float(numbers[-1])))
+    lower_bounds = [0, *(upper + 1 for upper in upper_bounds[:-1])]
+    labels = [f"{low}–{high}" for low, high in zip(lower_bounds, upper_bounds, strict=True)]
+
+    medians = [float(group["median"]) for group in groups]
+    iqr_low = [float(group["iqr_low"]) for group in groups]
+    iqr_high = [float(group["iqr_high"]) for group in groups]
+    counts = [int(group["n"]) for group in groups]
+    xlabels = [f"{label}<br><span style='font-size:10px'>n={n}</span>" for label, n in zip(labels, counts, strict=True)]
+    med_word = "中央値" if lang == "ja" else "Median"
+    iqr_word = "四分位範囲" if lang == "ja" else "IQR"
+
+    fig = go.Figure()
+    for label, low, high, color in zip(
+        xlabels,
+        iqr_low,
+        iqr_high,
+        PALETTE_MOTOR_STRATA[: len(groups)],
+        strict=True,
+    ):
+        fig.add_trace(go.Scatter(
+            x=[label, label],
+            y=[low, high],
+            mode="lines",
+            line=dict(color=color, width=18),
+            hoverinfo="skip",
+            showlegend=False,
+        ))
+    fig.add_trace(go.Scatter(
+        x=xlabels,
+        y=medians,
+        mode="lines+markers+text",
+        line=dict(color=INK["700"], width=2, dash="dot"),
+        marker=dict(
+            color=PALETTE_MOTOR_STRATA[: len(groups)],
+            size=15,
+            line=dict(color=INK["700"], width=1.5),
+        ),
+        text=[f"{value:.0f}" for value in medians],
+        textposition="top center",
+        textfont=dict(size=15, color=INK["900"]),
+        customdata=np.column_stack([iqr_low, iqr_high, counts]),
+        hovertemplate=(
+            "%{x}<br>"
+            + f"{med_word}: %{{y:.0f}}<br>"
+            + f"{iqr_word}: %{{customdata[0]:.0f}}–%{{customdata[1]:.0f}}"
+            + "<extra></extra>"
+        ),
+        showlegend=False,
+    ))
+    fig.update_layout(
+        height=380,
+        margin=dict(l=58, r=20, t=26, b=70),
+        showlegend=False,
+        xaxis=dict(
+            title="入院時 総運動スコア" if lang == "ja" else "Admission Total Motor score",
+            type="category",
+            tickfont=dict(size=12),
+        ),
+        yaxis=dict(
+            title="退院時 SCIM-III" if lang == "ja" else "Discharge SCIM-III score",
+            range=[0, 110],
+            dtick=20,
+        ),
+    )
+    return fig
 
 
 def fig_age_distribution(ep: pd.DataFrame, schema: Schema, lang: str) -> go.Figure:
@@ -20,12 +107,12 @@ def fig_age_distribution(ep: pd.DataFrame, schema: Schema, lang: str) -> go.Figu
             x=s,
             xbins=dict(start=0, end=100, size=5),
             marker=dict(color=PALETTE_CATEGORICAL[0], line=dict(width=0)),
-            hovertemplate=("%{y} " + ("名" if lang == "ja" else "patients") + "<extra></extra>"),
+            hovertemplate=("%{y} " + ("症例" if lang == "ja" else "episodes") + "<extra></extra>"),
         )
     )
     fig.update_layout(
         xaxis_title=col_label(schema, "年齢", lang) + (" (歳)" if lang == "ja" else " (years)"),
-        yaxis_title=("患者数" if lang == "ja" else "Patients"),
+        yaxis_title=("症例数" if lang == "ja" else "Episodes"),
         bargap=0.05,
         height=300,
     )
@@ -66,7 +153,7 @@ def fig_mechanism(ep: pd.DataFrame, schema: Schema, lang: str) -> go.Figure:
     )
     fig.update_layout(
         height=max(260, 30 * len(counts) + 80),
-        xaxis_title=("患者数" if lang == "ja" else "Patients"),
+        xaxis_title=("症例数" if lang == "ja" else "Episodes"),
         yaxis=dict(autorange="reversed"),
         margin=dict(l=180, r=20, t=10, b=44),
     )
@@ -80,7 +167,7 @@ def fig_discharge_scim(ep: pd.DataFrame, schema: Schema, lang: str) -> go.Figure
             x=s,
             xbins=dict(start=0, end=100, size=5),
             marker=dict(color=PALETTE_CATEGORICAL[0], line=dict(width=0)),
-            hovertemplate=("%{y} " + ("名" if lang == "ja" else "patients") + "<extra></extra>"),
+            hovertemplate=("%{y} " + ("症例" if lang == "ja" else "episodes") + "<extra></extra>"),
         )
     )
     if len(s) > 0:
@@ -93,7 +180,7 @@ def fig_discharge_scim(ep: pd.DataFrame, schema: Schema, lang: str) -> go.Figure
         )
     fig.update_layout(
         xaxis_title=t(schema, "chart_discharge_scim", lang) + " (0–100)",
-        yaxis_title=("患者数" if lang == "ja" else "Patients"),
+        yaxis_title=("症例数" if lang == "ja" else "Episodes"),
         bargap=0.05,
         height=320,
     )
@@ -165,7 +252,7 @@ def fig_injury_treemap(ep: pd.DataFrame, schema: Schema, lang: str) -> go.Figure
             values=values,
             branchvalues="total",
             marker=dict(colors=colors, line=dict(color="#fff", width=1.5)),
-            hovertemplate="<b>%{label}</b><br>" + ("患者数" if lang == "ja" else "Patients") + ": %{value}<extra></extra>",
+            hovertemplate="<b>%{label}</b><br>" + ("症例数" if lang == "ja" else "Episodes") + ": %{value}<extra></extra>",
             textinfo="label+value",
             pathbar=dict(visible=True),
         )
@@ -345,21 +432,6 @@ def fig_archetype_curves(
                     + ": %{customdata[2]:.0f}%"
                     + "<extra></extra>"
                 ),
-            )
-        )
-
-        fill_color = _hex_to_rgba(color, 0.10)
-        upper = np.minimum(row + 10, 100.0)
-        lower = np.maximum(row - 10, 0.0)
-        fig.add_trace(
-            go.Scatter(
-                x=x_disp + x_disp[::-1],
-                y=list(upper) + list(lower)[::-1],
-                fill="toself",
-                fillcolor=fill_color,
-                line=dict(width=0),
-                hoverinfo="skip",
-                showlegend=False,
             )
         )
 

@@ -26,7 +26,7 @@ def fig_global_shap_importance(metrics: dict, schema: Schema, lang: str, top_n: 
     )
     fig.update_layout(
         height=max(360, 22 * len(items) + 80),
-        xaxis_title="mean(|SHAP|) " + ("点" if lang == "ja" else "pts"),
+        xaxis_title="mean(|SHAP value|)",
         margin=dict(l=240, r=20, t=10, b=44),
     )
     return fig
@@ -52,10 +52,14 @@ def fig_subgroup_box(
         present = [o for o in order if o in sub["_label"].unique()]
         sub["_label"] = pd.Categorical(sub["_label"], categories=present, ordered=True)
         x = sub["_label"]
+        category_order = present
         xtitle = col_label(schema, feature, lang)
     else:
         sub["_q"] = pd.qcut(sub[feature], q=4, duplicates="drop")
-        sub["_label"] = sub["_q"].astype(str)
+        category_order = [str(interval) for interval in sub["_q"].cat.categories]
+        sub["_label"] = pd.Categorical(
+            sub["_q"].astype(str), categories=category_order, ordered=True
+        )
         x = sub["_label"]
         xtitle = col_label(schema, feature, lang) + (" (四分位)" if lang == "ja" else " (quartile)")
 
@@ -78,7 +82,11 @@ def fig_subgroup_box(
         xaxis_title=xtitle,
         yaxis_title=ytitle,
         margin=dict(l=60, r=20, t=10, b=80),
-        xaxis_tickangle=-25,
+        xaxis=dict(
+            tickangle=-25,
+            categoryorder="array",
+            categoryarray=category_order,
+        ),
     )
     return fig
 
@@ -174,8 +182,9 @@ def fig_interaction_heatmap(
     labels = [col_label(schema, f, lang) for f in feats_seen]
     feat_to_idx = {f: i for i, f in enumerate(feats_seen)}
 
-    # build matrix (upper triangle only; diagonal = 0)
-    mat = np.zeros((n, n))
+    # Only persisted top-pair measurements are known.  NaN keeps every omitted
+    # combination visually blank instead of inventing a zero interaction.
+    mat = np.full((n, n), np.nan)
     for item in items[:top_n]:
         ia = feat_to_idx.get(item["feat_a"])
         ib = feat_to_idx.get(item["feat_b"])
@@ -186,13 +195,13 @@ def fig_interaction_heatmap(
 
     # mask lower triangle for visual clarity
     mask = np.triu(np.ones_like(mat, dtype=bool), k=1)
-    display = np.where(mask, mat, np.nan)
+    display = np.where(mask & np.isfinite(mat), mat, np.nan)
 
     hover_text = []
     for i in range(n):
         row = []
         for j in range(n):
-            if mask[i, j]:
+            if mask[i, j] and np.isfinite(mat[i, j]):
                 row.append(f"{labels[i]} × {labels[j]}<br>mean|φ|: {mat[i, j]:.4f}")
             else:
                 row.append("")

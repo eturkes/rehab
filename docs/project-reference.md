@@ -93,6 +93,12 @@ This is project documentation, not an instruction source; operational instructio
 
 ## 4. Dashboard conventions
 
+* **Findings-first landing contract** — `tabs/overview.py::_finding_metrics()` binds every
+  headline number to unfiltered artifact-derived analyses (`SUBGROUPS`, `LANDMARK`,
+  `DISSOCIATION`).  `findings-lead` + the three semantic `finding-*` blocks sit outside
+  `cohort-explorer`; overview filters update `overview-content` only.  Keep each analysis's denominator and
+  evidence caveats with each claim.  Demographic/injury charts + model-derived recovery types
+  remain supporting detail, never equal-weight headline evidence.
 * **Module layout** (`src/rehab_sci/dashboard/`) — the non-obvious contracts are:
   - `state.py` — all startup globals, loaded once; depends only on theme + data/model layers (no other dashboard module imports it transitively).
   - `compute.py` — pure (model inference, conformal-q, APS, SHAP, row-prep), **no Dash/Plotly**. Landmark inference lives here: `predict_landmark` (paired baseline+landmark heads from `LANDMARK_BUNDLE`), `landmark_observed_for_episode` (real LOCF block on the still-admitted risk set), `episode_landmark_eligibility` (per-L still-admitted gate).

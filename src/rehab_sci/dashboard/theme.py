@@ -27,6 +27,9 @@ PALETTE_DIVERGING = [
     "#117a8b",
 ]
 
+# Sequential emphasis for the findings landing page's ordered admission-motor strata.
+PALETTE_MOTOR_STRATA = ["#cfe4e7", "#8fc4ca", "#4098a4", "#0c5a66"]
+
 # AIS grade palette: A=most severe → E=normal, color cool→warm
 PALETTE_AIS = {
     "A": "#1a3148",

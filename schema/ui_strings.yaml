@@ -4,8 +4,8 @@ app_title:
   ja: "脊髄損傷リハビリ解析・予測スイート"
   en: "SCI Rehabilitation Analytics & Prediction Suite"
 app_subtitle:
-  ja: "臨床データに基づく予後予測と要因分析"
-  en: "Outcome prediction and driver analysis from clinical data"
+  ja: "このコホートが示す回復パターン・予後・臨床要因"
+  en: "What this cohort reveals about recovery, prognosis, and clinical drivers"
 language_toggle:
   ja: "English"
   en: "日本語"
@@ -33,14 +33,14 @@ timepoints_used:
 
 # --- tabs ---
 tab_overview:
-  ja: "コホート概要"
-  en: "Cohort overview"
+  ja: "主要所見"
+  en: "Key findings"
 tab_simulator:
   ja: "患者シミュレーター"
   en: "Patient simulator"
 tab_insights:
-  ja: "インサイト・エンジン"
-  en: "Insight engine"
+  ja: "予後要因"
+  en: "Outcome drivers"
 tab_patient:
   ja: "患者エクスプローラー"
   en: "Patient explorer"
@@ -49,6 +49,108 @@ tab_methods:
   en: "Methods"
 
 # --- overview ---
+overview_hero_eyebrow:
+  ja: "未絞り込みコホートの解析"
+  en: "Unfiltered cohort analyses"
+overview_hero_title:
+  ja: "回復は多次元的。平均値だけでは見えない。"
+  en: "Recovery is multidimensional. The averages hide it."
+overview_hero_deck:
+  ja: "入院時の運動機能は退院時の自立度を強く層別化する一方、神経学的回復と機能的回復はしばしば一致しない。3か月ランドマークの内部ホールドアウト評価では、回復の実測値を加えた予測がより鮮明になった。"
+  en: "Admission motor function strongly stratifies discharge independence, yet neurological and functional gains often diverge. In an internal 3-month holdout, adding observed recovery measurements sharpened predictions."
+overview_hero_cta:
+  ja: "コホートを探索する ↓"
+  en: "Explore the cohort ↓"
+overview_full_cohort:
+  ja: "データセット範囲"
+  en: "Dataset scope"
+overview_scope_years:
+  ja: "事業年度"
+  en: "Business years"
+overview_finding_motor_unit:
+  ja: "退院時SCIM中央値"
+  en: "median discharge SCIM"
+overview_finding_motor_title:
+  ja: "入院時の運動機能で、退院時の自立度が大きく層別化される"
+  en: "Discharge independence separates strongly by admission motor function"
+overview_finding_motor_body:
+  ja: "転帰がある {n} 症例で、総運動スコア四分位間の差は大きい（η²={effect:.2f}）。"
+  en: "Across {n} episodes with outcomes, Total Motor quartiles show a large separation (η²={effect:.2f})."
+overview_finding_motor_caveat:
+  ja: "未調整の関連であり、因果効果ではない。"
+  en: "Unadjusted association; not a causal effect."
+overview_finding_observation_title:
+  ja: "内部ホールドアウトでは、3か月までの実測を加えた予測がより鮮明"
+  en: "In the internal holdout, 3-month observations sharpen predictions"
+overview_finding_observation_body:
+  ja: "在院中リスク集合 n={n} の内部ホールドアウト評価（検証用 n={n_test}）では、R² の点推定値は {baseline:.2f}→{observed:.2f}、予測区間の半幅は {shrink:.0%} 縮小。"
+  en: "In one internal held-out evaluation of the still-admitted risk set (eligible n={n}; test n={n_test}), point-estimate R² rises {baseline:.2f}→{observed:.2f} and interval half-width shrinks {shrink:.0%}."
+overview_finding_observation_caveat:
+  ja: "内部評価の点推定値。外部検証・不確実性区間はなく、治療効果を示さない。"
+  en: "Internal point estimates without external validation or uncertainty bounds; not a treatment effect."
+overview_finding_dissociation_unit:
+  ja: "不一致群"
+  en: "discordant"
+overview_finding_dissociation_title:
+  ja: "下肢筋力の回復と移動能力の回復は、しばしば別の軌道を取る"
+  en: "Lower-limb motor and mobility gains often follow different paths"
+overview_finding_dissociation_body:
+  ja: "LEMS変化とSCIM移動変化の相関は r={correlation:.2f}（n={n}）にとどまる。"
+  en: "Change in LEMS and change in SCIM mobility correlate only r={correlation:.2f} (n={n})."
+overview_finding_dissociation_caveat:
+  ja: "「不一致」は記述的な中央値分割であり、診断分類ではない。"
+  en: "Discordance is a descriptive median split, not a diagnosis."
+overview_pattern_eyebrow:
+  ja: "観察された関連"
+  en: "Observed association"
+overview_pattern_title:
+  ja: "入院時の総運動スコアで、退院時の機能転帰が大きく分かれる"
+  en: "Admission Total Motor score separates four very different discharge outcomes"
+overview_pattern_body:
+  ja: "転帰がある {n} 症例を入院時スコアの四分位で分けると、退院時SCIM中央値は {low:.0f} 点から {high:.0f} 点まで段階的に上昇した（η²={effect:.2f}）。点は中央値、太線は四分位範囲。"
+  en: "When {n} episodes with outcomes are split by admission-score quartile, median discharge SCIM rises stepwise from {low:.0f} to {high:.0f} (η²={effect:.2f}). Points show medians; thick ranges show IQR."
+overview_pattern_caveat:
+  ja: "欠測を除いた記述的な層別比較。交絡調整はしていない。"
+  en: "Descriptive complete-case strata; no confounding adjustment."
+overview_explorer_eyebrow:
+  ja: "選択した集団"
+  en: "Selected cohort"
+overview_explorer_title:
+  ja: "所見の背景となるコホートを探索"
+  en: "Explore the cohort behind the findings"
+overview_explorer_deck:
+  ja: "下のフィルターはこのセクションだけを更新する。上の主要所見は未絞り込みデータに固定され、各解析の完全症例・リスク集合の対象数を個別に示す。"
+  en: "Filters update this section only. Headline findings stay tied to the unfiltered data; each shows its own complete-case or risk-set denominator."
+overview_selected_outcomes_title:
+  ja: "選択集団の転帰パターン"
+  en: "Outcome patterns in the selected cohort"
+overview_selected_outcomes_deck:
+  ja: "平均的な経時変化、AIS遷移、退院時の機能分布に絞って表示。"
+  en: "Focused on average longitudinal change, AIS transitions, and discharge function."
+overview_context_summary:
+  ja: "損傷・人口統計の背景を見る"
+  en: "View injury and demographic context"
+overview_context_deck:
+  ja: "年齢・性別・受傷機転はコホートの構成を説明する背景情報であり、主要所見とは区別して表示する。"
+  en: "Age, sex, and mechanism describe cohort composition and are shown separately from the primary findings."
+overview_trajectory_summary:
+  ja: "探索的な回復タイプの詳細を見る"
+  en: "View exploratory recovery-type detail"
+overview_trajectory_deck:
+  ja: "予測アーキタイプと観察表現型は探索的な要約。小規模クラスや観察期間の違いを含むため、主要所見ではなく補助情報として扱う。"
+  en: "Predicted archetypes and observed phenotypes are exploratory summaries. Small classes and differing observation windows make them supporting context, not headline evidence."
+overview_filter_count:
+  ja: "{total:,} 症例中 {shown:,} 症例を表示"
+  en: "Showing {shown:,} of {total:,} episodes"
+overview_kpi_mean_age:
+  ja: "平均年齢"
+  en: "Mean age"
+overview_kpi_scim_median:
+  ja: "退院時 SCIM 中央値"
+  en: "Discharge SCIM median"
+overview_kpi_severe:
+  ja: "入院時 重度 (AIS A/B)"
+  en: "Severe at admission (AIS A/B)"
 card_demographics:
   ja: "人口統計"
   en: "Demographics"
@@ -106,8 +208,8 @@ sim_predicted_label:
   ja: "退院時 SCIM-III 予測合計"
   en: "Predicted discharge SCIM-III total"
 sim_prediction_interval:
-  ja: "予測区間 (10%–90%)"
-  en: "Prediction interval (10-90%)"
+  ja: "80% 予測区間"
+  en: "80% prediction interval"
 sim_local_explanation:
   ja: "この症例の寄与要因 (SHAP)"
   en: "Local feature contributions (SHAP)"
@@ -149,6 +251,30 @@ sim_clear_all:
   en: "Clear all"
 
 # --- insight engine ---
+insight_hero_eyebrow:
+  ja: "予測的な関連"
+  en: "Predictive associations"
+insight_hero_title:
+  ja: "アウトカムごとに、何が予測を左右するか"
+  en: "What shapes each predicted outcome"
+insight_hero_deck:
+  ja: "まず主要な予測シグナルとコホート差を確認し、必要なときだけ詳細な依存関係・交互作用を探索する。"
+  en: "Start with the leading predictive signals and cohort contrasts, then open detailed dependence and interaction views only when needed."
+insight_summary_badge:
+  ja: "このアウトカムで目立つこと"
+  en: "What stands out"
+insight_summary_body:
+  ja: "グローバルSHAPで最も強い予測シグナルは {features}。下の順位は、このコホート内で予測をどれだけ動かしたかを示す。"
+  en: "The strongest global SHAP signals are {features}. The ranking below shows how much each feature moved predictions within this cohort."
+insight_summary_caveat:
+  ja: "SHAP重要度は方向や因果効果を示さない。サブグループ比較も未調整。"
+  en: "SHAP importance shows neither direction nor causality; subgroup contrasts are unadjusted."
+insight_advanced_summary:
+  ja: "詳細な依存関係・交互作用を探索"
+  en: "Explore detailed dependence and interactions"
+insight_advanced_deck:
+  ja: "モデル内部の関係を仮説探索に使うための詳細ビュー。因果解釈には用いない。"
+  en: "Detailed model-behavior views for hypothesis exploration, not causal interpretation."
 insight_global_importance:
   ja: "グローバル特徴量重要度"
   en: "Global feature importance"

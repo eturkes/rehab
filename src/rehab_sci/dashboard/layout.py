@@ -154,7 +154,7 @@ def fig_shap_local(values: np.ndarray, X, base: float, lang: str) -> go.Figure:
     fig.update_layout(
         height=max(280, 22 * len(pairs) + 60),
         margin=dict(l=260, r=20, t=10, b=44),
-        xaxis_title="SHAP 寄与 (点)" if lang == "ja" else "SHAP contribution (pts)",
+        xaxis_title=("SHAP 寄与 (モデル尺度)" if lang == "ja" else "SHAP contribution (model scale)"),
     )
     return fig
 

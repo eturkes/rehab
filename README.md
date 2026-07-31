@@ -261,10 +261,13 @@ halves; AIS quadratic-κ climbs to ≈0.88; LOS stays hard but still improves.
 
 Tabs:
 
-1. **Cohort overview** - KPIs (n, age, AIS-A%, tetra%, mean discharge
-   SCIM); age / sex / mechanism distributions; injury sunburst
-   (paralysis → AIS → NLI); AIS admit→discharge Sankey; SCIM recovery
-   curves with IQR ribbons by paralysis type.
+1. **Key findings** - source-bound analyses of the unfiltered data: admission
+   Total Motor strata → discharge-SCIM medians; the 3-month value of observed
+   recovery in an internal holdout; and neurological↔functional dissociation.
+   Each claim shows its analytic denominator.  Filters live in a separate cohort
+   explorer and never rewrite the headline claims.  Outcome
+   curves / AIS transitions stay visible; demographics, injury context, and
+   exploratory trajectory types use progressive disclosure.
 2. **Patient simulator** - every admission feature is exposed as a
    clearable input; an outcome dropdown selects which of the six
    prediction heads to render.  Regression heads (SCIM total / 3
@@ -293,8 +296,10 @@ Tabs:
    **Dynamic prediction (G1):** for any landmark this episode is still
    admitted for, the patient's own observed early-recovery scores
    refine the admission-only prognosis, shown side by side.
-4. **Insight engine** - global SHAP importance; per-feature subgroup
-   box plot with effect-size annotation; SHAP dependence plot.
+4. **Outcome drivers** - plain-language selected-outcome summary, global SHAP
+   importance, and subgroup contrast first; dependence and interaction views
+   are advanced exploratory detail.  Predictive association and causal effect
+   are explicitly distinguished.
 5. **Methods** - model card with population, target, training protocol,
    metrics, limitations; per-outcome temporal-drift curves (out-of-time
    accuracy + interval coverage vs the random-split baseline);
