@@ -1,6 +1,6 @@
 # Project technical reference
 
-This is project documentation, not an instruction source; operational instructions live in the applicable global and repository `AGENTS.md` files. It records durable data, model, and dashboard contracts, with stable section numbers for source comments and tests.
+This is project documentation, not an instruction source; operational instructions live in the applicable global and repository `CLAUDE.md` files. It records durable data, model, and dashboard contracts, with stable section numbers for source comments and tests.
 
 ## 0b. Lessons and pitfalls
 

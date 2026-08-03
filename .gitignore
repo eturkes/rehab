@@ -85,6 +85,13 @@ build/
 .next/
 .nuxt/
 
+# agent tooling.  The shared Claude Code config (.claude/settings.json,
+# .claude/commands/) and Serena project config (.serena/project.yml, which owns
+# .serena/.gitignore for its own cache) ARE tracked; only machine-local state is not.
+.claude/settings.local.json
+.claude/.headroom_wrap_marker.json
+.scratch/
+
 # editor / OS
 .vscode/
 .idea/

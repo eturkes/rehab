@@ -20,8 +20,13 @@ pyproject.toml                    # uv project, pinned deps
 uv.lock                           # reproducible resolution
 
 docs/
-  project-reference.md           # technical contracts, invariants, and operating notes
-  roadmap.md                     # current project status and backlog
+  project-reference.md            # technical contracts, invariants, and operating notes
+
+.agent/                           # agent working state
+  roadmap.md                      # current project status and backlog
+  memory.md                       # cross-session context beyond code, docs, and git log
+  context-gauge.sh                # transcript context-occupancy readout
+.claude/                          # Claude Code project config (settings, slash commands)
 
 schema/                           # bilingual schema (committed)
   columns.yaml                    # 219 columns × {ja,en,group,role,dtype,range,levels}
