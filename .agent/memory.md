@@ -10,7 +10,7 @@ Cross-session context beyond code, `docs/`, and `git log`. Durable operating fac
 
 ## Worktree gates
 
-`/session-prompt` isolates each teammate in `git worktree add -b wt/<name> .scratch/worktrees/<name>` (`.scratch/` is gitignored). A fresh worktree carries tracked content only — no `data/raw`, no `models/<head>/` bundles — so its suite skips green (see Gate honesty). Link the gitignored artifacts, then gate off the primary environment:
+`/session-prompt` isolates each teammate in `git worktree add -b wt/<name> .scratch/worktrees/<name>` (`.scratch/` is gitignored). A worktree carries tracked content only — no `data/raw`, no `models/<head>/` bundles — so its suite skips green, signature `7 passed, 32 skipped in ~0.1 s` against the live `39 passed in ~12 s` (see Gate honesty). Link the gitignored artifacts, then gate off the primary environment:
 
 ```sh
 P=<primary root>; cd "$P/.scratch/worktrees/<name>"
@@ -25,6 +25,8 @@ PYTHONPATH="$PWD/src" "$P/.venv/bin/python" -m pytest    # 39 passed, ~13 s
 - Artifact paths track the imported package (`RAW_PATH_DEFAULT` = `parents[3]/data/raw/…`), so the links belong in the worktree.
 - Absolute primary-interpreter calls only. `uv run` inside a worktree builds a second environment; under this recipe the primary environment stays read-only.
 - `.pytest_cache` + `.ruff_cache` land worktree-private (rootdir = worktree) → no shared-cache holder needed.
+- The link block is idempotent (`mkdir -p` + `ln -sfn`) → a successor inheriting its predecessor's worktree re-runs it verbatim: no nested `data/raw/raw` or `models/<head>/<head>`, gate back to 39 passed.
+- Baseline restore (`git reset --hard` + `git clean -fd`) strips the links and every untracked file, silently returning the gate to the skip signature → re-link after each restore. It removes links without following them (targets unharmed), but it does delete the fetched pages / derived data a successor is meant to resume from, so those live outside the worktree (`.scratch/agents/<name>/`) or behind `git clean -e`.
 - Links are read paths **into** the primary tree: a write landing on one (`models/<head>/bundle.joblib`, `models/feature_spec.joblib`, `data/raw/*`) mutates the primary tree, so any retrain/regeneration unit takes real copies or a private output dir. Tracked `models/*.json` are real worktree files and stay isolated.
 
 ## Read cost
