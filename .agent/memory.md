@@ -4,9 +4,28 @@ Cross-session context beyond code, `docs/`, and `git log`. Durable operating fac
 
 ## Gate honesty
 
-- `uv run pytest` → **39 passed, ~22 s**. `uv run ruff check .` → clean under the full `pyproject.toml` rule set (`E,F,I,B,UP,SIM,RUF`), so the narrower `--select F` regression gate is a subset, not the ceiling.
+- `uv run pytest` → **39 passed, ~12 s**. `uv run ruff check .` → clean under the full `pyproject.toml` rule set (`E,F,I,B,UP,SIM,RUF`), so the narrower `--select F` regression gate is a subset, not the ceiling.
 - `tests/conftest.py` skips every data- and model-dependent test when `data/raw/ALL_SCIDATA.csv` or the `models/<head>/` joblib bundles are absent; only the pure-registry tests then run, and pytest still exits **0**. Read the counts, not the exit code — **39 passed** means the gate held, a green run dominated by skips proves nothing.
 - Raw CSV + trained bundles are both present on this machine → gates are live here.
+
+## Worktree gates
+
+`/session-prompt` isolates each teammate in `git worktree add -b wt/<name> .scratch/worktrees/<name>` (`.scratch/` is gitignored). A fresh worktree carries tracked content only — no `data/raw`, no `models/<head>/` bundles — so its suite skips green (see Gate honesty). Link the gitignored artifacts, then gate off the primary environment:
+
+```sh
+P=<primary root>; cd "$P/.scratch/worktrees/<name>"
+mkdir -p data && ln -sfn "$P/data/raw" data/raw
+for d in "$P"/models/*/; do ln -sfn "$d" "models/$(basename "$d")"; done
+ln -sfn "$P/models/feature_spec.joblib" models/feature_spec.joblib
+PYTHONPATH="$PWD/src" "$P/.venv/bin/python" -m pytest    # 39 passed, ~13 s
+"$P/.venv/bin/ruff" check .
+```
+
+- `PYTHONPATH="$PWD/src"` is load-bearing: the primary `.venv` holds an editable `.pth` appending the **primary** `src`, and `PYTHONPATH` precedes it. Without it a worktree run gates primary code. Assert per run that `rehab_sci.__file__` resolves under the worktree.
+- Artifact paths track the imported package (`RAW_PATH_DEFAULT` = `parents[3]/data/raw/…`), so the links belong in the worktree.
+- Absolute primary-interpreter calls only. `uv run` inside a worktree builds a second environment; under this recipe the primary environment stays read-only.
+- `.pytest_cache` + `.ruff_cache` land worktree-private (rootdir = worktree) → no shared-cache holder needed.
+- Links are read paths **into** the primary tree: a write landing on one (`models/<head>/bundle.joblib`, `models/feature_spec.joblib`, `data/raw/*`) mutates the primary tree, so any retrain/regeneration unit takes real copies or a private output dir. Tracked `models/*.json` are real worktree files and stay isolated.
 
 ## Read cost
 

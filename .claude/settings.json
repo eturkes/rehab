@@ -1,9 +1,9 @@
 {
   "permissions": {
     "deny": [
-      "Read(data/**/*.csv)",
-      "Read(models/dataquality_report.json)",
-      "Read(schema/raw_profile.json)",
+      "Read(**/data/**/*.csv)",
+      "Read(**/models/dataquality_report.json)",
+      "Read(**/schema/raw_profile.json)",
       "Read(**/*.parquet)",
       "Read(**/*.feather)",
       "Read(**/*.joblib)",
@@ -11,14 +11,14 @@
       "Read(**/*.pickle)",
       "Read(**/*.npy)",
       "Read(**/*.npz)",
-      "Read(reports/**)",
-      "Read(uv.lock)",
-      "Read(.venv/lib/**)",
-      "Read(.venv-host/lib/**)",
+      "Read(**/reports/**)",
+      "Read(**/uv.lock)",
+      "Read(**/.venv/lib/**)",
+      "Read(**/.venv-host/lib/**)",
       "Read(**/__pycache__/**)",
-      "Read(.pytest_cache/**)",
-      "Read(.ruff_cache/**)",
-      "Read(.serena/cache/**)"
+      "Read(**/.pytest_cache/**)",
+      "Read(**/.ruff_cache/**)",
+      "Read(**/.serena/cache/**)"
     ]
   }
 }
