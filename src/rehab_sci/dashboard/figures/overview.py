@@ -84,7 +84,7 @@ def fig_motor_strata_finding(motor: dict, lang: str) -> go.Figure:
     ))
     fig.update_layout(
         height=380,
-        margin=dict(l=58, r=20, t=26, b=70),
+        margin=dict(l=76, r=20, t=26, b=70),  # l fits the y title beside 3-digit ticks
         showlegend=False,
         xaxis=dict(
             title="入院時 総運動スコア" if lang == "ja" else "Admission Total Motor score",

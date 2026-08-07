@@ -579,7 +579,7 @@ def _reliability_badge(a: dict, lang: str) -> html.Div:
 )
 def simulate(num_vals, cat_vals, num_ids, cat_ids, outcome_key, lang, ref_data):
     if not num_ids and not cat_ids:
-        return [], go.Figure(), go.Figure(), go.Figure(), []
+        return [], fg.blank_figure(), fg.blank_figure(), fg.blank_figure(), []
     bundle = OUTCOME_BUNDLES.get(outcome_key) or SCIM_TOTAL_BUNDLE
     X = collect_sim_inputs(num_vals, num_ids, cat_vals, cat_ids)
     reliability = _reliability_badge(assess_input(X, bundle, FEATURE_SPEC), lang)
@@ -652,7 +652,7 @@ def simulate(num_vals, cat_vals, num_ids, cat_ids, outcome_key, lang, ref_data):
             traj["hi"].append(max(hi_c, hi_q))
         traj_fig = fg.fig_sim_trajectory(traj, SCHEMA, lang, ref_trajectory=ref_traj)
     else:
-        traj_fig = go.Figure()
+        traj_fig = fg.blank_figure()
     return readout, pi_fig, shap_fig, traj_fig, reliability
 
 
@@ -779,7 +779,7 @@ def fill_or_clear(_fill, _clear, num_ids, cat_ids):
 def simulate_landmark(landmark, obs_vals, num_vals, cat_vals, outcome_key, lang,
                       obs_ids, num_ids, cat_ids):
     if not landmark or not num_ids:
-        return go.Figure(), html.Div(t(SCHEMA, "lm_select_prompt", lang), className="lm-prompt")
+        return fg.blank_figure(), html.Div(t(SCHEMA, "lm_select_prompt", lang), className="lm-prompt")
     x_base = collect_sim_inputs(num_vals, num_ids, cat_vals, cat_ids)
     observed = {
         ident["col"]: v
@@ -788,7 +788,7 @@ def simulate_landmark(landmark, obs_vals, num_vals, cat_vals, outcome_key, lang,
     }
     result = predict_landmark(outcome_key or DEFAULT_OUTCOME, landmark, x_base, observed)
     if result is None:
-        return go.Figure(), html.Div(t(SCHEMA, "lm_not_modeled", lang), className="lm-prompt")
+        return fg.blank_figure(), html.Div(t(SCHEMA, "lm_not_modeled", lang), className="lm-prompt")
     spec = (OUTCOME_BUNDLES.get(outcome_key) or SCIM_TOTAL_BUNDLE)["spec"]
     return (
         fig_landmark_compare(result, spec, lang, landmark),
@@ -809,11 +809,11 @@ def simulate_landmark(landmark, obs_vals, num_vals, cat_vals, outcome_key, lang,
 )
 def simulate_conversion(num_vals, cat_vals, lang, num_ids, cat_ids):
     if not num_ids and not cat_ids:
-        return html.Div(t(SCHEMA, "conv_need_ais", lang), className="lm-prompt"), go.Figure(), go.Figure()
+        return html.Div(t(SCHEMA, "conv_need_ais", lang), className="lm-prompt"), fg.blank_figure(), fg.blank_figure()
     X = collect_sim_inputs(num_vals, num_ids, cat_vals, cat_ids)
     result = predict_conversion(X)
     if result is None:
-        return html.Div(t(SCHEMA, "conv_need_ais", lang), className="lm-prompt"), go.Figure(), go.Figure()
+        return html.Div(t(SCHEMA, "conv_need_ais", lang), className="lm-prompt"), fg.blank_figure(), fg.blank_figure()
     return (
         conversion_readout(result, lang),
         fig_conversion_endpoints(result, lang),
@@ -835,7 +835,7 @@ def simulate_conversion(num_vals, cat_vals, lang, num_ids, cat_ids):
 def simulate_level_descent(num_vals, cat_vals, lang, num_ids, cat_ids):
     # Each level is gated on its own admission *_ord input; blanks stay NaN and drop out, so an
     # empty form yields no applicable level.  No realized-outcome overlay (hypothetical).
-    empty = go.Figure()
+    empty = fg.blank_figure()
     if not num_ids and not cat_ids:
         return html.Div(t(SCHEMA, "ld_need_level", lang), className="lm-prompt"), empty, empty
     X = collect_sim_inputs(num_vals, num_ids, cat_vals, cat_ids)
@@ -861,7 +861,7 @@ def simulate_level_descent(num_vals, cat_vals, lang, num_ids, cat_ids):
     State({"type": "cat", "col": dash.ALL}, "id"),
 )
 def simulate_multistate(num_vals, cat_vals, lang, num_ids, cat_ids):
-    empty = go.Figure()
+    empty = fg.blank_figure()
     if not num_ids and not cat_ids:
         return html.Div(t(SCHEMA, "ms_need_ais", lang), className="lm-prompt"), empty, empty
     X = collect_sim_inputs(num_vals, num_ids, cat_vals, cat_ids)
@@ -889,11 +889,11 @@ def simulate_independence(num_vals, cat_vals, lang, num_ids, cat_ids):
     # Independence is predicted for everyone (no admission-grade gating); blanks stay NaN, so an
     # empty form yields a near-cohort-average profile.  No realized-outcome overlay (hypothetical).
     if not num_ids and not cat_ids:
-        return independence_readout(None, lang), go.Figure()
+        return independence_readout(None, lang), fg.blank_figure()
     X = collect_sim_inputs(num_vals, num_ids, cat_vals, cat_ids)
     result = predict_independence(X)
     if result is None:
-        return independence_readout(None, lang), go.Figure()
+        return independence_readout(None, lang), fg.blank_figure()
     return independence_readout(result, lang), fig_independence_profile(result, lang)
 
 
@@ -911,11 +911,11 @@ def simulate_dissociation(num_vals, cat_vals, lang, num_ids, cat_ids):
     # Predicted for everyone (no admission-grade gating); blanks stay NaN, so an empty form yields a
     # near-cohort-average star.  No realized-outcome overlay (hypothetical).
     if not num_ids and not cat_ids:
-        return dissociation_readout(None, lang), go.Figure()
+        return dissociation_readout(None, lang), fg.blank_figure()
     X = collect_sim_inputs(num_vals, num_ids, cat_vals, cat_ids)
     result = predict_dissociation(X)
     if result is None:
-        return dissociation_readout(None, lang), go.Figure()
+        return dissociation_readout(None, lang), fg.blank_figure()
     return (
         dissociation_readout(result, lang),
         fig_dissociation_landscape(dissociation_cohort_landscape(), lang, predict=result),
@@ -958,7 +958,7 @@ def simulate_topography(num_vals, cat_vals, seg_vals, modality, lang, num_ids, c
     # segment's own admission grade (adm_self — the dominant predictor).  Blanks stay NaN.  No
     # realized-outcome overlay (hypothetical patient).
     if not num_ids and not cat_ids:
-        return topography_readout(None, lang), go.Figure()
+        return topography_readout(None, lang), fg.blank_figure()
     X = collect_sim_inputs(num_vals, num_ids, cat_vals, cat_ids)
     adm = {
         ident["seg"]: float(v)
@@ -967,7 +967,7 @@ def simulate_topography(num_vals, cat_vals, seg_vals, modality, lang, num_ids, c
     }
     result = predict_topography(X, adm)
     if result is None:
-        return topography_readout(None, lang), go.Figure()
+        return topography_readout(None, lang), fg.blank_figure()
     return (
         topography_readout(result, lang),
         fig_topography_bodymap(result, lang, sensory_modality=(modality or "light_touch")),

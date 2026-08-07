@@ -46,7 +46,6 @@ from rehab_sci.dashboard.compute import (
 from rehab_sci.dashboard.figures import (
     ARCHETYPE_NAMES_EN,
     ARCHETYPE_NAMES_JA,
-    PALETTE_ARCHETYPE,
     PHENOTYPE_NAMES_EN,
     PHENOTYPE_NAMES_JA,
 )
@@ -177,10 +176,10 @@ def _meta_strip(meta: dict, lang: str) -> html.Div:
         arch_id = ARCHETYPE_DATA["assignments"].get(kr if isinstance(kr, int) else None)
         if arch_id is not None:
             names = ARCHETYPE_NAMES_JA if lang == "ja" else ARCHETYPE_NAMES_EN
-            arch_color = PALETTE_ARCHETYPE[arch_id % len(PALETTE_ARCHETYPE)]
+            # No per-archetype colour: the ramp read as red=poor / green=good on an
+            # exploratory cluster label, and singled this chip out among neutral peers.
             chips.append(html.Span(
                 className="patient-meta-chip archetype-chip",
-                style={"borderColor": arch_color, "color": arch_color},
                 children=[
                     html.Span(t(SCHEMA, "patient_archetype_label", lang), className="patient-meta-chip-label"),
                     html.Span(names[arch_id], className="patient-meta-chip-value"),
@@ -722,7 +721,7 @@ def _build_similarity_section(
         k=10,
     )
     if not neighbors:
-        return go.Figure(), html.Div()
+        return fg.blank_figure(), html.Div()
 
     spec: OutcomeSpec = bundle["spec"]
     for n in neighbors:
@@ -801,7 +800,7 @@ def _build_similarity_section(
 
 def _compute_patient_tab(key_record, strata, outcome_key, lang):
     if key_record is None:
-        empty = go.Figure()
+        empty = fg.blank_figure()
         return html.Div(), empty, html.Div(), [], empty, empty, "", empty, html.Div()
     key_record = int(key_record)
 
@@ -814,7 +813,7 @@ def _compute_patient_tab(key_record, strata, outcome_key, lang):
         return (
             meta_strip_el, timeline_fig, isncsci_table,
             [html.Div(t(SCHEMA, "patient_no_admission_note", lang), className="patient-pred-empty")],
-            go.Figure(), go.Figure(), "", go.Figure(), html.Div(),
+            fg.blank_figure(), fg.blank_figure(), "", fg.blank_figure(), html.Div(),
         )
 
     bundle = OUTCOME_BUNDLES.get(outcome_key) or SCIM_TOTAL_BUNDLE
@@ -930,7 +929,7 @@ def update_patient_landmark_options(key_record):
     Input("lang-store", "data"),
 )
 def update_patient_landmark(landmark, key_record, outcome_key, lang):
-    empty = go.Figure()
+    empty = fg.blank_figure()
     if not landmark or key_record is None:
         msg = html.Div(t(SCHEMA, "lm_select_prompt", lang), className="lm-prompt")
         return empty, msg, "", empty, ""
@@ -980,7 +979,7 @@ def update_patient_phenotype_options(key_record, lang):
     Input("lang-store", "data"),
 )
 def update_patient_phenotype(cutoff, key_record, lang):
-    empty = go.Figure()
+    empty = fg.blank_figure()
     if PHENOTYPE_DATA is None or not cutoff or key_record is None:
         return empty, empty, html.Div(t(SCHEMA, "pheno_ineligible", lang), className="lm-prompt")
     res = predict_phenotype_membership(int(key_record), cutoff)
@@ -1008,7 +1007,7 @@ def update_patient_phenotype(cutoff, key_record, lang):
     Input("lang-store", "data"),
 )
 def update_patient_conversion(key_record, lang):
-    empty = go.Figure()
+    empty = fg.blank_figure()
     if CONVERSION_BUNDLE is None or key_record is None:
         return html.Div(t(SCHEMA, "conv_need_ais", lang), className="lm-prompt"), empty, empty
     key_record = int(key_record)
@@ -1040,7 +1039,7 @@ def update_patient_conversion(key_record, lang):
     Input("lang-store", "data"),
 )
 def update_patient_multistate(key_record, lang):
-    empty = go.Figure()
+    empty = fg.blank_figure()
     if MULTISTATE_BUNDLE is None or key_record is None:
         return html.Div(t(SCHEMA, "ms_need_ais", lang), className="lm-prompt"), empty, empty
     key_record = int(key_record)
@@ -1073,11 +1072,11 @@ def update_patient_independence(key_record, lang):
     # No admission-grade gating — independence is predicted for everyone; the patient's realized
     # discharge independence is overlaid on the predicted bars where discharge scores exist.
     if INDEPENDENCE_BUNDLE is None or key_record is None:
-        return independence_readout(None, lang), go.Figure()
+        return independence_readout(None, lang), fg.blank_figure()
     key_record = int(key_record)
     result = predict_independence(episode_row_for_model(key_record))
     if result is None:
-        return independence_readout(None, lang), go.Figure()
+        return independence_readout(None, lang), fg.blank_figure()
     obs = independence_observed_for_episode(key_record)
     return independence_readout(result, lang), fig_independence_profile(result, lang, observed=obs)
 
@@ -1095,12 +1094,12 @@ def update_patient_topography(key_record, modality, lang):
     # patient's REAL admission ISNCSCI exam, and the realized discharge milestones are overlaid on
     # the body map where discharge grades exist.
     if TOPOGRAPHY_BUNDLE is None or key_record is None:
-        return topography_readout(None, lang), go.Figure()
+        return topography_readout(None, lang), fg.blank_figure()
     key_record = int(key_record)
     adm = topography_admission_grades(key_record)
     result = predict_topography(episode_row_for_model(key_record), adm)
     if result is None:
-        return topography_readout(None, lang), go.Figure()
+        return topography_readout(None, lang), fg.blank_figure()
     obs = topography_observed_discharge(key_record)
     return (
         topography_readout(result, lang),
@@ -1118,7 +1117,7 @@ def update_patient_topography(key_record, modality, lang):
     Input("lang-store", "data"),
 )
 def update_patient_level_descent(key_record, lang):
-    empty = go.Figure()
+    empty = fg.blank_figure()
     prompt = html.Div(t(SCHEMA, "ld_need_level", lang), className="lm-prompt")
     if LEVEL_DESCENT_BUNDLE is None or key_record is None:
         return prompt, empty, empty, empty
@@ -1155,11 +1154,11 @@ def update_patient_dissociation(key_record, lang):
     # No admission-grade gating — dissociation is predicted for everyone; the patient's OWN realized
     # dissociation (where both discharge deltas exist) is overlaid as an open star on the quadrants.
     if DISSOCIATION_BUNDLE is None or key_record is None:
-        return dissociation_readout(None, lang), go.Figure()
+        return dissociation_readout(None, lang), fg.blank_figure()
     key_record = int(key_record)
     result = predict_dissociation(episode_row_for_model(key_record))
     if result is None:
-        return dissociation_readout(None, lang), go.Figure()
+        return dissociation_readout(None, lang), fg.blank_figure()
     obs = dissociation_observed(key_record)
     return (
         dissociation_readout(result, lang),

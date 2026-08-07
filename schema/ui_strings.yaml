@@ -4,17 +4,8 @@ app_title:
   ja: "脊髄損傷リハビリ解析・予測スイート"
   en: "SCI Rehabilitation Analytics & Prediction Suite"
 app_subtitle:
-  ja: "このコホートが示す回復パターン・予後・臨床要因"
-  en: "What this cohort reveals about recovery, prognosis, and clinical drivers"
-language_toggle:
-  ja: "English"
-  en: "日本語"
-language_label_ja:
-  ja: "日本語"
-  en: "Japanese"
-language_label_en:
-  ja: "英語"
-  en: "English"
+  ja: "回復経過・退院時転帰・関連因子のコホート解析"
+  en: "Cohort analyses of recovery, discharge outcomes, and associated factors"
 loading:
   ja: "読み込み中…"
   en: "Loading…"
@@ -27,10 +18,6 @@ patients_n:
 episodes_n:
   ja: "症例数 (エピソード)"
   en: "Episodes (N)"
-timepoints_used:
-  ja: "使用評価時点"
-  en: "Timepoints used"
-
 # --- tabs ---
 tab_overview:
   ja: "主要所見"
@@ -49,21 +36,12 @@ tab_methods:
   en: "Methods"
 
 # --- overview ---
-overview_hero_eyebrow:
-  ja: "未絞り込みコホートの解析"
-  en: "Unfiltered cohort analyses"
-overview_hero_title:
-  ja: "回復は多次元的。平均値だけでは見えない。"
-  en: "Recovery is multidimensional. The averages hide it."
-overview_hero_deck:
-  ja: "入院時の運動機能は退院時の自立度を強く層別化する一方、神経学的回復と機能的回復はしばしば一致しない。3か月ランドマークの内部ホールドアウト評価では、回復の実測値を加えた予測がより鮮明になった。"
-  en: "Admission motor function strongly stratifies discharge independence, yet neurological and functional gains often diverge. In an internal 3-month holdout, adding observed recovery measurements sharpened predictions."
-overview_hero_cta:
-  ja: "コホートを探索する ↓"
-  en: "Explore the cohort ↓"
-overview_full_cohort:
-  ja: "データセット範囲"
-  en: "Dataset scope"
+overview_lead_title:
+  ja: "未絞り込みコホートの所見"
+  en: "Full-cohort findings"
+overview_lead_deck:
+  ja: "未絞り込みの全コホートで算出した3つの解析。各解析には固有の対象数と限界を併記する。"
+  en: "Three analyses computed on the full unfiltered cohort. Each states its own denominator and limits."
 overview_scope_years:
   ja: "事業年度"
   en: "Business years"
@@ -71,17 +49,17 @@ overview_finding_motor_unit:
   ja: "退院時SCIM中央値"
   en: "median discharge SCIM"
 overview_finding_motor_title:
-  ja: "入院時の運動機能で、退院時の自立度が大きく層別化される"
-  en: "Discharge independence separates strongly by admission motor function"
+  ja: "入院時総運動スコア四分位別の退院時SCIM"
+  en: "Discharge SCIM by admission Total Motor quartile"
 overview_finding_motor_body:
-  ja: "転帰がある {n} 症例で、総運動スコア四分位間の差は大きい（η²={effect:.2f}）。"
-  en: "Across {n} episodes with outcomes, Total Motor quartiles show a large separation (η²={effect:.2f})."
+  ja: "転帰がある {n} 症例での四分位間比較（η²={effect:.2f}）。"
+  en: "Quartile comparison across {n} episodes with outcomes (η²={effect:.2f})."
 overview_finding_motor_caveat:
   ja: "未調整の関連であり、因果効果ではない。"
   en: "Unadjusted association; not a causal effect."
 overview_finding_observation_title:
-  ja: "内部ホールドアウトでは、3か月までの実測を加えた予測がより鮮明"
-  en: "In the internal holdout, 3-month observations sharpen predictions"
+  ja: "3か月までの実測値を加えた場合の内部ホールドアウト予測性能"
+  en: "Internal-holdout prediction performance after adding observations through 3 months"
 overview_finding_observation_body:
   ja: "在院中リスク集合 n={n} の内部ホールドアウト評価（検証用 n={n_test}）では、R² の点推定値は {baseline:.2f}→{observed:.2f}、予測区間の半幅は {shrink:.0%} 縮小。"
   en: "In one internal held-out evaluation of the still-admitted risk set (eligible n={n}; test n={n_test}), point-estimate R² rises {baseline:.2f}→{observed:.2f} and interval half-width shrinks {shrink:.0%}."
@@ -92,32 +70,26 @@ overview_finding_dissociation_unit:
   ja: "不一致群"
   en: "discordant"
 overview_finding_dissociation_title:
-  ja: "下肢筋力の回復と移動能力の回復は、しばしば別の軌道を取る"
-  en: "Lower-limb motor and mobility gains often follow different paths"
+  ja: "LEMS変化とSCIM移動変化の相関"
+  en: "Correlation between change in LEMS and change in SCIM mobility"
 overview_finding_dissociation_body:
   ja: "LEMS変化とSCIM移動変化の相関は r={correlation:.2f}（n={n}）にとどまる。"
   en: "Change in LEMS and change in SCIM mobility correlate only r={correlation:.2f} (n={n})."
 overview_finding_dissociation_caveat:
   ja: "「不一致」は記述的な中央値分割であり、診断分類ではない。"
   en: "Discordance is a descriptive median split, not a diagnosis."
-overview_pattern_eyebrow:
-  ja: "観察された関連"
-  en: "Observed association"
 overview_pattern_title:
-  ja: "入院時の総運動スコアで、退院時の機能転帰が大きく分かれる"
-  en: "Admission Total Motor score separates four very different discharge outcomes"
+  ja: "入院時総運動スコア四分位別の退院時SCIM分布"
+  en: "Discharge SCIM distribution by admission Total Motor quartile"
 overview_pattern_body:
   ja: "転帰がある {n} 症例を入院時スコアの四分位で分けると、退院時SCIM中央値は {low:.0f} 点から {high:.0f} 点まで段階的に上昇した（η²={effect:.2f}）。点は中央値、太線は四分位範囲。"
   en: "When {n} episodes with outcomes are split by admission-score quartile, median discharge SCIM rises stepwise from {low:.0f} to {high:.0f} (η²={effect:.2f}). Points show medians; thick ranges show IQR."
 overview_pattern_caveat:
   ja: "欠測を除いた記述的な層別比較。交絡調整はしていない。"
   en: "Descriptive complete-case strata; no confounding adjustment."
-overview_explorer_eyebrow:
-  ja: "選択した集団"
-  en: "Selected cohort"
 overview_explorer_title:
-  ja: "所見の背景となるコホートを探索"
-  en: "Explore the cohort behind the findings"
+  ja: "絞り込みコホートの要約"
+  en: "Filtered cohort summaries"
 overview_explorer_deck:
   ja: "下のフィルターはこのセクションだけを更新する。上の主要所見は未絞り込みデータに固定され、各解析の完全症例・リスク集合の対象数を個別に示す。"
   en: "Filters update this section only. Headline findings stay tied to the unfiltered data; each shows its own complete-case or risk-set denominator."
@@ -151,15 +123,6 @@ overview_kpi_scim_median:
 overview_kpi_severe:
   ja: "入院時 重度 (AIS A/B)"
   en: "Severe at admission (AIS A/B)"
-card_demographics:
-  ja: "人口統計"
-  en: "Demographics"
-card_injury_profile:
-  ja: "損傷プロファイル"
-  en: "Injury profile"
-card_outcomes:
-  ja: "アウトカム分布"
-  en: "Outcome distributions"
 chart_age_dist:
   ja: "年齢分布"
   en: "Age distribution"
@@ -201,12 +164,6 @@ sim_input_motor:
 sim_input_sensory:
   ja: "感覚スコア"
   en: "Sensory scores"
-sim_predict_button:
-  ja: "予測する"
-  en: "Predict"
-sim_predicted_label:
-  ja: "退院時 SCIM-III 予測合計"
-  en: "Predicted discharge SCIM-III total"
 sim_prediction_interval:
   ja: "80% 予測区間"
   en: "80% prediction interval"
@@ -216,15 +173,6 @@ sim_local_explanation:
 sim_trajectory_heading:
   ja: "予測回復軌道 (SCIM-III)"
   en: "Predicted recovery trajectory (SCIM-III)"
-sim_pushes_up:
-  ja: "予測を押し上げる要因"
-  en: "Factors pushing score higher"
-sim_pushes_down:
-  ja: "予測を押し下げる要因"
-  en: "Factors pushing score lower"
-sim_reset:
-  ja: "リセット"
-  en: "Reset"
 sim_reliability_heading:
   ja: "入力の信頼度"
   en: "Input reliability"
@@ -251,18 +199,12 @@ sim_clear_all:
   en: "Clear all"
 
 # --- insight engine ---
-insight_hero_eyebrow:
-  ja: "予測的な関連"
-  en: "Predictive associations"
-insight_hero_title:
-  ja: "アウトカムごとに、何が予測を左右するか"
-  en: "What shapes each predicted outcome"
-insight_hero_deck:
-  ja: "まず主要な予測シグナルとコホート差を確認し、必要なときだけ詳細な依存関係・交互作用を探索する。"
-  en: "Start with the leading predictive signals and cohort contrasts, then open detailed dependence and interaction views only when needed."
-insight_summary_badge:
-  ja: "このアウトカムで目立つこと"
-  en: "What stands out"
+insight_lead_title:
+  ja: "アウトカム別のモデル関連特徴量"
+  en: "Model-associated features by outcome"
+insight_lead_deck:
+  ja: "グローバルSHAPと未調整のサブグループ比較を先に示す。依存関係・交互作用の図は詳細欄に置く。"
+  en: "Global SHAP and unadjusted subgroup comparisons come first; dependence and interaction plots sit in the detail section."
 insight_summary_body:
   ja: "グローバルSHAPで最も強い予測シグナルは {features}。下の順位は、このコホート内で予測をどれだけ動かしたかを示す。"
   en: "The strongest global SHAP signals are {features}. The ranking below shows how much each feature moved predictions within this cohort."
@@ -284,15 +226,6 @@ insight_subgroup_compare:
 insight_pair_dependence:
   ja: "特徴量依存プロット"
   en: "Feature dependence plot"
-insight_effect_size:
-  ja: "効果量"
-  en: "Effect size"
-insight_recovery_trajectories:
-  ja: "回復軌跡"
-  en: "Recovery trajectories"
-insight_filter:
-  ja: "フィルター"
-  en: "Filter"
 insight_all:
   ja: "全体"
   en: "All"
@@ -322,9 +255,6 @@ patient_strata_para:
 patient_strata_para_ais:
   ja: "麻痺型 × AIS"
   en: "Paralysis × AIS"
-patient_meta_title:
-  ja: "症例情報"
-  en: "Episode summary"
 patient_meta_age:
   ja: "年齢"
   en: "Age"
@@ -361,9 +291,6 @@ patient_prediction_title:
 patient_prediction_observed:
   ja: "実測値"
   en: "Observed"
-patient_prediction_predicted:
-  ja: "予測中央値"
-  en: "Predicted median"
 patient_prediction_residual:
   ja: "残差 (予測 − 実測)"
   en: "Residual (pred − observed)"
@@ -419,9 +346,6 @@ methods_subgroup_def:
   en: "Mann-Whitney U / Kruskal-Wallis H tests with effect sizes (Cliff's δ / Cohen's d); FDR-adjusted."
 
 # --- common ---
-button_download:
-  ja: "CSV をダウンロード"
-  en: "Download CSV"
 unit_years:
   ja: "歳"
   en: "years"
@@ -684,18 +608,12 @@ conv_table_rate:
 conv_table_n:
   ja: "n"
   en: "n"
-conv_auc:
-  ja: "AUC"
-  en: "AUC"
 conv_brier:
   ja: "Brier (較正後 / 基準)"
   en: "Brier (cal / base)"
 insight_outcome_label:
   ja: "分析対象アウトカム"
   en: "Outcome to analyze"
-insight_dependence_regression_only:
-  ja: "SHAP依存プロットは回帰アウトカムのみ利用可能です。"
-  en: "SHAP dependence plots are available for regression outcomes only."
 insight_dep_class_label:
   ja: "対象クラス"
   en: "Target class"
@@ -760,9 +678,6 @@ chart_phenotype_curves:
 chart_phenotype_demographics:
   ja: "表現型別 AIS 分布"
   en: "AIS distribution by phenotype"
-phenotype_caption:
-  ja: "早期の実測 SCIM・運動スコア軌道から成長混合モデルで発見した回復表現型。モデル予測に依存しないデータ駆動のパターンで、各色の曲線にカーソルを合わせると退院時 SCIM 中央値などの予後が表示される。"
-  en: "Recovery phenotypes discovered by a growth mixture model from the observed early SCIM + motor trajectories - data-driven patterns independent of any model prediction. Hover a curve for its conditioned prognosis (median discharge SCIM, LOS)."
 pheno_measure_scim:
   ja: "SCIM-III (機能)"
   en: "SCIM-III (function)"
@@ -906,10 +821,6 @@ methods_ms_improve_caption:
 methods_ms_calibration_heading:
   ja: "信頼度曲線 (Platt 較正 vs 生)"
   en: "Reliability curve (Platt-calibrated vs raw)"
-methods_ms_drivers_heading:
-  ja: "改善ヘッドの寄与因子 (in-sample SHAP)"
-  en: "Improvement-head drivers (in-sample SHAP)"
-
 # ---------- G7 functional-independence profile (Methods + Patient + Simulator) ----------
 ind_domain_self_care:
   ja: "セルフケア"
@@ -995,9 +906,6 @@ methods_ind_drilldown_heading:
 methods_ind_drilldown_caption:
   ja: "項目を選択すると、生 vs Platt 較正の信頼度曲線と in-sample SHAP 寄与因子を表示。"
   en: "Select an item to see its raw-vs-Platt-calibrated reliability curve and in-sample SHAP drivers."
-methods_ind_item_label:
-  ja: "SCIM 項目"
-  en: "SCIM item"
 # --- G8 recovery topography map (per-ISNCSCI-segment functional-milestone atlas) ---
 topo_card_heading:
   ja: "回復トポグラフィ地図 (退院時)"

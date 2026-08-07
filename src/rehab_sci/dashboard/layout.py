@@ -185,11 +185,13 @@ def fig_prediction_interval(
     x_hi = float(spec.clip_max) if spec.clip_max is not None else float(max(hi, pred) * 1.1 + 1.0)
     axis_title = f"{label} ({unit})" if unit else label
     is_delta = spec.clip_min is not None and spec.clip_min < 0  # Δ (change) outcome
+    # The readout above the strip already states the interval, so the y tick label only
+    # duplicated it — and at l=110 it was clipped.  b=52 keeps the x title clear of the ticks.
     fig.update_layout(
-        height=120,
-        margin=dict(l=110, r=20, t=22 if is_delta else 10, b=30),
+        height=130,
+        margin=dict(l=12, r=20, t=22 if is_delta else 10, b=52),
         xaxis=dict(range=[x_lo, x_hi], title=axis_title),
-        yaxis=dict(showticklabels=True, tickfont=dict(size=12), showgrid=False),
+        yaxis=dict(showticklabels=False, showgrid=False),
     )
     if is_delta:  # mark the "no change" line so a PI crossing 0 reads as uncertain recovery
         fig.add_vline(

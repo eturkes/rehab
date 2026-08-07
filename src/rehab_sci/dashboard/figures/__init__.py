@@ -4,6 +4,7 @@ Import as `from rehab_sci.dashboard import figures as fg` (back-compat).
 Submodules: overview, insights, patient, simulator, methods (+ _common helpers).
 """
 
+from rehab_sci.dashboard.figures._common import blank_figure
 from rehab_sci.dashboard.figures.insights import (
     fig_dependence,
     fig_global_shap_importance,
@@ -80,6 +81,7 @@ __all__ = [
     "PALETTE_PHENOTYPE",
     "PHENOTYPE_NAMES_EN",
     "PHENOTYPE_NAMES_JA",
+    "blank_figure",
     "fig_age_distribution",
     "fig_ais_admit_discharge_sankey",
     "fig_archetype_curves",

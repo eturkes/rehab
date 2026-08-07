@@ -92,20 +92,17 @@ def _finding_metrics() -> dict:
 
 def _finding_card(
     block_id: str,
-    index: str,
     metric: str,
     unit: str,
     title: str,
     body: str,
     caveat: str,
-    tone: str,
 ) -> html.Article:
     return html.Article(
         id=block_id,
-        className=f"finding-card finding-card--{tone}",
+        className="finding-card",
         children=[
             html.Div(className="finding-card__topline", children=[
-                html.Span(index, className="finding-card__index"),
                 html.Span(metric, className="finding-card__metric"),
                 html.Span(unit, className="finding-card__unit"),
             ]),
@@ -123,34 +120,20 @@ def _render_findings_lead(lang: str) -> list:
         if facts["year_start"] is not None
         else "—"
     )
-    hero = html.Section(
+    scope_stats = [
+        (t(SCHEMA, "episodes_n", lang), f"{facts['episodes']:,}"),
+        (t(SCHEMA, "patients_n", lang), f"{facts['patients']:,}"),
+        (t(SCHEMA, "overview_scope_years", lang), year_range),
+    ]
+    lead_head = html.Section(
         id="findings-lead",
-        className="findings-hero",
+        className="findings-lead",
         children=[
-            html.Div(className="findings-hero__copy", children=[
-                html.Div(t(SCHEMA, "overview_hero_eyebrow", lang), className="section-eyebrow"),
-                html.H1(t(SCHEMA, "overview_hero_title", lang)),
-                html.P(t(SCHEMA, "overview_hero_deck", lang)),
-                html.A(
-                    t(SCHEMA, "overview_hero_cta", lang),
-                    href="#cohort-explorer",
-                    className="findings-hero__cta",
-                ),
-            ]),
-            html.Div(className="findings-hero__scope", children=[
-                html.Div(t(SCHEMA, "overview_full_cohort", lang), className="scope-label"),
-                html.Div(className="scope-stat", children=[
-                    html.Strong(f"{facts['episodes']:,}"),
-                    html.Span(t(SCHEMA, "episodes_n", lang)),
-                ]),
-                html.Div(className="scope-stat", children=[
-                    html.Strong(f"{facts['patients']:,}"),
-                    html.Span(t(SCHEMA, "patients_n", lang)),
-                ]),
-                html.Div(className="scope-stat", children=[
-                    html.Strong(year_range),
-                    html.Span(t(SCHEMA, "overview_scope_years", lang)),
-                ]),
+            html.H2(t(SCHEMA, "overview_lead_title", lang)),
+            html.P(t(SCHEMA, "overview_lead_deck", lang)),
+            html.Dl(className="scope-list", children=[
+                html.Div(className="scope-stat", children=[html.Dt(label), html.Dd(value)])
+                for label, value in scope_stats
             ]),
         ],
     )
@@ -161,7 +144,6 @@ def _render_findings_lead(lang: str) -> list:
         first, last = motor["groups"][0], motor["groups"][-1]
         cards.append(_finding_card(
             "finding-motor-stratification",
-            "01",
             f"{first['median']:.0f}→{last['median']:.0f}",
             t(SCHEMA, "overview_finding_motor_unit", lang),
             t(SCHEMA, "overview_finding_motor_title", lang),
@@ -172,13 +154,11 @@ def _render_findings_lead(lang: str) -> list:
                 effect=motor["eta_squared"],
             ),
             t(SCHEMA, "overview_finding_motor_caveat", lang),
-            "teal",
         ))
     obs = facts.get("observation")
     if obs:
         cards.append(_finding_card(
             "finding-landmark-value",
-            "02",
             f"+{obs['r2_gain']:.2f}",
             "R²",
             t(SCHEMA, "overview_finding_observation_title", lang),
@@ -192,13 +172,11 @@ def _render_findings_lead(lang: str) -> list:
                 shrink=obs["pi_shrink"],
             ),
             t(SCHEMA, "overview_finding_observation_caveat", lang),
-            "amber",
         ))
     diss = facts.get("dissociation")
     if diss:
         cards.append(_finding_card(
             "finding-neuro-functional-dissociation",
-            "03",
             f"{diss['dissociated_share']:.0%}",
             t(SCHEMA, "overview_finding_dissociation_unit", lang),
             t(SCHEMA, "overview_finding_dissociation_title", lang),
@@ -209,10 +187,9 @@ def _render_findings_lead(lang: str) -> list:
                 correlation=diss["pearson_r"],
             ),
             t(SCHEMA, "overview_finding_dissociation_caveat", lang),
-            "violet",
         ))
 
-    lead: list = [hero]
+    lead: list = [lead_head]
     if cards:
         lead.append(html.Section(className="finding-grid", children=cards))
 
@@ -223,11 +200,7 @@ def _render_findings_lead(lang: str) -> list:
             className="finding-evidence",
             children=[
                 html.Div(className="finding-evidence__copy", children=[
-                    html.Div(
-                        t(SCHEMA, "overview_pattern_eyebrow", lang),
-                        className="section-eyebrow section-eyebrow--dark",
-                    ),
-                    html.H2(t(SCHEMA, "overview_pattern_title", lang)),
+                    html.H3(t(SCHEMA, "overview_pattern_title", lang)),
                     html.P(_copy(
                         "overview_pattern_body",
                         lang,
@@ -302,10 +275,6 @@ def render_overview(lang: str) -> html.Div:
         className="cohort-explorer",
         children=[
             html.Div(className="overview-section-head", children=[
-                html.Div(
-                    t(SCHEMA, "overview_explorer_eyebrow", lang),
-                    className="section-eyebrow section-eyebrow--dark",
-                ),
                 html.H2(t(SCHEMA, "overview_explorer_title", lang)),
                 html.P(t(SCHEMA, "overview_explorer_deck", lang)),
             ]),

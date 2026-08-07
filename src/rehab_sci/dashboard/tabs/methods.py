@@ -40,7 +40,7 @@ def _perf_block_regression(spec: OutcomeSpec, info: dict, lang: str) -> html.Div
     shap_pack = bundle.get("shap", {})
     axis_label = t(SCHEMA, spec.display_key, lang)
     children = [
-        html.H4(axis_label),
+        html.H3(axis_label),
         html.P(
             f"CV  R²={cv['r2_mean']:.3f} ± {cv['r2_std']:.3f}   "
             f"RMSE={cv['rmse_mean']:.2f}{units}   "
@@ -101,7 +101,7 @@ def _perf_block_multiclass(spec: OutcomeSpec, info: dict, lang: str) -> html.Div
     shap_pack = bundle.get("shap", {})
     ord_lbl = "順序MAE" if lang == "ja" else "ordinal MAE"
     children = [
-        html.H4(t(SCHEMA, spec.display_key, lang)),
+        html.H3(t(SCHEMA, spec.display_key, lang)),
         html.P(
             f"CV  acc={cv['accuracy_mean']:.3f} ± {cv['accuracy_std']:.3f}   "
             f"κ_quad={cv['kappa_quadratic_mean']:.3f} ± {cv['kappa_quadratic_std']:.3f}   "
@@ -186,7 +186,7 @@ def _perf_block_trajectory(lang: str) -> html.Div | None:
         ]))
     return html.Div(
         className="methods-perf-card",
-        children=[html.H4(heading), html.Table(rows, className="patient-isncsci-table")],
+        children=[html.H3(heading), html.Table(rows, className="patient-isncsci-table")],
     )
 
 
@@ -198,7 +198,7 @@ def _temporal_block(lang: str) -> html.Div | None:
     test_years = tm.get("config", {}).get("test_years", [])
     cov_word = "カバレッジ" if lang == "ja" else "coverage"
     children: list = [
-        html.H3(t(SCHEMA, "methods_temporal_heading", lang)),
+        html.H2(t(SCHEMA, "methods_temporal_heading", lang)),
         html.P(t(SCHEMA, "methods_temporal_def", lang)),
     ]
     for spec in OUTCOMES:
@@ -222,7 +222,7 @@ def _temporal_block(lang: str) -> html.Div | None:
                 + f"   APS {cov_word}={s.get('aps_coverage_oot_mean'):.0%}"
             )
         card: list = [
-            html.H4(t(SCHEMA, spec.display_key, lang)),
+            html.H3(t(SCHEMA, spec.display_key, lang)),
             html.P(line, style={"fontSize": "13px", "color": INK["700"]}),
         ]
         fig = fg.fig_temporal_drift(info, lang)
@@ -249,7 +249,7 @@ def _landmark_block(lang: str) -> html.Div | None:
     value_word = "観測価値" if lang == "ja" else "value"
     hw_word = "PI半値幅" if lang == "ja" else "PI hw"
     children: list = [
-        html.H3(t(SCHEMA, "methods_landmark_heading", lang)),
+        html.H2(t(SCHEMA, "methods_landmark_heading", lang)),
         html.P(t(SCHEMA, "methods_landmark_def", lang)),
     ]
     for spec in OUTCOMES:
@@ -270,7 +270,7 @@ def _landmark_block(lang: str) -> html.Div | None:
             d = by[last]["landmark"]["kappa_quadratic"] - by[last]["baseline"]["kappa_quadratic"]
             line = f"κ {first}:{k0:.2f} → {last}:{k1:.2f}    {value_word} Δκ={d:+.2f}"
         card: list = [
-            html.H4(t(SCHEMA, spec.display_key, lang)),
+            html.H3(t(SCHEMA, spec.display_key, lang)),
             html.P(line, style={"fontSize": "13px", "color": INK["700"]}),
         ]
         fig = fg.fig_landmark_value(info, days, lang)
@@ -315,7 +315,7 @@ def _conversion_endpoint_card(key: str, em: dict, lang: str) -> html.Div:
         f"n={em['n']} (+{em['n_pos']}, base={em['base_rate']:.0%})"
     )
     children: list = [
-        html.H4(label),
+        html.H3(label),
         html.P(metrics_line, style={"fontSize": "13px", "color": INK["700"]}),
     ]
     rbg = em.get("rate_by_admission_grade") or {}
@@ -350,12 +350,12 @@ def _conversion_block(lang: str) -> html.Div | None:
         return None
     ls = conv.get("landscape", {})
     children: list = [
-        html.H3(t(SCHEMA, "methods_conversion_heading", lang)),
+        html.H2(t(SCHEMA, "methods_conversion_heading", lang)),
         html.P(t(SCHEMA, "methods_conversion_def", lang)),
     ]
 
     # --- descriptive landscape ---
-    land_children: list = [html.H4(t(SCHEMA, "methods_conversion_landscape_heading", lang))]
+    land_children: list = [html.H3(t(SCHEMA, "methods_conversion_landscape_heading", lang))]
     summary = (
         f"{('≥1段階改善' if lang == 'ja' else '≥1-grade improvement')} {ls.get('any_improve_rate', 0):.0%}   "
         f"{('不変' if lang == 'ja' else 'stable')} {ls.get('stable_rate', 0):.0%}   "
@@ -376,7 +376,7 @@ def _conversion_block(lang: str) -> html.Div | None:
     children.append(html.Div(className="methods-perf-card", children=land_children))
 
     # --- per-endpoint calibration + drivers ---
-    children.append(html.H4(
+    children.append(html.H3(
         t(SCHEMA, "methods_conversion_endpoint_heading", lang),
         style={"marginTop": "6px"},
     ))
@@ -390,7 +390,7 @@ def _conversion_block(lang: str) -> html.Div | None:
         set_lbl = "平均集合サイズ" if lang == "ja" else "avg set size"
         cov_lbl = "カバレッジ" if lang == "ja" else "coverage"
         mag_children: list = [
-            html.H4(t(SCHEMA, "methods_conversion_magnitude_heading", lang)),
+            html.H3(t(SCHEMA, "methods_conversion_magnitude_heading", lang)),
             html.P(
                 f"acc={mag['accuracy']:.3f}   κ_quad={mag['kappa_quadratic']:.3f}   "
                 f"{ord_lbl}={mag['ordinal_mae']:.3f}   n={mag['n']}",
@@ -421,7 +421,7 @@ def _multistate_block(lang: str) -> html.Div | None:
     if not ms or not ms.get("occupancy_by_adm"):
         return None
     children: list = [
-        html.H3(t(SCHEMA, "methods_multistate_heading", lang)),
+        html.H2(t(SCHEMA, "methods_multistate_heading", lang)),
         html.P(t(SCHEMA, "methods_multistate_def", lang)),
     ]
 
@@ -429,7 +429,7 @@ def _multistate_block(lang: str) -> html.Div | None:
         if fig is None:
             return None
         return html.Div(className="methods-perf-card", children=[
-            html.H4(t(SCHEMA, heading_key, lang)),
+            html.H3(t(SCHEMA, heading_key, lang)),
             dcc.Graph(figure=fig, config={"displayModeBar": False}),
             html.P(t(SCHEMA, caption_key, lang), style={"fontSize": "12px", "color": INK["500"]}),
         ])
@@ -455,7 +455,7 @@ def _multistate_block(lang: str) -> html.Div | None:
             f"n={ih['n']} (+{ih['n_pos']}, base={ih['base_rate']:.0%})"
         )
         imp_children: list = [
-            html.H4(t(SCHEMA, "methods_ms_improve_heading", lang)),
+            html.H3(t(SCHEMA, "methods_ms_improve_heading", lang)),
             html.P(metrics_line, style={"fontSize": "13px", "color": INK["700"]}),
             html.P(t(SCHEMA, "methods_ms_improve_caption", lang),
                    style={"fontSize": "12px", "color": INK["500"]}),
@@ -493,7 +493,7 @@ def _independence_block(lang: str) -> html.Div | None:
     n_items = summary.get("n_items_modeled", len(ind["heads"]))
     mean_auc = summary.get("mean_auc")
     children: list = [
-        html.H3(t(SCHEMA, "methods_independence_heading", lang)),
+        html.H2(t(SCHEMA, "methods_independence_heading", lang)),
         html.P(t(SCHEMA, "methods_independence_def", lang)),
     ]
     if mean_auc is not None:
@@ -507,7 +507,7 @@ def _independence_block(lang: str) -> html.Div | None:
         if fig is None:
             return None
         return html.Div(className="methods-perf-card", children=[
-            html.H4(t(SCHEMA, heading_key, lang)),
+            html.H3(t(SCHEMA, heading_key, lang)),
             dcc.Graph(figure=fig, config={"displayModeBar": False}),
             html.P(t(SCHEMA, caption_key, lang), style={"fontSize": "12px", "color": INK["500"]}),
         ])
@@ -530,7 +530,7 @@ def _independence_block(lang: str) -> html.Div | None:
         for it in ind["items"] if it["key"] in ind["heads"]
     ]
     children.append(html.Div(className="methods-perf-card", children=[
-        html.H4(t(SCHEMA, "methods_ind_drilldown_heading", lang)),
+        html.H3(t(SCHEMA, "methods_ind_drilldown_heading", lang)),
         html.P(t(SCHEMA, "methods_ind_drilldown_caption", lang),
                style={"fontSize": "12px", "color": INK["500"]}),
         dcc.Dropdown(id="methods-ind-item", options=options,
@@ -586,7 +586,7 @@ def _topography_block(lang: str) -> html.Div | None:
         return None
     summ = topo.get("modality_summary", {})
     children: list = [
-        html.H3(t(SCHEMA, "methods_topography_heading", lang)),
+        html.H2(t(SCHEMA, "methods_topography_heading", lang)),
         html.P(t(SCHEMA, "methods_topography_def", lang)),
     ]
     aucs = [summ.get(m, {}).get("mean_auc") for m in ("motor", "light_touch", "pin_prick")]
@@ -604,7 +604,7 @@ def _topography_block(lang: str) -> html.Div | None:
         if fig is None:
             return None
         return html.Div(className="methods-perf-card", children=[
-            html.H4(t(SCHEMA, heading_key, lang)),
+            html.H3(t(SCHEMA, heading_key, lang)),
             dcc.Graph(figure=fig, config={"displayModeBar": False}),
             html.P(t(SCHEMA, caption_key, lang), style={"fontSize": "12px", "color": INK["500"]}),
         ])
@@ -615,7 +615,7 @@ def _topography_block(lang: str) -> html.Div | None:
         {"label": t(SCHEMA, "topo_modality_pin_prick", lang), "value": "pin_prick"},
     ]
     children.append(html.Div(className="methods-perf-card", children=[
-        html.H4(t(SCHEMA, "methods_topo_atlas_heading", lang)),
+        html.H3(t(SCHEMA, "methods_topo_atlas_heading", lang)),
         html.P(t(SCHEMA, "methods_topo_atlas_caption", lang),
                style={"fontSize": "12px", "color": INK["500"]}),
         dcc.RadioItems(id="methods-topo-atlas-modality", options=mod_opts, value="light_touch",
@@ -636,7 +636,7 @@ def _topography_block(lang: str) -> html.Div | None:
     modelable = [s for s in topo["segments"] if not s.get("degenerate") and s.get("auc") is not None]
     seg_opts = [{"label": _topo_seg_label(s, lang), "value": s["key"]} for s in modelable]
     children.append(html.Div(className="methods-perf-card", children=[
-        html.H4(t(SCHEMA, "methods_topo_drilldown_heading", lang)),
+        html.H3(t(SCHEMA, "methods_topo_drilldown_heading", lang)),
         html.P(t(SCHEMA, "methods_topo_drilldown_caption", lang),
                style={"fontSize": "12px", "color": INK["500"]}),
         dcc.Dropdown(id="methods-topo-seg", options=seg_opts,
@@ -704,7 +704,7 @@ def _level_descent_block(lang: str) -> html.Div | None:
     if not ld or not ld.get("levels"):
         return None
     children: list = [
-        html.H3(t(SCHEMA, "methods_ld_heading", lang)),
+        html.H2(t(SCHEMA, "methods_ld_heading", lang)),
         html.P(t(SCHEMA, "methods_ld_def", lang)),
     ]
     for heading_key, caption_key, fig in [
@@ -715,7 +715,7 @@ def _level_descent_block(lang: str) -> html.Div | None:
     ]:
         if fig is not None:
             children.append(html.Div(className="methods-perf-card", children=[
-                html.H4(t(SCHEMA, heading_key, lang)),
+                html.H3(t(SCHEMA, heading_key, lang)),
                 dcc.Graph(figure=fig, config={"displayModeBar": False}),
                 html.P(t(SCHEMA, caption_key, lang), style={"fontSize": "12px", "color": INK["500"]}),
             ]))
@@ -724,7 +724,7 @@ def _level_descent_block(lang: str) -> html.Div | None:
     keys = [k for k in _LD_LEVEL_ORDER if k in ld["levels"]]
     lvl_opts = [{"label": _ld_level_label(k, lang), "value": k} for k in keys]
     children.append(html.Div(className="methods-perf-card", children=[
-        html.H4(t(SCHEMA, "methods_ld_drilldown_heading", lang)),
+        html.H3(t(SCHEMA, "methods_ld_drilldown_heading", lang)),
         html.P(t(SCHEMA, "methods_ld_drilldown_caption", lang),
                style={"fontSize": "12px", "color": INK["500"]}),
         dcc.Dropdown(id="methods-ld-level", options=lvl_opts,
@@ -810,7 +810,7 @@ def _dataquality_block(lang: str) -> html.Div | None:
         for r in dq["rules"]
     ]
     children: list = [
-        html.H3(t(SCHEMA, "methods_dataquality_heading", lang)),
+        html.H2(t(SCHEMA, "methods_dataquality_heading", lang)),
         html.P(t(SCHEMA, "methods_dataquality_def", lang)),
         kpi,
     ]
@@ -829,10 +829,10 @@ def _dissociation_block(lang: str) -> html.Div | None:
     if not diss or not diss.get("axes"):
         return None
     children: list = [
-        html.H3(t(SCHEMA, "methods_diss_heading", lang)),
+        html.H2(t(SCHEMA, "methods_diss_heading", lang)),
         html.P(t(SCHEMA, "methods_diss_def", lang)),
         html.Div(className="methods-perf-card", children=[
-            html.H4(t(SCHEMA, "methods_diss_landscape_heading", lang)),
+            html.H3(t(SCHEMA, "methods_diss_landscape_heading", lang)),
             dcc.Graph(figure=fig_dissociation_landscape(dissociation_cohort_landscape(), lang),
                       config={"displayModeBar": False}),
             html.P(t(SCHEMA, "methods_diss_landscape_caption", lang),
@@ -842,7 +842,7 @@ def _dissociation_block(lang: str) -> html.Div | None:
     sc = fg.fig_dissociation_scorecard(diss, lang)
     if sc is not None:
         children.append(html.Div(className="methods-perf-card", children=[
-            html.H4(t(SCHEMA, "methods_diss_scorecard_heading", lang)),
+            html.H3(t(SCHEMA, "methods_diss_scorecard_heading", lang)),
             dcc.Graph(figure=sc, config={"displayModeBar": False}),
             html.P(t(SCHEMA, "methods_diss_scorecard_caption", lang),
                    style={"fontSize": "12px", "color": INK["500"]}),
@@ -850,7 +850,7 @@ def _dissociation_block(lang: str) -> html.Div | None:
     # --- interactive per-axis drilldown (over-achiever reliability + SHAP, reused from G4) ---
     options = [{"label": _diss_short(k, lang), "value": k} for k in diss["axes"]]
     children.append(html.Div(className="methods-perf-card", children=[
-        html.H4(t(SCHEMA, "methods_diss_drilldown_heading", lang)),
+        html.H3(t(SCHEMA, "methods_diss_drilldown_heading", lang)),
         html.P(t(SCHEMA, "methods_diss_drilldown_caption", lang),
                style={"fontSize": "12px", "color": INK["500"]}),
         dcc.Dropdown(id="methods-diss-axis", options=options,
@@ -891,7 +891,7 @@ def update_methods_dissociation_axis(axis_key, lang):
 
 def render_methods(lang: str) -> html.Div:
     perf_children: list = [
-        html.H3(t(SCHEMA, "methods_per_outcome_heading", lang)),
+        html.H2(t(SCHEMA, "methods_per_outcome_heading", lang)),
     ]
     for spec in OUTCOMES:
         info = METRICS["outcomes"][spec.key]
@@ -918,7 +918,7 @@ def render_methods(lang: str) -> html.Div:
     for title_key, body_key in blocks:
         md.append(html.Div(
             className="methods-block",
-            children=[html.H3(t(SCHEMA, title_key, lang)), html.P(t(SCHEMA, body_key, lang))],
+            children=[html.H2(t(SCHEMA, title_key, lang)), html.P(t(SCHEMA, body_key, lang))],
         ))
     md.append(perf_block)
     temporal_block = _temporal_block(lang)

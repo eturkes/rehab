@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import plotly.graph_objects as go
 from dash import Input, Output, callback, dcc, html
 
 from rehab_sci.dashboard import figures as fg
@@ -144,12 +143,8 @@ def render_insights(lang: str) -> html.Div:
     return html.Div(className="insights-page", children=[
         html.Div(className="insights-lead", children=[
             html.Div(className="insights-lead__copy", children=[
-                html.Div(
-                    t(SCHEMA, "insight_hero_eyebrow", lang),
-                    className="section-eyebrow section-eyebrow--dark",
-                ),
-                html.H1(t(SCHEMA, "insight_hero_title", lang)),
-                html.P(t(SCHEMA, "insight_hero_deck", lang)),
+                html.H2(t(SCHEMA, "insight_lead_title", lang)),
+                html.P(t(SCHEMA, "insight_lead_deck", lang)),
             ]),
             outcome_selector,
         ]),
@@ -188,11 +183,7 @@ def update_insight_summary(outcome_key, lang):
         conjunction = "、" if lang == "ja" else " and "
         feature_text = separator.join(features[:-1]) + conjunction + features[-1]
     return [
-        html.Div(
-            t(SCHEMA, "insight_summary_badge", lang),
-            className="insight-summary__badge",
-        ),
-        html.H2(outcome_label),
+        html.H3(outcome_label),
         html.P(
             t(SCHEMA, "insight_summary_body", lang).format(features=feature_text),
             className="insight-summary__body",
@@ -301,7 +292,7 @@ def update_dependence(feature, outcome_key, class_val, lang):
     outcome_key = outcome_key or DEFAULT_OUTCOME
     bundle = OUTCOME_BUNDLES.get(outcome_key) or SCIM_TOTAL_BUNDLE
     if feature is None:
-        return go.Figure(), ""
+        return fg.blank_figure(), ""
     shap_pack = bundle["shap"]
     class_idx = class_val if (bundle["task"] == "multiclass" and class_val is not None) else None
     return fg.fig_dependence(shap_pack, shap_pack["X_test"], feature, SCHEMA, lang, class_idx=class_idx), ""
@@ -352,7 +343,7 @@ def update_interaction_dependence(feat_x, feat_y, outcome_key, class_val, lang):
     outcome_key = outcome_key or DEFAULT_OUTCOME
     bundle = OUTCOME_BUNDLES.get(outcome_key) or SCIM_TOTAL_BUNDLE
     if feat_x is None or feat_y is None:
-        return go.Figure()
+        return fg.blank_figure()
     shap_pack = bundle["shap"]
     class_idx = class_val if (bundle["task"] == "multiclass" and class_val is not None) else None
     return fg.fig_interaction_dependence(

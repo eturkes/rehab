@@ -83,9 +83,10 @@ def fig_patient_scim_timeline(
         bands = all_bands[
             (all_bands["対麻痺_四肢麻痺"] == para_val) & (all_bands["AIS"] == ais_val)
         ]
+        # level_label already renders "AIS D (…)" — prefixing "AIS " repeated the grade name.
         band_label = (
             level_label(schema, "para_tetra", para_val, lang)
-            + " · AIS "
+            + " · "
             + level_label(schema, "ais", ais_val, lang)
         )
     if bands.empty and para_val is not None:
@@ -259,10 +260,12 @@ def fig_patient_scim_timeline(
         xaxis_tickangle=-45,
         yaxis_title="SCIM-III (0–100)",
         yaxis=dict(range=[0, 102]),
+        # Long stratum names wrap the horizontal legend onto 2–3 rows; t reserves that band
+        # so it never lands on the ribbons.
         legend=dict(
-            orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1, font=dict(size=11),
+            orientation="h", yanchor="bottom", y=1.02, xanchor="left", x=0, font=dict(size=11),
         ),
-        margin=dict(l=56, r=24, t=20, b=80),
+        margin=dict(l=56, r=24, t=76, b=80),
     )
     # Force x-axis to show every canonical timepoint, even those the patient lacks.
     fig.update_xaxes(categoryorder="array", categoryarray=x_labels)
