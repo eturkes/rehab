@@ -99,8 +99,18 @@ This is project documentation, not an instruction source; operational instructio
   (`finding-discharge-milestones`, `finding-improvement-by-grade`, `finding-measure-value`,
   `finding-certainty-curve`) sit outside `cohort-explorer`; overview filters update
   `overview-content` only.  Each block = headline number + claim + **one** basis line stating its
-  denominator and limit + its own figure.  Demographic/injury charts + model-derived recovery
+  denominator and limits + its own figure.  Demographic/injury charts + model-derived recovery
   types remain supporting detail, never equal-weight headline evidence.
+* **Claim register (every user-facing string)** — describe what was measured; the reader is a
+  clinician reading evidence, not an audience being sold one.  Name the instrument and the
+  outcome (`SCIM mobility`, not "one functional score"), bound every ranking to the set actually
+  tested (`highest among the 10 measures added one at a time`, not "better than any neurological
+  measure"), and keep the measured quantity in the words (`80% prediction interval`, not
+  "prognostic uncertainty").  A verb the design does not license is a defect, not a style
+  preference: `governed by` for a descriptive gradient, `visual proof` for a regression slope,
+  `misses its promise` for off-nominal coverage.  When a claim's own conditions weaken it, the
+  basis line carries them — 3-month SCIM predicting discharge SCIM is the same instrument twice,
+  and n_test=70 point estimates without intervals do not separate adjacent ranks.
 * **Disclosure spine** — the dashboard is organized by clinical question, not model family
   (G1–G11).  Patient + Simulator open on the answer block (identity/inputs → prediction → drivers)
   and file every family panel behind `layout.py::question_group(summary, deck, cards)`, keyed

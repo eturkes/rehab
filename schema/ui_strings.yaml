@@ -40,17 +40,17 @@ overview_lead_title:
   ja: "未絞り込みコホートの所見"
   en: "Full-cohort findings"
 overview_lead_deck:
-  ja: "退院時に何ができるようになるか、誰が改善するか、いつ予後が定まるかを、全コホートの実測値から示す。各所見に対象数と限界を併記する。"
-  en: "What patients regain, who improves, and when the prognosis settles — measured on the full cohort. Each finding states its denominator and its limit."
+  ja: "未絞り込みコホートの実測割合とホールドアウト推定値。各所見に対象数と限界を併記する。"
+  en: "Observed rates and held-out model estimates on the unfiltered cohort. Each finding states its denominator and its limits."
 overview_scope_years:
   ja: "事業年度"
   en: "Business years"
 overview_finding_ladder_unit:
-  ja: "が最も難しい項目まで自立"
-  en: "reach the hardest milestone"
+  ja: "が「{item}」で自立（自立率が最も低い項目）"
+  en: "are independent in {item}, the lowest-rate item"
 overview_finding_ladder_title:
-  ja: "退院時の自立率は課題によって {low:.0%} から {high:.0%} まで開く"
-  en: "Independence at discharge ranges from {low:.0%} to {high:.0%} across daily tasks"
+  ja: "退院時の自立率は SCIM-III の {count} 項目間で {low:.0%} から {high:.0%} まで開く"
+  en: "Discharge independence ranges from {low:.0%} to {high:.0%} across the {count} SCIM-III items"
 overview_finding_ladder_basis:
   ja: "退院時SCIM-IIIがある {n} 症例の実測割合。補装具の使用は可、人的介助なしを自立と定義。予測ではない。"
   en: "Observed rates across {n} episodes with a discharge SCIM-III. Independent = no human assistance, aids allowed. Observed, not predicted."
@@ -67,20 +67,23 @@ overview_finding_measure_unit:
   ja: "3か月時点の「{measure}」1項目のみで得られる R²"
   en: "R² from one 3-month {measure} score"
 overview_finding_measure_title:
-  ja: "1つの機能評価が、どの神経学的評価よりも退院時の機能をよく説明する"
-  en: "One functional score explains discharge function better than any neurological measure"
+  ja: "3か月時点で単独追加した {count} 指標のうち、{measure}が最上位"
+  en: "{measure} ranks highest among the {count} measures added one at a time at 3 months"
 overview_finding_measure_basis:
-  ja: "3か月時点の在院リスク集合 n={n}（検証用 n={n_test}）。入院時情報のみの R² は {baseline:.2f}。各項目は単独で追加した内部ホールドアウトの点推定値。"
-  en: "Still-admitted risk set at 3 months, n={n} (test n={n_test}); admission-only R² is {baseline:.2f}. Each measure added on its own; internal held-out point estimates."
+  ja: "3か月時点の在院リスク集合 n={n}（検証用 n={n_test}）。入院時情報のみの R² は {baseline:.2f}、各指標は単独で追加。3か月時点の SCIM と退院時アウトカムは同一尺度で、神経学的評価にはない条件。区間推定のないホールドアウト点推定値のため、近接した順位は区別できない。"
+  en: "Still-admitted risk set at 3 months, n={n} (test n={n_test}); admission-only R² is {baseline:.2f}, each measure added on its own. SCIM at 3 months and the discharge outcome are the same instrument, unlike the neurological measures. Held-out point estimates without intervals, so adjacent ranks are not separated."
+overview_finding_measure_compare:
+  ja: "神経学的評価の最高値は{other}の {other_r2:.2f}。"
+  en: "The highest-ranked neurological measure, {other}, reaches {other_r2:.2f}."
 overview_finding_certainty_unit:
-  ja: "SCIM点、3か月時点の80%予測区間"
-  en: "SCIM points, 80% interval at 3 months"
+  ja: "SCIM点、3か月時点の80%予測区間（入院時のみ → 観測あり）"
+  en: "SCIM points, 80% interval at 3 months (admission-only → with observation)"
 overview_finding_certainty_title:
-  ja: "3か月まで経過を追うと予後の不確実性は {shrink:.0%} 縮まる"
-  en: "Following recovery to three months narrows prognostic uncertainty by {shrink:.0%}"
+  ja: "3か月までの観測を加えると、80%予測区間は入院時情報のみより {shrink:.0%} 狭い"
+  en: "With observations through 3 months the 80% prediction interval is {shrink:.0%} narrower than from admission data alone"
 overview_finding_certainty_basis:
-  ja: "各時点の在院リスク集合 n={n}。同時点の R² は入院時のみ {baseline:.2f} に対し {observed:.2f}。内部ホールドアウトの点推定値で、外部検証はしていない。"
-  en: "Still-admitted risk set at each landmark, n={n}. R² at that landmark is {baseline:.2f} admission-only vs {observed:.2f} with observation. Internal held-out estimates, not externally validated."
+  ja: "各時点の在院リスク集合 n={n}。入院時のみと観測ありの2モデルは同一集合・同一分割で学習しており、差は時間経過ではなく観測の有無による。3か月時点の R² は入院時のみ {baseline:.2f} に対し観測あり {observed:.2f}。内部ホールドアウトの点推定値で、外部検証はしていない。"
+  en: "Still-admitted risk set at each landmark, n={n}; the admission-only and with-observation models share that set and split, so the gap is what observation adds, not elapsed time. R² at 3 months is {baseline:.2f} admission-only vs {observed:.2f} with observation. Internal held-out estimates, not externally validated."
 overview_gradient_summary:
   ja: "入院時重症度による退院時機能の勾配を見る"
   en: "View the admission-severity gradient behind these findings"
@@ -241,11 +244,11 @@ patient_intro:
   ja: "症例 ID を選択すると、その患者の SCIM-III 軌跡をコホート分布と並べて確認できます。入院時データがあれば予測値と寄与要因も表示されます。"
   en: "Pick a patient by ID number to view their SCIM-III trajectory alongside the cohort distribution. If admission data is available, the model's prediction and local drivers are shown as well."
 q_when_summary:
-  ja: "予後はいつ定まるか"
-  en: "When does the prognosis firm up?"
+  ja: "追跡に伴い予測はどう変わるか"
+  en: "How does the prediction change with follow-up?"
 q_when_deck:
-  ja: "各観察時点で組み直した退院時予測と、どの指標を1つ測れば不確実性が最も縮むか。"
-  en: "The discharge prediction rebuilt at each follow-up landmark, and which single measure buys the most certainty."
+  ja: "各観察時点で組み直した退院時予測と、どの指標を1つ測れば予測区間が最も縮むか。"
+  en: "The discharge prediction rebuilt at each follow-up landmark, and which single measure narrows the interval most."
 q_milestones_summary:
   ja: "どのマイルストーンが射程内か"
   en: "Which milestones are within reach?"
@@ -531,7 +534,7 @@ voi_all_observed:
   en: "All early measures already observed at this landmark; bars show each observation's realised value."
 voi_methods_def:
   ja: "各セルは、その指標を1つだけ観測した場合に基準 (入院時のみ) からどれだけ不確実性が縮むかを示す (回帰=PI半値幅の縮小、AIS=APS集合の縮小)。各指標は専用ヘッドの周辺コンフォーマルで較正し、行は平均改善量で降順に並ぶ。"
-  en: "Each cell is the uncertainty reduction a single observed measure buys over the admission-only baseline (regression = PI half-width reduction; AIS = APS set shrink), each calibrated by its own single-add head's marginal conformal; rows are ordered by mean improvement."
+  en: "Each cell is the uncertainty reduction a single observed measure gives over the admission-only baseline (regression = PI half-width reduction; AIS = APS set shrink), each calibrated by its own single-add head's marginal conformal; rows are ordered by mean improvement."
 methods_per_outcome_heading:
   ja: "アウトカム別性能"
   en: "Per-outcome performance"
@@ -540,7 +543,7 @@ methods_scorecard_heading:
   en: "Production model scorecard"
 methods_scorecard_deck:
   ja: "ダッシュボードが予測する全転帰。80%区間のカバレッジが5ポイント以上ずれるもの、近年で成績が0.05以上低下するものに印を付けている。"
-  en: "Every outcome the dashboard predicts. Flagged when the 80% interval misses its promise by more than 5 points, or when the score drops more than 0.05 on later admission years."
+  en: "Every outcome the dashboard predicts. Flagged when 80% interval coverage is off nominal by more than 5 points, or when the score drops more than 0.05 on later admission years."
 methods_sc_outcome:
   ja: "転帰"
   en: "Outcome"
@@ -1016,8 +1019,8 @@ methods_topo_atlas_heading:
   ja: "コホート回復トポグラフィ (実測基準率)"
   en: "Cohort recovery topography (observed base rate)"
 methods_topo_atlas_caption:
-  ja: "全コホートで各セグメントが退院時にマイルストーンへ到達した実測割合。皮膚分節シルエット (触覚/痛覚を切替) + 筋分節ラダー。回復は AIS グレードではなく損傷レベルに支配される (抗重力到達数は AIS で非単調)。"
-  en: "Observed fraction of the whole cohort reaching each segment's milestone at discharge. Dermatome silhouette (toggle light touch / pin prick) + myotome ladder. Recovery is governed by injury level, not AIS grade (the antigravity count is non-monotone in admission AIS)."
+  ja: "全コホートで各セグメントが退院時にマイルストーンへ到達した実測割合。皮膚分節シルエット (触覚/痛覚を切替) + 筋分節ラダー。到達分布は AIS グレードより損傷レベルに沿う (抗重力到達数は AIS で非単調)。"
+  en: "Observed fraction of the whole cohort reaching each segment's milestone at discharge. Dermatome silhouette (toggle light touch / pin prick) + myotome ladder. The pattern tracks injury level more closely than AIS grade (the antigravity count is non-monotone in admission AIS)."
 methods_topo_scorecard_heading:
   ja: "セグメント別 判別性能 (モダリティ別分布)"
   en: "Per-segment discrimination (distribution by modality)"
@@ -1130,8 +1133,8 @@ methods_diss_landscape_heading:
   ja: "コホート乖離マップ (軸別)"
   en: "Cohort dissociation map (per axis)"
 methods_diss_landscape_caption:
-  ja: "各軸の Δ神経×Δ機能 散布図。破線は同等回復の対角線 (D=0 = 機能優位/神経優位の境界)、点線はコホート回帰直線 (傾きが対角線より緩い = 機能は神経回復に追従しないという視覚的証拠)。点はティール=機能優位 / クリムゾン=神経優位。"
-  en: "Per-axis Δneuro×Δfunction scatter. The dashed line is the equal-recovery diagonal (D=0 - the over/under boundary); the dotted line is the cohort regression (shallower than the diagonal - the visual proof that function does not keep pace with neurological recovery). Points are teal = over-achiever / crimson = under-achiever."
+  ja: "各軸の Δ神経×Δ機能 散布図。破線は同等回復の対角線 (D=0 = 機能優位/神経優位の境界)、点線はコホート回帰直線 (傾きが対角線より緩く、機能の増分は神経の増分に比例しない)。点はティール=機能優位 / クリムゾン=神経優位。"
+  en: "Per-axis Δneuro×Δfunction scatter. The dashed line is the equal-recovery diagonal (D=0 - the over/under boundary); the dotted line is the cohort regression, shallower than the diagonal: functional gain does not scale one-for-one with neurological gain. Points are teal = over-achiever / crimson = under-achiever."
 methods_diss_scorecard_heading:
   ja: "軸別 予測性能 (方向 AUC・大きさ R²)"
   en: "Per-axis predictability (direction AUC, magnitude R²)"

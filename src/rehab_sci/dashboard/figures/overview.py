@@ -125,9 +125,9 @@ def fig_improve_by_grade(improve: dict, lang: str) -> go.Figure:
 def fig_measure_value(voi: dict, lang: str) -> go.Figure:
     """Discharge-SCIM R² when exactly one 3-month measure is added to the admission model.
 
-    Ranked lollipop against the admission-only baseline: the claim is that the leading
-    functional measure outranks every neurological one, so the baseline is drawn as a
-    reference line and the two modalities are colour-split.
+    Ranked lollipop against the admission-only baseline: the finding is the ordering of
+    functional against neurological measures, so the baseline is drawn as a reference
+    line and the two modalities are colour-split.
     """
     rows = voi["measures"]
     names = [row["label"] for row in rows]

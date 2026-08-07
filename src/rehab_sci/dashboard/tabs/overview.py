@@ -34,8 +34,8 @@ _AGE_MAX = 95
 _VOI_LANDMARK = "3m"
 
 # G2 single-add measures, split by what a clinician would have to do to obtain them.
-# The lead's claim is that the best functional measure outranks every neurological one,
-# so the split has to be explicit rather than inferred from the measure name.
+# The lead reports the ranking against this split, so it has to be explicit rather than
+# inferred from the measure name.
 _VOI_MODALITY = {
     "SCIM_total": "function",
     "SCIM_self_care": "function",
@@ -271,12 +271,13 @@ def _render_findings_lead(lang: str) -> list:
         lead.append(_finding_block(
             "finding-discharge-milestones",
             f"{ladder['hardest']['rate']:.0%}",
-            t(SCHEMA, "overview_finding_ladder_unit", lang),
+            _copy("overview_finding_ladder_unit", lang, item=rows[0]["label"]),
             _copy(
                 "overview_finding_ladder_title",
                 lang,
                 low=ladder["hardest"]["rate"],
                 high=ladder["easiest"]["rate"],
+                count=len(rows),
             ),
             _copy("overview_finding_ladder_basis", lang, n=ladder["n"]),
             fg.fig_milestone_ladder({"items": rows}, SCHEMA, lang),
@@ -299,22 +300,35 @@ def _render_findings_lead(lang: str) -> list:
             {**row, "label": t(SCHEMA, f"lm_measure_{row['measure'].lower()}", lang)}
             for row in value["measures"]
         ]
+        best_label = t(SCHEMA, f"lm_measure_{value['best']['measure'].lower()}", lang)
+        basis = _copy(
+            "overview_finding_measure_basis",
+            lang,
+            n=value["n"],
+            n_test=value["n_test"],
+            baseline=value["baseline_r2"],
+        )
+        # The modality contrast is the point of the finding, but it only exists when both
+        # modalities were modelled at this landmark.
+        other = value.get("best_other")
+        if other:
+            basis += ("" if lang == "ja" else " ") + _copy(
+                "overview_finding_measure_compare",
+                lang,
+                other=t(SCHEMA, f"lm_measure_{other['measure'].lower()}", lang),
+                other_r2=other["r2"],
+            )
         lead.append(_finding_block(
             "finding-measure-value",
             f"{value['best']['r2']:.2f}",
+            _copy("overview_finding_measure_unit", lang, measure=best_label),
             _copy(
-                "overview_finding_measure_unit",
+                "overview_finding_measure_title",
                 lang,
-                measure=t(SCHEMA, f"lm_measure_{value['best']['measure'].lower()}", lang),
+                measure=best_label,
+                count=len(rows),
             ),
-            t(SCHEMA, "overview_finding_measure_title", lang),
-            _copy(
-                "overview_finding_measure_basis",
-                lang,
-                n=value["n"],
-                n_test=value["n_test"],
-                baseline=value["baseline_r2"],
-            ),
+            basis,
             fg.fig_measure_value({**value, "measures": rows}, lang),
         ))
 
