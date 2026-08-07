@@ -14,10 +14,220 @@ from rehab_sci.dashboard.theme import (
     INK,
     PALETTE_AIS,
     PALETTE_CATEGORICAL,
+    PALETTE_INDEPENDENCE_DOMAIN,
     PALETTE_MOTOR_STRATA,
     PALETTE_PARA,
 )
 from rehab_sci.schema import Schema
+
+# --------------------------------------------------------------------------------------
+# Findings-lead figures.  Each carries its claim in the plot itself — direct value labels,
+# a reference line, or one inline annotation — so the surrounding copy stays a single
+# denominator line.  All four read the same source-bound blocks as
+# ``tabs.overview._finding_metrics``; none re-fits anything.
+# --------------------------------------------------------------------------------------
+
+def fig_milestone_ladder(ladder: dict, schema: Schema, lang: str) -> go.Figure:
+    """Observed discharge-independence rate for every SCIM-ADL milestone, hardest first.
+
+    The claim is the spread itself, so items are sorted by observed rate and labelled
+    directly; domain colour carries the self-care / sphincter / mobility / ambulation
+    grouping without a separate legend entry per bar.
+    """
+    rows = ladder["items"]
+    names = [row["label"] for row in rows]
+    rates = [row["rate"] for row in rows]
+    colors = [PALETTE_INDEPENDENCE_DOMAIN.get(row["domain"], PALETTE_CATEGORICAL[0]) for row in rows]
+    counts = [row["n"] for row in rows]
+
+    fig = go.Figure(go.Bar(
+        x=rates,
+        y=names,
+        orientation="h",
+        marker=dict(color=colors),
+        text=[f"{value:.0%}" for value in rates],
+        textposition="outside",
+        textfont=dict(size=11, color=INK["700"]),
+        customdata=counts,
+        hovertemplate="%{y}<br>%{x:.0%}<extra>n=%{customdata}</extra>",
+        showlegend=False,
+    ))
+    for dom in dict.fromkeys(row["domain"] for row in rows):
+        fig.add_trace(go.Scatter(
+            x=[None], y=[None], mode="markers", name=t(schema, f"ind_domain_{dom}", lang),
+            marker=dict(color=PALETTE_INDEPENDENCE_DOMAIN.get(dom, PALETTE_CATEGORICAL[0]),
+                        size=10, symbol="square"),
+            showlegend=True, hoverinfo="skip",
+        ))
+    fig.update_layout(
+        height=26 * len(rows) + 96,
+        margin=dict(l=196, r=52, t=40, b=40),
+        xaxis=dict(
+            title=("退院時に自立していた割合" if lang == "ja"
+                   else "Share independent at discharge"),
+            range=[0, 1], tickformat=".0%",
+        ),
+        yaxis=dict(tickfont=dict(size=10.5)),
+        bargap=0.28,
+        legend=dict(orientation="h", yanchor="bottom", y=1.0, xanchor="right", x=1,
+                    font=dict(size=10)),
+    )
+    return fig
+
+
+def fig_improve_by_grade(improve: dict, lang: str) -> go.Figure:
+    """P(≥1 AIS-grade improvement by 6 months) by admission grade — the non-monotone finding.
+
+    AIS-D sits lowest because improving out of D means reaching E (normal), a different
+    bar to clear; that asymmetry is annotated on the plot rather than left to a caveat.
+    """
+    rows = improve["grades"]
+    labels = [f"AIS {row['grade']}<br><span style='font-size:10px'>n={row['n']}</span>" for row in rows]
+    rates = [row["rate"] for row in rows]
+    colors = [PALETTE_AIS.get(row["grade"], PALETTE_CATEGORICAL[0]) for row in rows]
+
+    fig = go.Figure(go.Bar(
+        x=labels,
+        y=rates,
+        marker=dict(color=colors),
+        text=[f"{value:.0%}" for value in rates],
+        textposition="outside",
+        textfont=dict(size=15, color=INK["900"]),
+        hovertemplate="%{x}<br>%{y:.0%}<extra></extra>",
+        showlegend=False,
+    ))
+    peak = max(range(len(rows)), key=lambda i: rates[i])
+    fig.add_annotation(
+        x=labels[peak], y=rates[peak], yshift=34, showarrow=False,
+        text=("最も改善しやすい" if lang == "ja" else "highest improvement rate"),
+        font=dict(size=11, color=INK["700"]),
+    )
+    if rows and rows[-1]["grade"] == "D":
+        fig.add_annotation(
+            x=labels[-1], y=rates[-1], yshift=30, showarrow=False,
+            text=("D の改善は E (正常) 到達を意味する" if lang == "ja"
+                  else "improving out of D means reaching E (normal)"),
+            font=dict(size=10.5, color=INK["500"]),
+        )
+    fig.update_layout(
+        height=360,
+        margin=dict(l=64, r=24, t=44, b=52),
+        xaxis=dict(title=("入院時 AIS" if lang == "ja" else "Admission AIS grade"), type="category"),
+        yaxis=dict(
+            title=("6か月までに1段階以上改善" if lang == "ja" else "Improved ≥1 grade by 6 months"),
+            range=[0, 1.06], tickformat=".0%",
+        ),
+        bargap=0.42,
+    )
+    return fig
+
+
+def fig_measure_value(voi: dict, lang: str) -> go.Figure:
+    """Discharge-SCIM R² when exactly one 3-month measure is added to the admission model.
+
+    Ranked lollipop against the admission-only baseline: the claim is that the leading
+    functional measure outranks every neurological one, so the baseline is drawn as a
+    reference line and the two modalities are colour-split.
+    """
+    rows = voi["measures"]
+    names = [row["label"] for row in rows]
+    scores = [row["r2"] for row in rows]
+    colors = [
+        PALETTE_CATEGORICAL[0] if row["modality"] == "function" else PALETTE_CATEGORICAL[3]
+        for row in rows
+    ]
+    baseline = voi["baseline_r2"]
+
+    fig = go.Figure()
+    for name, score, color in zip(names, scores, colors, strict=True):
+        fig.add_trace(go.Scatter(
+            x=[baseline, score], y=[name, name], mode="lines",
+            line=dict(color=color, width=3), hoverinfo="skip", showlegend=False,
+        ))
+    fig.add_trace(go.Scatter(
+        x=scores, y=names, mode="markers+text",
+        marker=dict(color=colors, size=13, line=dict(color="#ffffff", width=1.5)),
+        text=[f"{value:.2f}" for value in scores],
+        textposition="middle right", textfont=dict(size=11, color=INK["700"]),
+        hovertemplate="%{y}<br>R²=%{x:.3f}<extra></extra>", showlegend=False,
+    ))
+    fig.add_vline(
+        x=baseline, line=dict(color=INK["300"], width=1.4, dash="dot"),
+        annotation_text=(f"入院時のみ {baseline:.2f}" if lang == "ja"
+                         else f"admission only {baseline:.2f}"),
+        annotation_position="top left",
+        annotation_font=dict(size=10.5, color=INK["500"]),
+    )
+    swatches = (
+        ("function", PALETTE_CATEGORICAL[0], "機能評価" if lang == "ja" else "Functional measure"),
+        ("neuro", PALETTE_CATEGORICAL[3], "神経学的評価" if lang == "ja" else "Neurological measure"),
+    )
+    for modality, color, name in swatches:
+        if any(row["modality"] == modality for row in rows):
+            fig.add_trace(go.Scatter(
+                x=[None], y=[None], mode="markers", name=name,
+                marker=dict(color=color, size=10, symbol="square"),
+                showlegend=True, hoverinfo="skip",
+            ))
+    lo = min([*scores, baseline])
+    fig.update_layout(
+        height=30 * len(rows) + 118,
+        margin=dict(l=190, r=52, t=42, b=44),
+        xaxis=dict(
+            title=("退院時SCIMの説明力 R² (3か月時点で1項目を追加)" if lang == "ja"
+                   else "Discharge-SCIM R² after adding one 3-month measure"),
+            range=[max(0.0, lo - 0.06), 1.0],
+        ),
+        yaxis=dict(tickfont=dict(size=11)),
+        legend=dict(orientation="h", yanchor="bottom", y=1.0, xanchor="right", x=1,
+                    font=dict(size=10)),
+    )
+    return fig
+
+
+def fig_certainty_curve(curve: dict, lang: str) -> go.Figure:
+    """80% prediction-interval half-width across landmarks: admission-only vs with observation.
+
+    Both series share the eligible still-admitted risk set at each landmark, so the gap
+    between them is the value of waiting; the endpoint gap is labelled directly.
+    """
+    labels = curve["labels"]
+    base = curve["baseline"]
+    observed = curve["observed"]
+    counts = curve["n_test"]
+    xlabels = [f"{label}<br><span style='font-size:10px'>n={n}</span>"
+               for label, n in zip(labels, counts, strict=True)]
+
+    fig = go.Figure()
+    fig.add_trace(go.Scatter(
+        x=xlabels, y=base, mode="lines+markers",
+        name=("入院時情報のみ" if lang == "ja" else "Admission data only"),
+        line=dict(color=INK["300"], width=2.4, dash="dash"),
+        marker=dict(size=9, color=INK["300"]),
+        hovertemplate="%{x}<br>±%{y:.1f}<extra></extra>",
+    ))
+    fig.add_trace(go.Scatter(
+        x=xlabels, y=observed, mode="lines+markers+text",
+        name=("経過観察を加えた場合" if lang == "ja" else "With observation to date"),
+        line=dict(color=PALETTE_CATEGORICAL[0], width=3),
+        marker=dict(size=10, color=PALETTE_CATEGORICAL[0]),
+        text=[""] * (len(observed) - 1) + [f"±{observed[-1]:.0f}"],
+        textposition="bottom center", textfont=dict(size=13, color=INK["900"]),
+        hovertemplate="%{x}<br>±%{y:.1f}<extra></extra>",
+    ))
+    fig.update_layout(
+        height=360,
+        margin=dict(l=68, r=28, t=44, b=56),
+        xaxis=dict(title=("評価時点" if lang == "ja" else "Landmark"), type="category"),
+        yaxis=dict(
+            title=("予測区間の半幅 (SCIM点)" if lang == "ja"
+                   else "Prediction-interval half-width (SCIM points)"),
+            rangemode="tozero",
+        ),
+        legend=dict(orientation="h", yanchor="bottom", y=1.0, xanchor="right", x=1,
+                    font=dict(size=11)),
+    )
+    return fig
 
 
 def fig_motor_strata_finding(motor: dict, lang: str) -> go.Figure:

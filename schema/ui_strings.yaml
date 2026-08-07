@@ -40,53 +40,53 @@ overview_lead_title:
   ja: "未絞り込みコホートの所見"
   en: "Full-cohort findings"
 overview_lead_deck:
-  ja: "未絞り込みの全コホートで算出した3つの解析。各解析には固有の対象数と限界を併記する。"
-  en: "Three analyses computed on the full unfiltered cohort. Each states its own denominator and limits."
+  ja: "退院時に何ができるようになるか、誰が改善するか、いつ予後が定まるかを、全コホートの実測値から示す。各所見に対象数と限界を併記する。"
+  en: "What patients regain, who improves, and when the prognosis settles — measured on the full cohort. Each finding states its denominator and its limit."
 overview_scope_years:
   ja: "事業年度"
   en: "Business years"
-overview_finding_motor_unit:
-  ja: "退院時SCIM中央値"
-  en: "median discharge SCIM"
-overview_finding_motor_title:
-  ja: "入院時総運動スコア四分位別の退院時SCIM"
-  en: "Discharge SCIM by admission Total Motor quartile"
-overview_finding_motor_body:
-  ja: "転帰がある {n} 症例での四分位間比較（η²={effect:.2f}）。"
-  en: "Quartile comparison across {n} episodes with outcomes (η²={effect:.2f})."
-overview_finding_motor_caveat:
-  ja: "未調整の関連であり、因果効果ではない。"
-  en: "Unadjusted association; not a causal effect."
-overview_finding_observation_title:
-  ja: "3か月までの実測値を加えた場合の内部ホールドアウト予測性能"
-  en: "Internal-holdout prediction performance after adding observations through 3 months"
-overview_finding_observation_body:
-  ja: "在院中リスク集合 n={n} の内部ホールドアウト評価（検証用 n={n_test}）では、R² の点推定値は {baseline:.2f}→{observed:.2f}、予測区間の半幅は {shrink:.0%} 縮小。"
-  en: "In one internal held-out evaluation of the still-admitted risk set (eligible n={n}; test n={n_test}), point-estimate R² rises {baseline:.2f}→{observed:.2f} and interval half-width shrinks {shrink:.0%}."
-overview_finding_observation_caveat:
-  ja: "内部評価の点推定値。外部検証・不確実性区間はなく、治療効果を示さない。"
-  en: "Internal point estimates without external validation or uncertainty bounds; not a treatment effect."
-overview_finding_dissociation_unit:
-  ja: "不一致群"
-  en: "discordant"
-overview_finding_dissociation_title:
-  ja: "LEMS変化とSCIM移動変化の相関"
-  en: "Correlation between change in LEMS and change in SCIM mobility"
-overview_finding_dissociation_body:
-  ja: "LEMS変化とSCIM移動変化の相関は r={correlation:.2f}（n={n}）にとどまる。"
-  en: "Change in LEMS and change in SCIM mobility correlate only r={correlation:.2f} (n={n})."
-overview_finding_dissociation_caveat:
-  ja: "「不一致」は記述的な中央値分割であり、診断分類ではない。"
-  en: "Discordance is a descriptive median split, not a diagnosis."
-overview_pattern_title:
-  ja: "入院時総運動スコア四分位別の退院時SCIM分布"
-  en: "Discharge SCIM distribution by admission Total Motor quartile"
-overview_pattern_body:
-  ja: "転帰がある {n} 症例を入院時スコアの四分位で分けると、退院時SCIM中央値は {low:.0f} 点から {high:.0f} 点まで段階的に上昇した（η²={effect:.2f}）。点は中央値、太線は四分位範囲。"
-  en: "When {n} episodes with outcomes are split by admission-score quartile, median discharge SCIM rises stepwise from {low:.0f} to {high:.0f} (η²={effect:.2f}). Points show medians; thick ranges show IQR."
-overview_pattern_caveat:
-  ja: "欠測を除いた記述的な層別比較。交絡調整はしていない。"
-  en: "Descriptive complete-case strata; no confounding adjustment."
+overview_finding_ladder_unit:
+  ja: "が最も難しい項目まで自立"
+  en: "reach the hardest milestone"
+overview_finding_ladder_title:
+  ja: "退院時の自立率は課題によって {low:.0%} から {high:.0%} まで開く"
+  en: "Independence at discharge ranges from {low:.0%} to {high:.0%} across daily tasks"
+overview_finding_ladder_basis:
+  ja: "退院時SCIM-IIIがある {n} 症例の実測割合。補装具の使用は可、人的介助なしを自立と定義。予測ではない。"
+  en: "Observed rates across {n} episodes with a discharge SCIM-III. Independent = no human assistance, aids allowed. Observed, not predicted."
+overview_finding_improve_unit:
+  ja: "の入院時 AIS {grade} が6か月までに1段階以上改善"
+  en: "of admissions at AIS {grade} improve ≥1 grade by 6 months"
+overview_finding_improve_title:
+  ja: "改善率は入院時の重症度の順には並ばない"
+  en: "Improvement rate is not ordered by admission severity"
+overview_finding_improve_basis:
+  ja: "評価窓内に2回以上の評価がある {n} 症例の実測割合。AIS-D の「改善」は E (正常) への到達を意味するため低く出る。"
+  en: "Observed rates across {n} episodes with ≥2 in-window assessments. AIS-D reads low because improving out of D means reaching E (normal)."
+overview_finding_measure_unit:
+  ja: "3か月時点の「{measure}」1項目のみで得られる R²"
+  en: "R² from one 3-month {measure} score"
+overview_finding_measure_title:
+  ja: "1つの機能評価が、どの神経学的評価よりも退院時の機能をよく説明する"
+  en: "One functional score explains discharge function better than any neurological measure"
+overview_finding_measure_basis:
+  ja: "3か月時点の在院リスク集合 n={n}（検証用 n={n_test}）。入院時情報のみの R² は {baseline:.2f}。各項目は単独で追加した内部ホールドアウトの点推定値。"
+  en: "Still-admitted risk set at 3 months, n={n} (test n={n_test}); admission-only R² is {baseline:.2f}. Each measure added on its own; internal held-out point estimates."
+overview_finding_certainty_unit:
+  ja: "SCIM点、3か月時点の80%予測区間"
+  en: "SCIM points, 80% interval at 3 months"
+overview_finding_certainty_title:
+  ja: "3か月まで経過を追うと予後の不確実性は {shrink:.0%} 縮まる"
+  en: "Following recovery to three months narrows prognostic uncertainty by {shrink:.0%}"
+overview_finding_certainty_basis:
+  ja: "各時点の在院リスク集合 n={n}。同時点の R² は入院時のみ {baseline:.2f} に対し {observed:.2f}。内部ホールドアウトの点推定値で、外部検証はしていない。"
+  en: "Still-admitted risk set at each landmark, n={n}. R² at that landmark is {baseline:.2f} admission-only vs {observed:.2f} with observation. Internal held-out estimates, not externally validated."
+overview_gradient_summary:
+  ja: "入院時重症度による退院時機能の勾配を見る"
+  en: "View the admission-severity gradient behind these findings"
+overview_gradient_basis:
+  ja: "転帰がある {n} 症例を入院時総運動スコアの四分位で層別（η²={effect:.2f}）。点は中央値、太線は四分位範囲。未調整の関連であり因果効果ではない。"
+  en: "{n} episodes with outcomes, stratified by admission Total Motor quartile (η²={effect:.2f}). Points show medians, thick ranges the IQR. Unadjusted association, not a causal effect."
 overview_explorer_title:
   ja: "絞り込みコホートの要約"
   en: "Filtered cohort summaries"

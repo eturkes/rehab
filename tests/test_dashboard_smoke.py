@@ -110,23 +110,47 @@ def test_overview_findings_are_source_bound(state):
         group["median"] for group in motor_source["groups"]
     ]
 
+    ind_source = state.INDEPENDENCE["heads"]
+    ladder = facts["ladder"]
+    assert {row["key"] for row in ladder["items"]} == set(ind_source)
+    assert [row["rate"] for row in ladder["items"]] == sorted(
+        row["rate"] for row in ladder["items"]
+    )  # hardest milestone first
+    for row in ladder["items"]:
+        assert row["rate"] == pytest.approx(ind_source[row["key"]]["base_rate"])
+    assert ladder["hardest"]["rate"] <= ladder["easiest"]["rate"]
+
+    ms_source = state.MULTISTATE["improve_head"]["rate_by_admission_grade"]
+    improve = facts["improve"]
+    assert {row["grade"] for row in improve["grades"]} == set(ms_source)
+    for row in improve["grades"]:
+        assert row["rate"] == pytest.approx(ms_source[row["grade"]]["rate"])
+        assert row["n"] == ms_source[row["grade"]]["n"]
+    assert improve["best"]["rate"] == max(row["rate"] for row in improve["grades"])
+
     lm_source = state.LANDMARK["outcomes"]["scim_total"]["by_landmark"]["3m"]
-    observation = facts["observation"]
-    assert observation["n"] == lm_source["n_eligible"]
-    assert observation["n_test"] == lm_source["n_test"]
-    assert observation["r2_gain"] == pytest.approx(
-        lm_source["landmark"]["r2"] - lm_source["baseline"]["r2"]
-    )
-    assert observation["pi_shrink"] == pytest.approx(
+    value = facts["measure_value"]
+    assert value["n"] == lm_source["n_eligible"]
+    assert value["n_test"] == lm_source["n_test"]
+    assert value["baseline_r2"] == pytest.approx(lm_source["baseline"]["r2"])
+    for row in value["measures"]:
+        assert row["r2"] == pytest.approx(lm_source["single"][row["measure"]]["r2"])
+    assert value["best"]["r2"] == max(row["r2"] for row in value["measures"])
+
+    by_landmark = state.LANDMARK["outcomes"]["scim_total"]["by_landmark"]
+    certainty = facts["certainty"]
+    assert certainty["labels"] == list(by_landmark)
+    assert certainty["baseline"] == [
+        pytest.approx(cell["baseline"]["pi_halfwidth_raw"]) for cell in by_landmark.values()
+    ]
+    assert certainty["observed"] == [
+        pytest.approx(cell["landmark"]["pi_halfwidth_raw"]) for cell in by_landmark.values()
+    ]
+    assert certainty["pi_shrink"] == pytest.approx(
         1
         - lm_source["landmark"]["pi_halfwidth_raw"]
         / lm_source["baseline"]["pi_halfwidth_raw"]
     )
-
-    diss_source = state.DISSOCIATION["axes"]["lems_mobility"]["landscape"]
-    dissociation = facts["dissociation"]
-    assert dissociation["pearson_r"] == pytest.approx(diss_source["pearson_r"])
-    assert dissociation["dissociated_share"] == pytest.approx(diss_source["dissociated_share"])
 
 
 @pytest.mark.parametrize("lang", LANGS)
@@ -135,22 +159,15 @@ def test_overview_findings_precede_filtered_explorer(state, lang):
 
     page = O.render_overview(lang)
     ids = _component_ids(page)
-    assert {
-        "findings-lead",
-        "finding-motor-stratification",
-        "finding-landmark-value",
-        "finding-neuro-functional-dissociation",
-        "finding-motor-evidence",
-        "cohort-explorer",
-        "overview-content",
-    } <= ids
+    findings = {
+        "finding-discharge-milestones",
+        "finding-improvement-by-grade",
+        "finding-measure-value",
+        "finding-certainty-curve",
+    }
+    assert findings | {"findings-lead", "cohort-explorer", "overview-content"} <= ids
     explorer = next(node for node in _walk(page) if getattr(node, "id", None) == "cohort-explorer")
-    assert not {
-        "findings-lead",
-        "finding-motor-stratification",
-        "finding-landmark-value",
-        "finding-neuro-functional-dissociation",
-    } & _component_ids(explorer)
+    assert not (findings | {"findings-lead"}) & _component_ids(explorer)
 
 
 @pytest.mark.parametrize("lang", LANGS)

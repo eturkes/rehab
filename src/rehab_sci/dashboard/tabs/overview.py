@@ -12,14 +12,15 @@ from dash import Input, Output, State, callback, dcc, html
 
 from rehab_sci.dashboard import figures as fg
 from rehab_sci.dashboard.figures import ARCHETYPE_NAMES_EN, ARCHETYPE_NAMES_JA
-from rehab_sci.dashboard.i18n import level_label, t
+from rehab_sci.dashboard.i18n import col_label, level_label, t
 from rehab_sci.dashboard.layout import chart_card, kpi_card
 from rehab_sci.dashboard.state import (
     ARCHETYPE_DATA,
-    DISSOCIATION,
     EP,
+    INDEPENDENCE,
     LANDMARK,
     LONG,
+    MULTISTATE,
     PHENOTYPE_DATA,
     SCHEMA,
     SUBGROUPS,
@@ -28,6 +29,25 @@ from rehab_sci.data.phenotypes import phenotype_summary
 
 _AGE_MIN = 10
 _AGE_MAX = 95
+
+# Landmark used for every value-of-observation claim in the lead.
+_VOI_LANDMARK = "3m"
+
+# G2 single-add measures, split by what a clinician would have to do to obtain them.
+# The lead's claim is that the best functional measure outranks every neurological one,
+# so the split has to be explicit rather than inferred from the measure name.
+_VOI_MODALITY = {
+    "SCIM_total": "function",
+    "SCIM_self_care": "function",
+    "SCIM_respiration_sphincter": "function",
+    "SCIM_mobility": "function",
+    "AIS_ord": "neuro",
+    "UEMS": "neuro",
+    "LEMS": "neuro",
+    "TotalMotor": "neuro",
+    "LightTouchTotal": "neuro",
+    "PinPrickTotal": "neuro",
+}
 
 
 def _copy(key: str, lang: str, **values) -> str:
@@ -62,53 +82,155 @@ def _finding_metrics() -> dict:
             "p_holm": float(motor["p_holm"]),
         }
 
-    lm = (((LANDMARK or {}).get("outcomes") or {}).get("scim_total") or {}).get(
-        "by_landmark", {}
-    ).get("3m")
-    if lm:
-        base, observed = lm["baseline"], lm["landmark"]
-        base_pi = float(base["pi_halfwidth_raw"])
-        obs_pi = float(observed["pi_halfwidth_raw"])
-        facts["observation"] = {
-            "n": int(lm["n_eligible"]),
-            "n_test": int(lm["n_test"]),
-            "r2_baseline": float(base["r2"]),
-            "r2_observed": float(observed["r2"]),
-            "r2_gain": float(observed["r2"] - base["r2"]),
-            "pi_shrink": float((base_pi - obs_pi) / base_pi),
-        }
+    facts["ladder"] = _milestone_ladder_facts()
+    facts["improve"] = _improve_by_grade_facts()
 
-    diss = (((DISSOCIATION or {}).get("axes") or {}).get("lems_mobility") or {}).get(
-        "landscape"
-    )
-    if diss:
-        facts["dissociation"] = {
-            "n": int(diss["n"]),
-            "pearson_r": float(diss["pearson_r"]),
-            "dissociated_share": float(diss["dissociated_share"]),
-        }
+    lm_outcome = ((LANDMARK or {}).get("outcomes") or {}).get("scim_total") or {}
+    facts["measure_value"] = _measure_value_facts(lm_outcome)
+    facts["certainty"] = _certainty_facts(lm_outcome)
     return facts
 
 
-def _finding_card(
+def _milestone_ladder_facts() -> dict | None:
+    """Observed discharge-independence rate per SCIM-ADL milestone, hardest first (G7)."""
+    heads = (INDEPENDENCE or {}).get("heads") or {}
+    items = (INDEPENDENCE or {}).get("items") or []
+    rows = [
+        {
+            "key": item["key"],
+            "domain": item["domain"],
+            "col": heads[item["key"]]["col"],
+            "rate": float(heads[item["key"]]["base_rate"]),
+            "n": int(heads[item["key"]]["n"]),
+        }
+        for item in items
+        if item["key"] in heads
+    ]
+    if not rows:
+        return None
+    rows.sort(key=lambda row: row["rate"])
+    return {
+        "items": rows,
+        "hardest": rows[0],
+        "easiest": rows[-1],
+        "n": max(row["n"] for row in rows),
+        "definition": (INDEPENDENCE or {}).get("definition"),
+    }
+
+
+def _improve_by_grade_facts() -> dict | None:
+    """P(≥1 AIS-grade improvement by 6 months) per admission grade (G6 improve head)."""
+    head = (MULTISTATE or {}).get("improve_head") or {}
+    by_grade = head.get("rate_by_admission_grade") or {}
+    rows = [
+        {"grade": grade, "rate": float(cell["rate"]), "n": int(cell["n"])}
+        for grade, cell in by_grade.items()
+        if cell and cell.get("n")
+    ]
+    if not rows:
+        return None
+    rows.sort(key=lambda row: row["grade"])
+    best = max(rows, key=lambda row: row["rate"])
+    worst = min(rows, key=lambda row: row["rate"])
+    return {
+        "grades": rows,
+        "best": best,
+        "worst": worst,
+        "n": int(head.get("n") or sum(row["n"] for row in rows)),
+        "auc": float(head["auc"]) if head.get("auc") is not None else None,
+    }
+
+
+def _measure_value_facts(lm_outcome: dict) -> dict | None:
+    """Discharge-SCIM R² from adding exactly one 3-month measure, ranked (G2)."""
+    cell = (lm_outcome.get("by_landmark") or {}).get(_VOI_LANDMARK) or {}
+    singles = cell.get("single") or {}
+    rows = [
+        {
+            "measure": measure,
+            "modality": _VOI_MODALITY.get(measure, "neuro"),
+            "r2": float(block["r2"]),
+        }
+        for measure, block in singles.items()
+        if block and block.get("r2") is not None
+    ]
+    if not rows or not cell.get("baseline"):
+        return None
+    rows.sort(key=lambda row: row["r2"])
+    best = rows[-1]
+    best_other = next(
+        (row for row in reversed(rows) if row["modality"] != best["modality"]), None
+    )
+    return {
+        "measures": rows,
+        "baseline_r2": float(cell["baseline"]["r2"]),
+        "best": best,
+        "best_other": best_other,
+        "n": int(cell["n_eligible"]),
+        "n_test": int(cell["n_test"]),
+        "landmark": _VOI_LANDMARK,
+    }
+
+
+def _certainty_facts(lm_outcome: dict) -> dict | None:
+    """80% PI half-width per landmark, admission-only vs with observation (G1)."""
+    by_landmark = lm_outcome.get("by_landmark") or {}
+    labels, base, observed, counts = [], [], [], []
+    for label, cell in by_landmark.items():  # chronological (trainer insertion order)
+        if not (cell.get("baseline") and cell.get("landmark")):
+            continue
+        labels.append(label)
+        base.append(float(cell["baseline"]["pi_halfwidth_raw"]))
+        observed.append(float(cell["landmark"]["pi_halfwidth_raw"]))
+        counts.append(int(cell["n_test"]))
+    if not labels:
+        return None
+    final = by_landmark[labels[-1]]
+    return {
+        "labels": labels,
+        "baseline": base,
+        "observed": observed,
+        "n_test": counts,
+        "first_observed": observed[0],
+        "last_observed": observed[-1],
+        "last_baseline": base[-1],
+        "pi_shrink": (base[-1] - observed[-1]) / base[-1] if base[-1] else 0.0,
+        "r2_baseline": float(final["baseline"]["r2"]),
+        "r2_observed": float(final["landmark"]["r2"]),
+        "n": int(final["n_eligible"]),
+        "landmark": labels[-1],
+    }
+
+
+def _finding_block(
     block_id: str,
     metric: str,
     unit: str,
-    title: str,
-    body: str,
-    caveat: str,
-) -> html.Article:
-    return html.Article(
+    claim: str,
+    basis: str,
+    figure,
+) -> html.Section:
+    """One finding: headline number, the claim it supports, its basis line, its evidence.
+
+    The claim lives here and the detail lives in the figure's own labels, so a finding
+    never needs an explanatory paragraph.  ``basis`` carries the denominator and the
+    single limit that qualifies the claim.
+    """
+    return html.Section(
         id=block_id,
-        className="finding-card",
+        className="finding-evidence",
         children=[
-            html.Div(className="finding-card__topline", children=[
-                html.Span(metric, className="finding-card__metric"),
-                html.Span(unit, className="finding-card__unit"),
+            html.Div(className="finding-evidence__copy", children=[
+                html.Div(className="finding-card__topline", children=[
+                    html.Span(metric, className="finding-card__metric"),
+                    html.Span(unit, className="finding-card__unit"),
+                ]),
+                html.H3(claim),
+                html.P(basis, className="finding-evidence__caveat"),
             ]),
-            html.H3(title),
-            html.P(body, className="finding-card__body"),
-            html.P(caveat, className="finding-card__caveat"),
+            html.Div(className="finding-evidence__chart", children=[
+                dcc.Graph(figure=figure, config={"displayModeBar": False, "responsive": True}),
+            ]),
         ],
     )
 
@@ -138,87 +260,105 @@ def _render_findings_lead(lang: str) -> list:
         ],
     )
 
-    cards: list = []
+    lead: list = [lead_head]
+
+    ladder = facts.get("ladder")
+    if ladder:
+        rows = [
+            {**row, "label": col_label(SCHEMA, row["col"], lang)}
+            for row in ladder["items"]
+        ]
+        lead.append(_finding_block(
+            "finding-discharge-milestones",
+            f"{ladder['hardest']['rate']:.0%}",
+            t(SCHEMA, "overview_finding_ladder_unit", lang),
+            _copy(
+                "overview_finding_ladder_title",
+                lang,
+                low=ladder["hardest"]["rate"],
+                high=ladder["easiest"]["rate"],
+            ),
+            _copy("overview_finding_ladder_basis", lang, n=ladder["n"]),
+            fg.fig_milestone_ladder({"items": rows}, SCHEMA, lang),
+        ))
+
+    improve = facts.get("improve")
+    if improve:
+        lead.append(_finding_block(
+            "finding-improvement-by-grade",
+            f"{improve['best']['rate']:.0%}",
+            _copy("overview_finding_improve_unit", lang, grade=improve["best"]["grade"]),
+            t(SCHEMA, "overview_finding_improve_title", lang),
+            _copy("overview_finding_improve_basis", lang, n=improve["n"]),
+            fg.fig_improve_by_grade(improve, lang),
+        ))
+
+    value = facts.get("measure_value")
+    if value:
+        rows = [
+            {**row, "label": t(SCHEMA, f"lm_measure_{row['measure'].lower()}", lang)}
+            for row in value["measures"]
+        ]
+        lead.append(_finding_block(
+            "finding-measure-value",
+            f"{value['best']['r2']:.2f}",
+            _copy(
+                "overview_finding_measure_unit",
+                lang,
+                measure=t(SCHEMA, f"lm_measure_{value['best']['measure'].lower()}", lang),
+            ),
+            t(SCHEMA, "overview_finding_measure_title", lang),
+            _copy(
+                "overview_finding_measure_basis",
+                lang,
+                n=value["n"],
+                n_test=value["n_test"],
+                baseline=value["baseline_r2"],
+            ),
+            fg.fig_measure_value({**value, "measures": rows}, lang),
+        ))
+
+    certainty = facts.get("certainty")
+    if certainty:
+        lead.append(_finding_block(
+            "finding-certainty-curve",
+            f"±{certainty['last_baseline']:.0f}→±{certainty['last_observed']:.0f}",
+            t(SCHEMA, "overview_finding_certainty_unit", lang),
+            _copy(
+                "overview_finding_certainty_title",
+                lang,
+                shrink=certainty["pi_shrink"],
+            ),
+            _copy(
+                "overview_finding_certainty_basis",
+                lang,
+                n=certainty["n"],
+                baseline=certainty["r2_baseline"],
+                observed=certainty["r2_observed"],
+            ),
+            fg.fig_certainty_curve(certainty, lang),
+        ))
+
+    # Admission severity sets the level every finding above is measured against; it stays
+    # available as the reference gradient rather than competing as a headline.
     motor = facts.get("motor_strata")
     if motor:
-        first, last = motor["groups"][0], motor["groups"][-1]
-        cards.append(_finding_card(
-            "finding-motor-stratification",
-            f"{first['median']:.0f}→{last['median']:.0f}",
-            t(SCHEMA, "overview_finding_motor_unit", lang),
-            t(SCHEMA, "overview_finding_motor_title", lang),
-            _copy(
-                "overview_finding_motor_body",
-                lang,
-                n=motor["n"],
-                effect=motor["eta_squared"],
+        lead.append(html.Details(className="overview-details", children=[
+            html.Summary(t(SCHEMA, "overview_gradient_summary", lang)),
+            html.P(
+                _copy(
+                    "overview_gradient_basis",
+                    lang,
+                    n=motor["n"],
+                    effect=motor["eta_squared"],
+                ),
+                className="overview-details__intro",
             ),
-            t(SCHEMA, "overview_finding_motor_caveat", lang),
-        ))
-    obs = facts.get("observation")
-    if obs:
-        cards.append(_finding_card(
-            "finding-landmark-value",
-            f"+{obs['r2_gain']:.2f}",
-            "R²",
-            t(SCHEMA, "overview_finding_observation_title", lang),
-            _copy(
-                "overview_finding_observation_body",
-                lang,
-                n=obs["n"],
-                n_test=obs["n_test"],
-                baseline=obs["r2_baseline"],
-                observed=obs["r2_observed"],
-                shrink=obs["pi_shrink"],
+            dcc.Graph(
+                figure=fg.fig_motor_strata_finding(motor, lang),
+                config={"displayModeBar": False, "responsive": True},
             ),
-            t(SCHEMA, "overview_finding_observation_caveat", lang),
-        ))
-    diss = facts.get("dissociation")
-    if diss:
-        cards.append(_finding_card(
-            "finding-neuro-functional-dissociation",
-            f"{diss['dissociated_share']:.0%}",
-            t(SCHEMA, "overview_finding_dissociation_unit", lang),
-            t(SCHEMA, "overview_finding_dissociation_title", lang),
-            _copy(
-                "overview_finding_dissociation_body",
-                lang,
-                n=diss["n"],
-                correlation=diss["pearson_r"],
-            ),
-            t(SCHEMA, "overview_finding_dissociation_caveat", lang),
-        ))
-
-    lead: list = [lead_head]
-    if cards:
-        lead.append(html.Section(className="finding-grid", children=cards))
-
-    if motor:
-        figure = fg.fig_motor_strata_finding(motor, lang)
-        lead.append(html.Section(
-            id="finding-motor-evidence",
-            className="finding-evidence",
-            children=[
-                html.Div(className="finding-evidence__copy", children=[
-                    html.H3(t(SCHEMA, "overview_pattern_title", lang)),
-                    html.P(_copy(
-                        "overview_pattern_body",
-                        lang,
-                        n=motor["n"],
-                        effect=motor["eta_squared"],
-                        low=motor["groups"][0]["median"],
-                        high=motor["groups"][-1]["median"],
-                    )),
-                    html.P(
-                        t(SCHEMA, "overview_pattern_caveat", lang),
-                        className="finding-evidence__caveat",
-                    ),
-                ]),
-                html.Div(className="finding-evidence__chart", children=[
-                    dcc.Graph(figure=figure, config={"displayModeBar": False, "responsive": True})
-                ]),
-            ],
-        ))
+        ]))
     return lead
 
 
