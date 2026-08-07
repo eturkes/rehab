@@ -198,7 +198,6 @@ def _temporal_block(lang: str) -> html.Div | None:
     test_years = tm.get("config", {}).get("test_years", [])
     cov_word = "カバレッジ" if lang == "ja" else "coverage"
     children: list = [
-        html.H2(t(SCHEMA, "methods_temporal_heading", lang)),
         html.P(t(SCHEMA, "methods_temporal_def", lang)),
     ]
     for spec in OUTCOMES:
@@ -249,7 +248,6 @@ def _landmark_block(lang: str) -> html.Div | None:
     value_word = "観測価値" if lang == "ja" else "value"
     hw_word = "PI半値幅" if lang == "ja" else "PI hw"
     children: list = [
-        html.H2(t(SCHEMA, "methods_landmark_heading", lang)),
         html.P(t(SCHEMA, "methods_landmark_def", lang)),
     ]
     for spec in OUTCOMES:
@@ -350,7 +348,6 @@ def _conversion_block(lang: str) -> html.Div | None:
         return None
     ls = conv.get("landscape", {})
     children: list = [
-        html.H2(t(SCHEMA, "methods_conversion_heading", lang)),
         html.P(t(SCHEMA, "methods_conversion_def", lang)),
     ]
 
@@ -421,7 +418,6 @@ def _multistate_block(lang: str) -> html.Div | None:
     if not ms or not ms.get("occupancy_by_adm"):
         return None
     children: list = [
-        html.H2(t(SCHEMA, "methods_multistate_heading", lang)),
         html.P(t(SCHEMA, "methods_multistate_def", lang)),
     ]
 
@@ -493,7 +489,6 @@ def _independence_block(lang: str) -> html.Div | None:
     n_items = summary.get("n_items_modeled", len(ind["heads"]))
     mean_auc = summary.get("mean_auc")
     children: list = [
-        html.H2(t(SCHEMA, "methods_independence_heading", lang)),
         html.P(t(SCHEMA, "methods_independence_def", lang)),
     ]
     if mean_auc is not None:
@@ -586,7 +581,6 @@ def _topography_block(lang: str) -> html.Div | None:
         return None
     summ = topo.get("modality_summary", {})
     children: list = [
-        html.H2(t(SCHEMA, "methods_topography_heading", lang)),
         html.P(t(SCHEMA, "methods_topography_def", lang)),
     ]
     aucs = [summ.get(m, {}).get("mean_auc") for m in ("motor", "light_touch", "pin_prick")]
@@ -704,7 +698,6 @@ def _level_descent_block(lang: str) -> html.Div | None:
     if not ld or not ld.get("levels"):
         return None
     children: list = [
-        html.H2(t(SCHEMA, "methods_ld_heading", lang)),
         html.P(t(SCHEMA, "methods_ld_def", lang)),
     ]
     for heading_key, caption_key, fig in [
@@ -810,7 +803,6 @@ def _dataquality_block(lang: str) -> html.Div | None:
         for r in dq["rules"]
     ]
     children: list = [
-        html.H2(t(SCHEMA, "methods_dataquality_heading", lang)),
         html.P(t(SCHEMA, "methods_dataquality_def", lang)),
         kpi,
     ]
@@ -829,7 +821,6 @@ def _dissociation_block(lang: str) -> html.Div | None:
     if not diss or not diss.get("axes"):
         return None
     children: list = [
-        html.H2(t(SCHEMA, "methods_diss_heading", lang)),
         html.P(t(SCHEMA, "methods_diss_def", lang)),
         html.Div(className="methods-perf-card", children=[
             html.H3(t(SCHEMA, "methods_diss_landscape_heading", lang)),
@@ -889,10 +880,66 @@ def update_methods_dissociation_axis(axis_key, lang):
     return rel, shap
 
 
+def _scorecard_row(spec: OutcomeSpec, lang: str) -> html.Tr:
+    """One production head: how many episodes trained it, how well it scores on the held-out
+    split, whether its 80% interval keeps its promise, and how far it drifts out of time."""
+    info = METRICS["outcomes"][spec.key]
+    te = info["test"]
+    drift = (TEMPORAL.get("outcomes", {}).get(spec.key, {}) or {}).get("summary", {})
+    if info["task"] == "regression":
+        metric = f"R² {te['r2']:.2f}"
+        coverage = te["conformal_coverage_80"]
+        delta = drift.get("r2_delta_vs_baseline")
+    else:
+        metric = f"acc {te['accuracy']:.2f}"
+        coverage = te["aps_coverage_80"]
+        delta = drift.get("accuracy_delta_vs_baseline")
+    # A head whose 80% interval covers far from 80%, or that sheds accuracy on later years, is
+    # the one to distrust — flag both rather than leaving the reader to compute the gap.
+    off = abs(coverage - 0.80) > 0.05
+    drifting = delta is not None and delta < -0.05
+    return html.Tr([
+        html.Td(t(SCHEMA, spec.display_key, lang), className="methods-sc-outcome"),
+        html.Td(f"{info['n_episodes_with_outcome']}"),
+        html.Td(metric),
+        html.Td(f"{coverage:.0%}", className="methods-sc-flag" if off else None),
+        html.Td("—" if delta is None else f"{delta:+.2f}",
+                className="methods-sc-flag" if drifting else None),
+    ])
+
+
+def _scorecard(lang: str) -> html.Div:
+    """Production-model scorecard: every head the dashboard predicts with, on one screen."""
+    header = html.Thead(html.Tr([
+        html.Th(t(SCHEMA, "methods_sc_outcome", lang)),
+        html.Th(t(SCHEMA, "methods_sc_n", lang)),
+        html.Th(t(SCHEMA, "methods_sc_metric", lang)),
+        html.Th(t(SCHEMA, "methods_sc_coverage", lang)),
+        html.Th(t(SCHEMA, "methods_sc_oot", lang)),
+    ]))
+    body = html.Tbody([_scorecard_row(spec, lang) for spec in OUTCOMES])
+    return html.Div(className="methods-scorecard", children=[
+        html.H2(t(SCHEMA, "methods_scorecard_heading", lang)),
+        html.P(t(SCHEMA, "methods_scorecard_deck", lang), className="methods-scorecard__deck"),
+        html.Table([header, body], className="methods-scorecard__table"),
+        html.P(t(SCHEMA, "methods_scorecard_note", lang), className="methods-scorecard__note"),
+    ])
+
+
+def _section(heading_key: str, block, lang: str) -> html.Details | None:
+    """Collapse one model family behind its own heading.  The scorecard states how every
+    production head performs; these sections are the audit trail behind those numbers, opened
+    per family rather than scrolled through."""
+    if block is None:
+        return None
+    return html.Details(
+        className="methods-details",
+        children=[html.Summary(t(SCHEMA, heading_key, lang)), block],
+    )
+
+
 def render_methods(lang: str) -> html.Div:
-    perf_children: list = [
-        html.H2(t(SCHEMA, "methods_per_outcome_heading", lang)),
-    ]
+    perf_children: list = []
     for spec in OUTCOMES:
         info = METRICS["outcomes"][spec.key]
         if info["task"] == "regression":
@@ -914,38 +961,26 @@ def render_methods(lang: str) -> html.Div:
         ("methods_explainability", "methods_explainability_def"),
         ("methods_subgroup", "methods_subgroup_def"),
     ]
-    md = []
+    md = [_scorecard(lang)]
     for title_key, body_key in blocks:
         md.append(html.Div(
             className="methods-block",
             children=[html.H2(t(SCHEMA, title_key, lang)), html.P(t(SCHEMA, body_key, lang))],
         ))
-    md.append(perf_block)
-    temporal_block = _temporal_block(lang)
-    if temporal_block is not None:
-        md.append(temporal_block)
-    landmark_block = _landmark_block(lang)
-    if landmark_block is not None:
-        md.append(landmark_block)
-    conversion_block = _conversion_block(lang)
-    if conversion_block is not None:
-        md.append(conversion_block)
-    multistate_block = _multistate_block(lang)
-    if multistate_block is not None:
-        md.append(multistate_block)
-    independence_block = _independence_block(lang)
-    if independence_block is not None:
-        md.append(independence_block)
-    topography_block = _topography_block(lang)
-    if topography_block is not None:
-        md.append(topography_block)
-    level_descent_block = _level_descent_block(lang)
-    if level_descent_block is not None:
-        md.append(level_descent_block)
-    dissociation_block = _dissociation_block(lang)
-    if dissociation_block is not None:
-        md.append(dissociation_block)
-    dq_block = _dataquality_block(lang)
-    if dq_block is not None:
-        md.append(dq_block)
+    sections = [
+        ("methods_per_outcome_heading", perf_block),
+        ("methods_temporal_heading", _temporal_block(lang)),
+        ("methods_landmark_heading", _landmark_block(lang)),
+        ("methods_conversion_heading", _conversion_block(lang)),
+        ("methods_multistate_heading", _multistate_block(lang)),
+        ("methods_independence_heading", _independence_block(lang)),
+        ("methods_topography_heading", _topography_block(lang)),
+        ("methods_ld_heading", _level_descent_block(lang)),
+        ("methods_diss_heading", _dissociation_block(lang)),
+        ("methods_dataquality_heading", _dataquality_block(lang)),
+    ]
+    for heading_key, block in sections:
+        section = _section(heading_key, block, lang)
+        if section is not None:
+            md.append(section)
     return html.Div(md, style={"maxWidth": "820px"})

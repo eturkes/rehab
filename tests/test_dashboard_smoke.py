@@ -12,7 +12,7 @@ from __future__ import annotations
 
 import numpy as np
 import pytest
-from dash import dcc
+from dash import dcc, html
 
 LANGS = ("ja", "en")
 TABS = ("overview", "insights", "methods", "patient", "simulator")
@@ -38,6 +38,28 @@ def _component_ids(component) -> set[str]:
         for node in _walk(component)
         if isinstance((value := getattr(node, "id", None)), str)
     }
+
+
+def _split_graphs(component, hidden: bool = False) -> tuple[list, list]:
+    """Partition dcc.Graph nodes into (rendered on load, sitting inside an html.Details)."""
+    shown: list = []
+    behind: list = []
+    if component is None:
+        return shown, behind
+    if isinstance(component, (list, tuple)):
+        for child in component:
+            a, b = _split_graphs(child, hidden)
+            shown += a
+            behind += b
+        return shown, behind
+    if isinstance(component, str):
+        return shown, behind
+    if isinstance(component, dcc.Graph):
+        (behind if hidden else shown).append(component)
+    a, b = _split_graphs(
+        getattr(component, "children", None), hidden or isinstance(component, html.Details)
+    )
+    return shown + a, behind + b
 
 
 def test_findings_copy_is_bilingual():
@@ -185,6 +207,26 @@ def test_overview_callback_builds_real_figures(state, lang):
 
     empty = O.update_overview_content(["not-a-grade"], [], [10, 95], [], lang)
     assert empty.className == "overview-empty"
+
+
+@pytest.mark.parametrize("lang", LANGS)
+@pytest.mark.parametrize(("tab", "max_open"), [("patient", 3), ("simulator", 3), ("methods", 0)])
+def test_detail_waits_behind_a_named_disclosure(renderers, state, tab, max_open, lang):
+    """These tabs open on the answer, not the model shelf: at most a handful of figures render on
+    load and the rest wait inside a labelled ``Details``.  Flattening a tab back out trips this."""
+    page = renderers[tab](lang)
+    shown, behind = _split_graphs(page)
+    assert len(shown) <= max_open
+    assert behind, "the depth must stay reachable, not deleted"
+    summaries = [
+        node.children
+        for parent in _walk(page)
+        if isinstance(parent, html.Details)
+        for node in _walk(parent.children)
+        if isinstance(node, html.Summary)
+    ]
+    assert summaries
+    assert all(isinstance(text, str) and text.strip() for text in summaries)
 
 
 @pytest.mark.parametrize("lang", LANGS)

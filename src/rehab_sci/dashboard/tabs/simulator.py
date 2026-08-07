@@ -56,6 +56,7 @@ from rehab_sci.dashboard.layout import (
     level_descent_readout,
     multistate_readout,
     number_input_for,
+    question_group,
     topography_readout,
 )
 from rehab_sci.dashboard.reliability import assess_input
@@ -179,28 +180,23 @@ def render_simulator(lang: str, ref_data: dict | None = None) -> html.Div:
         ],
     )
 
+    # Same disclosure spine as the Patient tab: the entered profile's prediction stays open, the
+    # model-family panels sit behind the clinical question each one settles.
     children: list = [html.Div([input_panel, result_panel], className="sim-grid")]
-    lm_card = _landmark_card(lang)
-    if lm_card is not None:
-        children.append(lm_card)
-    conv_card = _conversion_card(lang)
-    if conv_card is not None:
-        children.append(conv_card)
-    ms_card = _multistate_card(lang)
-    if ms_card is not None:
-        children.append(ms_card)
-    ind_card = _independence_card(lang)
-    if ind_card is not None:
-        children.append(ind_card)
-    topo_card = _topography_card(lang, ref_data)
-    if topo_card is not None:
-        children.append(topo_card)
-    ld_card = _level_descent_card(lang)
-    if ld_card is not None:
-        children.append(ld_card)
-    diss_card = _dissociation_card(lang)
-    if diss_card is not None:
-        children.append(diss_card)
+    groups = [
+        ("q_when", [_landmark_card(lang)]),
+        ("q_milestones", [_independence_card(lang), _topography_card(lang, ref_data)]),
+        ("q_neuro", [
+            _conversion_card(lang), _multistate_card(lang),
+            _level_descent_card(lang), _dissociation_card(lang),
+        ]),
+    ]
+    for key, cards in groups:
+        group = question_group(
+            t(SCHEMA, f"{key}_summary", lang), t(SCHEMA, f"{key}_deck", lang), cards
+        )
+        if group is not None:
+            children.append(group)
     return html.Div(children)
 
 
@@ -214,7 +210,6 @@ def _conversion_card(lang: str) -> html.Div | None:
         className="lm-card conv-card",
         children=[
             html.H2(t(SCHEMA, "conv_card_heading", lang), className="lm-card-heading"),
-            html.Div(t(SCHEMA, "conv_card_intro", lang), className="lm-card-intro"),
             html.Div(id="sim-conv-readout"),
             html.Div(t(SCHEMA, "conv_endpoints_heading", lang), className="sim-section-title"),
             dcc.Graph(id="sim-conv-endpoints-graph", config={"displayModeBar": False}),
@@ -238,9 +233,9 @@ def _level_descent_card(lang: str) -> html.Div | None:
         className="lm-card conv-card",
         children=[
             html.H2(t(SCHEMA, "ld_card_heading", lang), className="lm-card-heading"),
-            html.Div(t(SCHEMA, "ld_card_intro", lang), className="lm-card-intro"),
             html.Div(id="sim-ld-readout"),
             html.Div(t(SCHEMA, "ld_descent_heading", lang), className="sim-section-title"),
+            html.Div(t(SCHEMA, "ld_read_key", lang), className="lm-card-intro"),
             dcc.Graph(id="sim-ld-descent-graph", config={"displayModeBar": False}),
             html.Div(t(SCHEMA, "ld_magnitude_heading", lang), className="sim-section-title"),
             dcc.Graph(id="sim-ld-mag-graph", config={"displayModeBar": False}),
@@ -262,7 +257,6 @@ def _multistate_card(lang: str) -> html.Div | None:
         className="lm-card ms-card",
         children=[
             html.H2(t(SCHEMA, "ms_card_heading", lang), className="lm-card-heading"),
-            html.Div(t(SCHEMA, "ms_card_intro", lang), className="lm-card-intro"),
             html.Div(id="sim-ms-readout"),
             html.Div(t(SCHEMA, "ms_trajectory_heading", lang), className="sim-section-title"),
             dcc.Graph(id="sim-ms-traj-graph", config={"displayModeBar": False}),
@@ -285,7 +279,6 @@ def _independence_card(lang: str) -> html.Div | None:
         className="lm-card ind-card",
         children=[
             html.H2(t(SCHEMA, "ind_card_heading", lang), className="lm-card-heading"),
-            html.Div(t(SCHEMA, "ind_card_intro", lang), className="lm-card-intro"),
             html.Div(id="sim-ind-readout"),
             html.Div(t(SCHEMA, "ind_profile_heading", lang), className="sim-section-title"),
             dcc.Graph(id="sim-ind-graph", config={"displayModeBar": False}),
@@ -304,9 +297,9 @@ def _dissociation_card(lang: str) -> html.Div | None:
         className="lm-card diss-card",
         children=[
             html.H2(t(SCHEMA, "diss_card_heading", lang), className="lm-card-heading"),
-            html.Div(t(SCHEMA, "diss_card_intro", lang), className="lm-card-intro"),
             html.Div(id="sim-diss-readout"),
             html.Div(t(SCHEMA, "diss_landscape_heading", lang), className="sim-section-title"),
+            html.Div(t(SCHEMA, "diss_read_key", lang), className="lm-card-intro"),
             dcc.Graph(id="sim-diss-graph", config={"displayModeBar": False}),
             html.Div(t(SCHEMA, "diss_caption", lang), className="sim-caveat"),
         ],
@@ -370,7 +363,6 @@ def _topography_card(lang: str, ref_data: dict | None = None) -> html.Div | None
         className="lm-card topo-card",
         children=[
             html.H2(t(SCHEMA, "topo_card_heading", lang), className="lm-card-heading"),
-            html.Div(t(SCHEMA, "topo_card_intro", lang), className="lm-card-intro"),
             html.Div(t(SCHEMA, "topo_sim_worksheet_heading", lang), className="sim-section-title"),
             html.Div(t(SCHEMA, "topo_sim_worksheet_note", lang), className="sim-caveat"),
             html.Div(className="sim-input-actions", children=[
@@ -382,6 +374,7 @@ def _topography_card(lang: str, ref_data: dict | None = None) -> html.Div | None
             _topo_worksheet(lang, seed),
             html.Div(id="sim-topo-readout"),
             html.Div(t(SCHEMA, "topo_atlas_heading", lang), className="sim-section-title"),
+            html.Div(t(SCHEMA, "topo_read_key", lang), className="lm-card-intro"),
             dcc.RadioItems(id="sim-topo-modality", options=mod_opts, value="light_touch",
                            inline=True, style={"marginBottom": "4px", "fontSize": "13px"}),
             dcc.Graph(id="sim-topo-graph", config={"displayModeBar": False}),
@@ -415,7 +408,6 @@ def _landmark_card(lang: str) -> html.Div | None:
         className="lm-card",
         children=[
             html.H2(t(SCHEMA, "lm_card_heading", lang), className="lm-card-heading"),
-            html.Div(t(SCHEMA, "lm_card_intro", lang), className="lm-card-intro"),
             html.Div(
                 className="lm-landmark-select",
                 children=[

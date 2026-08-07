@@ -95,10 +95,23 @@ This is project documentation, not an instruction source; operational instructio
 
 * **Findings-first landing contract** — `tabs/overview.py::_finding_metrics()` binds every
   headline number to unfiltered artifact-derived analyses (`SUBGROUPS`, `LANDMARK`,
-  `DISSOCIATION`).  `findings-lead` + the three semantic `finding-*` blocks sit outside
-  `cohort-explorer`; overview filters update `overview-content` only.  Keep each analysis's denominator and
-  evidence caveats with each claim.  Demographic/injury charts + model-derived recovery types
-  remain supporting detail, never equal-weight headline evidence.
+  `INDEPENDENCE`, `MULTISTATE`).  `findings-lead` + the four semantic `finding-*` blocks
+  (`finding-discharge-milestones`, `finding-improvement-by-grade`, `finding-measure-value`,
+  `finding-certainty-curve`) sit outside `cohort-explorer`; overview filters update
+  `overview-content` only.  Each block = headline number + claim + **one** basis line stating its
+  denominator and limit + its own figure.  Demographic/injury charts + model-derived recovery
+  types remain supporting detail, never equal-weight headline evidence.
+* **Disclosure spine** — the dashboard is organized by clinical question, not model family
+  (G1–G11).  Patient + Simulator open on the answer block (identity/inputs → prediction → drivers)
+  and file every family panel behind `layout.py::question_group(summary, deck, cards)`, keyed
+  `q_when` / `q_milestones` / `q_neuro` / `q_resemble`; Methods opens on
+  `tabs/methods.py::_scorecard()` (one row per production head: n, held-out score, 80% PI
+  coverage, out-of-time Δ, off-target cells flagged) and collapses every family section through
+  `_section(heading_key, block, lang)` — each `_*_block` therefore emits **no** `html.H2`, the
+  `Summary` carries its heading.  `tests/test_dashboard_smoke.py::test_detail_waits_behind_a_named_disclosure`
+  pins the open-figure budget (patient 3, simulator 3, methods 0) and non-empty summaries.
+  Cards carry a one-line reading key only where the figure needs one (`voi_read_key`,
+  `topo_read_key`, `ld_read_key`, `diss_read_key`); method provenance stays in `*_caption`.
 * **Module layout** (`src/rehab_sci/dashboard/`) — the non-obvious contracts are:
   - `state.py` — all startup globals, loaded once; depends only on theme + data/model layers (no other dashboard module imports it transitively).
   - `compute.py` — pure (model inference, conformal-q, APS, SHAP, row-prep), **no Dash/Plotly**. Landmark inference lives here: `predict_landmark` (paired baseline+landmark heads from `LANDMARK_BUNDLE`), `landmark_observed_for_episode` (real LOCF block on the still-admitted risk set), `episode_landmark_eligibility` (per-L still-admitted gate).

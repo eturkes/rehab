@@ -424,6 +424,49 @@ html, body {
   color: var(--ink-700);
 }
 .methods-block p { margin: 0; color: var(--ink-900); }
+.methods-scorecard { margin-bottom: 26px; }
+.methods-scorecard h2 { margin: 0 0 6px; font-size: 15px; font-weight: 650; color: var(--ink-700); }
+.methods-scorecard__deck { max-width: 82ch; margin: 0 0 12px; color: var(--ink-500); font-size: 12px; }
+.methods-scorecard__note { max-width: 82ch; margin: 10px 0 0; color: var(--ink-500); font-size: 11.5px; }
+.methods-scorecard__table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12.5px;
+  font-variant-numeric: tabular-nums;
+}
+.methods-scorecard__table th {
+  padding: 6px 10px 6px 0;
+  border-bottom: 1px solid var(--ink-300);
+  color: var(--ink-500);
+  font-weight: 600;
+  text-align: right;
+}
+.methods-scorecard__table td {
+  padding: 6px 10px 6px 0;
+  border-bottom: 1px solid var(--ink-100);
+  color: var(--ink-900);
+  text-align: right;
+}
+.methods-scorecard__table th:first-child,
+.methods-scorecard__table td.methods-sc-outcome { text-align: left; color: var(--ink-700); }
+.methods-scorecard__table td.methods-sc-flag { color: var(--warm-700); font-weight: 600; }
+.methods-details {
+  margin-bottom: 10px;
+  padding: 0 16px;
+  border: 1px solid var(--ink-100);
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.58);
+}
+.methods-details > summary {
+  padding: 12px 3px;
+  color: var(--ink-700);
+  font-size: 13px;
+  font-weight: 650;
+  cursor: pointer;
+}
+.methods-details[open] { padding-bottom: 14px; background: var(--card); }
+.methods-details[open] > summary { border-bottom: 1px solid var(--ink-100); }
+.methods-details .methods-block { margin: 14px 0 0; }
 
 /* --- footer --- */
 .footer-note {
@@ -690,23 +733,47 @@ input[type="number"]:focus, input[type="text"]:focus, select:focus {
 .overview-subhead h3 { margin: 0; color: var(--ink-900); font-size: 17px; }
 .overview-subhead p { margin: 5px 0 0; color: var(--ink-500); font-size: 12.5px; }
 .chart-row--spotlight { grid-template-columns: minmax(0, 1fr); }
-.overview-details {
+/* --- shared disclosure: secondary depth stays one click from the answer --- */
+.overview-details,
+.insights-details,
+.question-group {
   margin-top: 18px;
   padding: 0 18px;
   border: 1px solid var(--ink-100);
   border-radius: 10px;
   background: rgba(255, 255, 255, 0.58);
 }
-.overview-details > summary {
+.overview-details > summary,
+.insights-details > summary,
+.question-group > summary {
   padding: 15px 3px;
   color: var(--ink-700);
   font-size: 13px;
   font-weight: 650;
   cursor: pointer;
 }
-.overview-details[open] { padding-bottom: 18px; background: var(--card); }
-.overview-details[open] > summary { border-bottom: 1px solid var(--ink-100); }
-.overview-details__intro { max-width: 82ch; margin: 14px 3px 0; color: var(--ink-500); font-size: 11.5px; }
+.overview-details[open],
+.insights-details[open],
+.question-group[open] { padding-bottom: 18px; background: var(--card); }
+.overview-details[open] > summary,
+.insights-details[open] > summary,
+.question-group[open] > summary { border-bottom: 1px solid var(--ink-100); }
+.overview-details__intro,
+.insights-details__intro,
+.question-group__deck { max-width: 82ch; margin: 14px 3px 0; color: var(--ink-500); font-size: 11.5px; }
+/* the group is the frame: nested panels drop to a divider so depth reads as one surface */
+.question-group > .chart-card,
+.question-group > .lm-card {
+  margin-top: 18px;
+  padding: 18px 0 0;
+  border: 0;
+  border-top: 1px solid var(--ink-100);
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+}
+.question-group__deck + .chart-card,
+.question-group__deck + .lm-card { border-top: 0; padding-top: 6px; }
 
 /* --- outcome-driver hierarchy --- */
 .insights-page { display: flex; flex-direction: column; }
@@ -738,18 +805,6 @@ input[type="number"]:focus, input[type="text"]:focus, select:focus {
 .insight-summary h3 { margin: 0; color: var(--ink-900); font-size: 17px; }
 .insight-summary__body { margin: 7px 0 0; color: var(--ink-700); font-size: 13px; }
 .insight-summary__caveat { margin: 8px 0 0; color: var(--ink-500); font-size: 12px; }
-.insights-details {
-  margin-top: 18px;
-  padding: 0 18px;
-  border: 1px solid var(--ink-100);
-  border-radius: 10px;
-  background: rgba(255, 255, 255, 0.58);
-}
-.insights-details > summary { padding: 15px 3px; color: var(--ink-700); font-size: 13px; font-weight: 650; cursor: pointer; }
-.insights-details[open] { padding-bottom: 18px; background: var(--card); }
-.insights-details[open] > summary { border-bottom: 1px solid var(--ink-100); }
-.insights-details__intro { max-width: 82ch; margin: 14px 3px 0; color: var(--ink-500); font-size: 11.5px; }
-
 /* Overview filter bar (F22) */
 .ov-filter-bar {
   display: flex;

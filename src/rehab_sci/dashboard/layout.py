@@ -64,6 +64,27 @@ def chart_card(title: str, content) -> html.Div:
     return html.Div(className="chart-card", children=[html.H2(title), content])
 
 
+def question_group(summary: str, deck: str, cards: list) -> html.Details | None:
+    """Collapsed disclosure holding every panel that answers one clinical question.
+
+    The Patient and Simulator tabs both open on the answer a clinician came for and keep the
+    model-family panels one click away, grouped by the question they settle rather than by the
+    model that produced them.  Returns ``None`` when every card is absent (bundles missing), so
+    a group never renders as an empty shell.
+    """
+    kept = [card for card in cards if card is not None]
+    if not kept:
+        return None
+    return html.Details(
+        className="question-group",
+        children=[
+            html.Summary(summary),
+            html.Div(deck, className="question-group__deck"),
+            *kept,
+        ],
+    )
+
+
 # ---------- simulator input widgets ----------
 def input_id(prefix: str, col: str) -> dict:
     return {"type": prefix, "col": col}
@@ -939,11 +960,11 @@ def fig_independence_profile(result: dict, lang: str, observed: dict | None = No
 
 def independence_readout(result: dict, lang: str) -> html.Div:
     """Text summary of the independence profile: the expected number of independent functions
-    (Σ calibrated probs), the per-domain breakdown, and the most- / least-likely items.  Renders
-    the card intro as a prompt when no result (bundle absent / empty input)."""
+    (Σ calibrated probs), the per-domain breakdown, and the most- / least-likely items.  Prompts
+    for admission scores when there is no result (bundle absent / empty input)."""
     items = (result or {}).get("items")
     if not items:
-        return html.Div(t(SCHEMA, "ind_card_intro", lang), className="lm-prompt")
+        return html.Div(t(SCHEMA, "ind_need_input", lang), className="lm-prompt")
     n = len(items)
     exp = result["expected_count"]
     lines: list = [html.Div(
@@ -1166,7 +1187,7 @@ def topography_readout(result: dict, lang: str) -> html.Div:
     strongest / weakest motor segment.  Prompt when no result."""
     segs = (result or {}).get("segments")
     if not segs:
-        return html.Div(t(SCHEMA, "topo_card_intro", lang), className="lm-prompt")
+        return html.Div(t(SCHEMA, "topo_need_input", lang), className="lm-prompt")
     bm = result["by_modality"]
     side_word = {"Left": t(SCHEMA, "topo_side_left", lang), "Right": t(SCHEMA, "topo_side_right", lang)}
     lines: list = [html.Div(

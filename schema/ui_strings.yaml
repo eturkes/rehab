@@ -240,6 +240,30 @@ insight_choose_strata:
 patient_intro:
   ja: "症例 ID を選択すると、その患者の SCIM-III 軌跡をコホート分布と並べて確認できます。入院時データがあれば予測値と寄与要因も表示されます。"
   en: "Pick a patient by ID number to view their SCIM-III trajectory alongside the cohort distribution. If admission data is available, the model's prediction and local drivers are shown as well."
+q_when_summary:
+  ja: "予後はいつ定まるか"
+  en: "When does the prognosis firm up?"
+q_when_deck:
+  ja: "各観察時点で組み直した退院時予測と、どの指標を1つ測れば不確実性が最も縮むか。"
+  en: "The discharge prediction rebuilt at each follow-up landmark, and which single measure buys the most certainty."
+q_milestones_summary:
+  ja: "どのマイルストーンが射程内か"
+  en: "Which milestones are within reach?"
+q_milestones_deck:
+  ja: "各 ADL 項目の自立確率と、各分節が機能的マイルストーンに到達する較正済み確率。"
+  en: "Calibrated probability of independence in each daily task, and of each body segment reaching a functional milestone."
+q_neuro_summary:
+  ja: "神経学的回復か、機能的代償か"
+  en: "Neurological recovery, or functional compensation?"
+q_neuro_deck:
+  ja: "AIS 転換・多状態軌道・神経学的高位の下降と、機能が神経回復を上回る領域。"
+  en: "Grade conversion, multi-state trajectory, level descent, and where function outruns neurology."
+q_resemble_summary:
+  ja: "この患者は誰に似ているか"
+  en: "Who does this patient resemble?"
+q_resemble_deck:
+  ja: "実測軌道から求めた回復表現型メンバーシップと、コホート内の最近傍症例。"
+  en: "Recovery-phenotype membership from the observed trajectory, and the closest episodes in the cohort."
 patient_picker_label:
   ja: "患者 ID (IDNumber)"
   en: "Patient ID (IDNumber)"
@@ -403,9 +427,6 @@ sim_predicted_class_label:
 lm_card_heading:
   ja: "動的予測 (観測の価値)"
   en: "Dynamic prediction (value of observation)"
-lm_card_intro:
-  ja: "初期回復スコアを観測すると、退院時予測がどれだけ精緻化するかを示す。"
-  en: "See how the discharge prediction sharpens once early-recovery scores are observed."
 lm_landmark_select:
   ja: "ランドマーク時点"
   en: "Landmark (observation time)"
@@ -475,9 +496,9 @@ lm_measure_pinpricktotal:
 voi_card_subheading:
   ja: "次に測るべき指標 (情報価値)"
   en: "What to measure next (value of information)"
-voi_card_intro:
-  ja: "各初期指標を1つ観測した場合に、退院時予測の不確実性 (PI) がどれだけ縮むかを比較する。テール色=未観測 (取得候補)、灰色=観測済み。"
-  en: "Compares how much obtaining each single early measure would shrink the discharge prediction's uncertainty (PI). Teal = not yet observed (candidate), grey = already observed."
+voi_read_key:
+  ja: "テール色=未観測 (取得候補)、灰色=観測済み。"
+  en: "Teal = not yet observed (a candidate to obtain); grey = already observed."
 voi_realized:
   ja: "観測済み (実現価値)"
   en: "Observed (realised)"
@@ -514,6 +535,30 @@ voi_methods_def:
 methods_per_outcome_heading:
   ja: "アウトカム別性能"
   en: "Per-outcome performance"
+methods_scorecard_heading:
+  ja: "本番モデル成績一覧"
+  en: "Production model scorecard"
+methods_scorecard_deck:
+  ja: "ダッシュボードが予測する全転帰。80%区間のカバレッジが5ポイント以上ずれるもの、近年で成績が0.05以上低下するものに印を付けている。"
+  en: "Every outcome the dashboard predicts. Flagged when the 80% interval misses its promise by more than 5 points, or when the score drops more than 0.05 on later admission years."
+methods_sc_outcome:
+  ja: "転帰"
+  en: "Outcome"
+methods_sc_n:
+  ja: "症例数"
+  en: "Episodes"
+methods_sc_metric:
+  ja: "ホールドアウト成績"
+  en: "Held-out score"
+methods_sc_coverage:
+  ja: "80%区間カバレッジ"
+  en: "80% PI coverage"
+methods_sc_oot:
+  ja: "経年Δ"
+  en: "Out-of-time Δ"
+methods_scorecard_note:
+  ja: "症例数=当該転帰が記録された症例。成績とカバレッジはホールドアウト検証分割の値。経年Δはローリング検証年の平均値と無作為分割ベースラインとの差。外部検証は行っていない。"
+  en: "Episodes = cases with that outcome recorded; score and coverage come from the held-out test split. Out-of-time Δ is the mean across rolling test years against the random-split baseline. Internal validation only."
 methods_trajectory_heading:
   ja: "回復軌道予測モデル (SCIM-III 各時点)"
   en: "Recovery trajectory models (SCIM-III per timepoint)"
@@ -539,9 +584,6 @@ methods_landmark_def:
 conv_card_heading:
   ja: "AIS グレード転換予測"
   en: "AIS-grade conversion"
-conv_card_intro:
-  ja: "入院時 AIS から退院時 AIS への転換を予測する。臨床的に意味のある2つの転換 (運動不全化・歩行能力獲得) を較正済み確率で、改善幅 (順序) を最尤クラスと80%予測集合で示す。転換は入院グレードに強く依存するため、適用される指標は入院 AIS により変わる。"
-  en: "Predicts the admission→discharge AIS transition. Two clinically meaningful conversions (becoming motor-incomplete, gaining ambulatory capability) are shown as calibrated probabilities; the improvement magnitude (ordinal) as its most-likely class and 80% prediction set. Conversion is strongly admission-gated, so which endpoints apply depends on the admission AIS."
 conv_endpoint_motor_incomplete:
   ja: "運動不全への転換"
   en: "Motor-incomplete"
@@ -688,9 +730,6 @@ pheno_measure_motor:
 pheno_card_heading:
   ja: "回復表現型メンバーシップ (実測軌道)"
   en: "Recovery phenotype membership (observed trajectory)"
-pheno_card_intro:
-  ja: "この患者の実測 SCIM・運動スコア軌道がどの回復表現型に当てはまるかを、成長混合モデルの事後確率で示す。観察時点を進めると、軌道が蓄積するにつれてメンバーシップが鋭くなる。"
-  en: "Where this patient's own observed SCIM + motor trajectory places them among the recovery phenotypes, via the growth-mixture posterior. Advance the observation cutoff to watch membership sharpen as the trajectory accrues."
 pheno_cutoff_select:
   ja: "観察時点 (までの実測を使用)"
   en: "Observation cutoff (use data through)"
@@ -749,9 +788,6 @@ overview_filter_archetype:
 ms_card_heading:
   ja: "AIS 多状態回復ダイナミクス"
   en: "AIS multi-state recovery dynamics"
-ms_card_intro:
-  ja: "入院時 AIS から始まる退院までの AIS グレード推移を、コホートの多状態マルコフ過程として示す。期待グレード軌道と各上位グレードへの到達確率は入院グレードで層別したコホート動態 (同一入院グレードの全症例で共通) であり、個別化されるのは較正済みの6か月改善確率のみ。"
-  en: "AIS-grade trajectory from admission, as a cohort multi-state Markov process. The expected-grade trajectory and the probability of reaching each higher grade are cohort dynamics stratified by admission grade (shared by every patient of that grade); only the calibrated 6-month improvement probability is individualized."
 ms_trajectory_heading:
   ja: "期待 AIS グレード軌道 (コホート ± 四分位)"
   en: "Expected AIS-grade trajectory (cohort ± IQR)"
@@ -837,12 +873,12 @@ ind_domain_ambulation:
 ind_card_heading:
   ja: "機能的自立プロファイル (退院時)"
   en: "Functional-independence profile (at discharge)"
-ind_card_intro:
-  ja: "SCIM-III の各 ADL 項目について、退院時に人的介助なし (補助具・装具は可) で自立する較正済み確率。集計 SCIM スコアを「食事・排泄・歩行はできるようになるか」という具体的な行為へ翻訳する。"
-  en: "Calibrated probability of functional independence (no human assistance; aids/devices allowed) in each SCIM-III ADL item at discharge - reframing the aggregate SCIM score into the concrete acts patients ask about (feeding, bladder, walking)."
 ind_profile_heading:
   ja: "項目別 自立確率 (領域別)"
   en: "Per-item independence probability (by domain)"
+ind_need_input:
+  ja: "入院時スコアを入力すると各 ADL 項目の自立確率が表示されます。"
+  en: "Enter the admission scores to see the per-item independence profile."
 ind_expected_count:
   ja: "自立が期待される動作数"
   en: "Expected independent functions"
@@ -910,12 +946,15 @@ methods_ind_drilldown_caption:
 topo_card_heading:
   ja: "回復トポグラフィ地図 (退院時)"
   en: "Recovery topography map (at discharge)"
-topo_card_intro:
-  ja: "ISNCSCI の全 132 セグメント (運動 20 + 触覚 56 + 痛覚 56) について、退院時に機能的マイルストーンへ到達する較正済み確率。運動は P(MMT≧3 = 抗重力)、感覚は P(≧1 = 保護的感覚)。集計スコアに埋もれたセグメント別の回復地図を可視化する。"
-  en: "Calibrated probability that each of the 132 ISNCSCI segments (20 motor + 56 light-touch + 56 pin-prick) reaches a functional milestone at discharge - motor P(grade ≥3 = antigravity), sensory P(grade ≥1 = protective sensation). A per-segment recovery map otherwise buried in the aggregate scores."
 topo_atlas_heading:
   ja: "セグメント別 機能到達確率 (皮膚分節 + 筋分節)"
   en: "Per-segment milestone probability (dermatomes + myotomes)"
+topo_read_key:
+  ja: "マイルストーン=運動 P(MMT≧3 = 抗重力)、感覚 P(≧1 = 保護的感覚)。"
+  en: "Milestone = motor MMT ≥3 (antigravity), sensory grade ≥1 (protective sensation)."
+topo_need_input:
+  ja: "入院時スコアを入力すると分節別の回復地図が表示されます。"
+  en: "Enter the admission scores to see the per-segment recovery map."
 topo_prob_axis:
   ja: "到達確率"
   en: "P(milestone)"
@@ -1018,12 +1057,12 @@ topo_sim_clear:
 ld_card_heading:
   ja: "神経学的高位の下降予測"
   en: "Neurological-level descent"
-ld_card_intro:
-  ja: "入院→退院での神経学的高位 (NLI と左右の運動・感覚レベル) の尾側への下降を予測する。各レベルの「下降」(Δ≥1 分節の尾側移動 = 改善) を較正済み確率で、下降幅 (順序) を最尤クラスと80%予測集合で示す。脊髄分節は吻側ほど重症で、尾側への移動が回復を表す。入院時の当該レベルが未測定/INT のものは適用外。"
-  en: "Predicts the admission→discharge caudal descent of the neurological levels (NLI plus the bilateral motor and sensory levels). Each level's descent (≥1 segment caudal shift = improvement) is shown as a calibrated probability; the descent magnitude (ordinal) as its most-likely class and 80% prediction set. More rostral cord segments are more severe, so a caudal shift means recovery. Levels with a missing/INT admission value do not apply."
 ld_descent_heading:
   ja: "レベル別 下降確率 (較正済み)"
   en: "Per-level descent probability (calibrated)"
+ld_read_key:
+  ja: "脊髄分節は吻側ほど重症。尾側への下降 (Δ≧1分節) が回復を表す。"
+  en: "Rostral cord segments are more severe, so a caudal descent (≥1 segment) means recovery."
 ld_magnitude_heading:
   ja: "下降幅 (順序・最尤クラス + 80%集合)"
   en: "Descent magnitude (ordinal - most-likely class + 80% set)"
@@ -1066,12 +1105,12 @@ methods_ld_drilldown_caption:
 diss_card_heading:
   ja: "神経-機能 乖離プロファイル"
   en: "Neuro-functional dissociation profile"
-diss_card_intro:
-  ja: "神経学的回復 (Δ ISNCSCI スコア) と機能的回復 (Δ SCIM) の「ずれ」を予測する。標準化対比 D = z(Δ機能) − z(Δ神経): D>0 は機能優位 (代償・適応で神経回復以上に自立を獲得)、D<0 は神経優位 (筋力回復が自立に転換できていない = 機能転換に注力すべき指標)。Δ神経×Δ機能の散布図上で、患者を★として配置 (横位置=予測 Δ神経、対角線=同等回復 D=0 からの上下のずれ=乖離) する。"
-  en: "Predicts the mismatch between neurological recovery (Δ ISNCSCI score) and functional recovery (Δ SCIM). The standardized contrast D = z(Δfunction) − z(Δneuro): D>0 = functional over-achiever (independence regained through compensation/adaptation beyond neurological gain); D<0 = functional under-achiever (strength not yet translated into independence - a functional-translation flag). The patient is placed as a star on the Δneuro×Δfunction plane (x = predicted Δneuro; vertical offset from the equal-recovery D=0 diagonal = the dissociation)."
 diss_landscape_heading:
   ja: "乖離マップ (Δ神経 × Δ機能)"
   en: "Dissociation map (Δneuro × Δfunction)"
+diss_read_key:
+  ja: "対角線より上=機能優位 (代償により神経回復以上に自立を獲得)、下=神経優位 (筋力が自立に転換できていない)。"
+  en: "Above the diagonal = function outruns neurology (compensation); below = strength not yet translated into independence."
 diss_need_data:
   ja: "入院時の運動・SCIM スコアを入力すると乖離予測が表示されます。"
   en: "Enter admission motor / SCIM scores to see the dissociation prediction."

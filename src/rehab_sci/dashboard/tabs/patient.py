@@ -72,6 +72,7 @@ from rehab_sci.dashboard.layout import (
     landmark_readout,
     level_descent_readout,
     multistate_readout,
+    question_group,
     topography_readout,
     voi_readout,
 )
@@ -255,7 +256,6 @@ def _patient_landmark_card(lang: str) -> html.Div | None:
     return chart_card(
         t(SCHEMA, "lm_card_heading", lang),
         html.Div([
-            html.Div(t(SCHEMA, "lm_card_intro", lang), className="lm-card-intro"),
             html.Div(
                 className="lm-landmark-select",
                 children=[
@@ -272,7 +272,7 @@ def _patient_landmark_card(lang: str) -> html.Div | None:
             html.Div(id="patient-lm-readout"),
             html.Hr(className="voi-divider"),
             html.Div(t(SCHEMA, "voi_card_subheading", lang), className="voi-subheading"),
-            html.Div(t(SCHEMA, "voi_card_intro", lang), className="lm-card-intro"),
+            html.Div(t(SCHEMA, "voi_read_key", lang), className="lm-card-intro"),
             dcc.Graph(id="patient-voi-graph", config={"displayModeBar": False}),
             html.Div(id="patient-voi-readout"),
             html.Div(t(SCHEMA, "lm_caption", lang), className="sim-caveat"),
@@ -330,7 +330,6 @@ def _patient_phenotype_card(lang: str) -> html.Div | None:
     return chart_card(
         t(SCHEMA, "pheno_card_heading", lang),
         html.Div([
-            html.Div(t(SCHEMA, "pheno_card_intro", lang), className="lm-card-intro"),
             html.Div(
                 className="lm-landmark-select",
                 children=[
@@ -360,7 +359,6 @@ def _patient_conversion_card(lang: str) -> html.Div | None:
     return chart_card(
         t(SCHEMA, "conv_card_heading", lang),
         html.Div([
-            html.Div(t(SCHEMA, "conv_card_intro", lang), className="lm-card-intro"),
             html.Div(id="patient-conv-readout"),
             html.Div(t(SCHEMA, "conv_endpoints_heading", lang), className="pheno-subtitle"),
             dcc.Graph(id="patient-conv-endpoints-graph", config={"displayModeBar": False}),
@@ -382,7 +380,6 @@ def _patient_multistate_card(lang: str) -> html.Div | None:
     return chart_card(
         t(SCHEMA, "ms_card_heading", lang),
         html.Div([
-            html.Div(t(SCHEMA, "ms_card_intro", lang), className="lm-card-intro"),
             html.Div(id="patient-ms-readout"),
             html.Div(t(SCHEMA, "ms_trajectory_heading", lang), className="pheno-subtitle"),
             dcc.Graph(id="patient-ms-traj-graph", config={"displayModeBar": False}),
@@ -404,7 +401,6 @@ def _patient_independence_card(lang: str) -> html.Div | None:
     return chart_card(
         t(SCHEMA, "ind_card_heading", lang),
         html.Div([
-            html.Div(t(SCHEMA, "ind_card_intro", lang), className="lm-card-intro"),
             html.Div(id="patient-ind-readout"),
             html.Div(t(SCHEMA, "ind_profile_heading", lang), className="pheno-subtitle"),
             dcc.Graph(id="patient-ind-graph", config={"displayModeBar": False}),
@@ -427,9 +423,9 @@ def _patient_topography_card(lang: str) -> html.Div | None:
     return chart_card(
         t(SCHEMA, "topo_card_heading", lang),
         html.Div([
-            html.Div(t(SCHEMA, "topo_card_intro", lang), className="lm-card-intro"),
             html.Div(id="patient-topo-readout"),
             html.Div(t(SCHEMA, "topo_atlas_heading", lang), className="pheno-subtitle"),
+            html.Div(t(SCHEMA, "topo_read_key", lang), className="lm-card-intro"),
             dcc.RadioItems(id="patient-topo-modality", options=mod_opts, value="light_touch",
                            inline=True, style={"marginBottom": "4px", "fontSize": "13px"}),
             dcc.Graph(id="patient-topo-graph", config={"displayModeBar": False}),
@@ -449,9 +445,9 @@ def _patient_level_descent_card(lang: str) -> html.Div | None:
     return chart_card(
         t(SCHEMA, "ld_card_heading", lang),
         html.Div([
-            html.Div(t(SCHEMA, "ld_card_intro", lang), className="lm-card-intro"),
             html.Div(id="patient-ld-readout"),
             html.Div(t(SCHEMA, "ld_descent_heading", lang), className="pheno-subtitle"),
+            html.Div(t(SCHEMA, "ld_read_key", lang), className="lm-card-intro"),
             dcc.Graph(id="patient-ld-descent-graph", config={"displayModeBar": False}),
             html.Div(t(SCHEMA, "ld_magnitude_heading", lang), className="pheno-subtitle"),
             dcc.Graph(id="patient-ld-mag-graph", config={"displayModeBar": False}),
@@ -473,9 +469,9 @@ def _patient_dissociation_card(lang: str) -> html.Div | None:
     return chart_card(
         t(SCHEMA, "diss_card_heading", lang),
         html.Div([
-            html.Div(t(SCHEMA, "diss_card_intro", lang), className="lm-card-intro"),
             html.Div(id="patient-diss-readout"),
             html.Div(t(SCHEMA, "diss_landscape_heading", lang), className="pheno-subtitle"),
+            html.Div(t(SCHEMA, "diss_read_key", lang), className="lm-card-intro"),
             dcc.Graph(id="patient-diss-graph", config={"displayModeBar": False}),
             html.Div(t(SCHEMA, "diss_caption", lang), className="sim-caveat"),
         ]),
@@ -571,35 +567,27 @@ def render_patient(lang: str) -> html.Div:
         ]),
     )
 
+    # The answer a clinician came for stays open; the model-family panels sit one click away,
+    # filed under the clinical question each one settles rather than the model that produced it.
     content_children = [
         timeline_card,
         html.Div(className="chart-row", children=[isncsci_card, prediction_card]),
     ]
-    lm_card = _patient_landmark_card(lang)
-    if lm_card is not None:
-        content_children.append(lm_card)
-    pheno_card = _patient_phenotype_card(lang)
-    if pheno_card is not None:
-        content_children.append(pheno_card)
-    conv_card = _patient_conversion_card(lang)
-    if conv_card is not None:
-        content_children.append(conv_card)
-    ms_card = _patient_multistate_card(lang)
-    if ms_card is not None:
-        content_children.append(ms_card)
-    ind_card = _patient_independence_card(lang)
-    if ind_card is not None:
-        content_children.append(ind_card)
-    topo_card = _patient_topography_card(lang)
-    if topo_card is not None:
-        content_children.append(topo_card)
-    ld_card = _patient_level_descent_card(lang)
-    if ld_card is not None:
-        content_children.append(ld_card)
-    diss_card = _patient_dissociation_card(lang)
-    if diss_card is not None:
-        content_children.append(diss_card)
-    content_children.append(similarity_card)
+    groups = [
+        ("q_when", [_patient_landmark_card(lang)]),
+        ("q_milestones", [_patient_independence_card(lang), _patient_topography_card(lang)]),
+        ("q_neuro", [
+            _patient_conversion_card(lang), _patient_multistate_card(lang),
+            _patient_level_descent_card(lang), _patient_dissociation_card(lang),
+        ]),
+        ("q_resemble", [_patient_phenotype_card(lang), similarity_card]),
+    ]
+    for key, cards in groups:
+        group = question_group(
+            t(SCHEMA, f"{key}_summary", lang), t(SCHEMA, f"{key}_deck", lang), cards
+        )
+        if group is not None:
+            content_children.append(group)
 
     return html.Div(
         className="patient-grid",
