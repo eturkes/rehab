@@ -678,11 +678,14 @@ input[type="number"]:focus, input[type="text"]:focus, select:focus {
   line-height: 1.45;
 }
 
+/* The copy column carries full explanatory prose, so it is sized for a readable measure
+   (~34 Japanese / ~69 Latin characters) and top-aligned against its figure rather than
+   centred — a tall column beside a short chart would otherwise float the chart mid-block. */
 .finding-evidence {
   display: grid;
-  grid-template-columns: minmax(260px, 0.34fr) minmax(0, 1fr);
-  gap: 26px;
-  align-items: center;
+  grid-template-columns: minmax(320px, 0.5fr) minmax(0, 1fr);
+  gap: 30px;
+  align-items: start;
   margin-top: 18px;
   padding: 26px 28px 18px;
   border: 1px solid var(--ink-100);
@@ -761,6 +764,14 @@ input[type="number"]:focus, input[type="text"]:focus, select:focus {
 .overview-details__intro,
 .insights-details__intro,
 .question-group__deck { max-width: 82ch; margin: 14px 3px 0; color: var(--ink-500); font-size: 11.5px; }
+/* The admission-gradient panel carries a full explanation rather than a one-line deck, so
+   it reads at body size while staying visually subordinate to the four headline findings. */
+.overview-details__intro--prose {
+  max-width: 78ch;
+  color: var(--ink-700);
+  font-size: 12.5px;
+  line-height: 1.6;
+}
 /* the group is the frame: nested panels drop to a divider so depth reads as one surface */
 .question-group > .chart-card,
 .question-group > .lm-card {
@@ -845,10 +856,17 @@ input[type="number"]:focus, input[type="text"]:focus, select:focus {
   font-size: 1.1rem;
 }
 
+/* Below this the copy column can no longer hold a readable measure, so the finding
+   stacks: prose at its own width, figure full-width underneath. */
+@media (max-width: 1180px) {
+  .finding-evidence { grid-template-columns: minmax(0, 1fr); }
+  .finding-evidence__copy { padding-bottom: 4px; }
+  .finding-evidence__copy > p:not(.finding-evidence__caveat) { max-width: 82ch; }
+}
+
 @media (max-width: 940px) {
   .finding-grid { grid-template-columns: 1fr; }
   .finding-card { min-height: 0; }
-  .finding-evidence { grid-template-columns: minmax(0, 1fr); }
   .insights-lead { grid-template-columns: minmax(0, 1fr); align-items: start; }
 }
 

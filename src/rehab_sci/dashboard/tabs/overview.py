@@ -115,6 +115,14 @@ def _milestone_ladder_facts() -> dict | None:
         "easiest": rows[-1],
         "n": max(row["n"] for row in rows),
         "definition": (INDEPENDENCE or {}).get("definition"),
+        # Items the trainer dropped as near-universal sit ABOVE the top of the plotted
+        # ladder, so the copy names them — otherwise the rendered range reads as the whole
+        # instrument when its most-reached activity is missing from it.
+        "excluded": [
+            {"col": cell["col"], "rate": float(cell["independent_rate"]), "n": int(cell["n"])}
+            for cell in ((INDEPENDENCE or {}).get("excluded") or {}).values()
+            if cell.get("col") and cell.get("independent_rate") is not None and cell.get("n")
+        ],
     }
 
 
@@ -186,6 +194,8 @@ def _certainty_facts(lm_outcome: dict) -> dict | None:
     if not labels:
         return None
     final = by_landmark[labels[-1]]
+    cov_base = final["baseline"].get("coverage_80")
+    cov_obs = final["landmark"].get("coverage_80")
     return {
         "labels": labels,
         "baseline": base,
@@ -197,7 +207,12 @@ def _certainty_facts(lm_outcome: dict) -> dict | None:
         "pi_shrink": (base[-1] - observed[-1]) / base[-1] if base[-1] else 0.0,
         "r2_baseline": float(final["baseline"]["r2"]),
         "r2_observed": float(final["landmark"]["r2"]),
+        # Achieved held-out coverage against the nominal 80%; the copy quotes it so the
+        # interval is presented as a calibrated estimate rather than a guarantee.
+        "coverage_baseline": None if cov_base is None else float(cov_base),
+        "coverage_observed": None if cov_obs is None else float(cov_obs),
         "n": int(final["n_eligible"]),
+        "first_landmark": labels[0],
         "landmark": labels[-1],
     }
 
@@ -207,14 +222,16 @@ def _finding_block(
     metric: str,
     unit: str,
     claim: str,
+    reading: str,
     basis: str,
     figure,
 ) -> html.Section:
-    """One finding: headline number, the claim it supports, its basis line, its evidence.
+    """One finding: headline number, the claim, how to read it, its basis, its evidence.
 
-    The claim lives here and the detail lives in the figure's own labels, so a finding
-    never needs an explanatory paragraph.  ``basis`` carries the denominator and the
-    single limit that qualifies the claim.
+    ``reading`` spells out what was measured and how the figure should be read, in as
+    many words as that takes; ``basis`` carries the denominator, the eligibility rule
+    and every condition that limits the claim.  A reader who works through both should
+    need nothing from the Methods tab to interpret the number.
     """
     return html.Section(
         id=block_id,
@@ -226,6 +243,7 @@ def _finding_block(
                     html.Span(unit, className="finding-card__unit"),
                 ]),
                 html.H3(claim),
+                html.P(reading),
                 html.P(basis, className="finding-evidence__caveat"),
             ]),
             html.Div(className="finding-evidence__chart", children=[
@@ -268,28 +286,66 @@ def _render_findings_lead(lang: str) -> list:
             {**row, "label": col_label(SCHEMA, row["col"], lang)}
             for row in ladder["items"]
         ]
+        ladder_copy = dict(
+            low=ladder["hardest"]["rate"],
+            high=ladder["easiest"]["rate"],
+            low_item=rows[0]["label"],
+            high_item=rows[-1]["label"],
+            count=len(rows),
+        )
+        ladder_basis = _copy("overview_finding_ladder_basis", lang, n=ladder["n"])
+        join = "" if lang == "ja" else " "
+        for cell in ladder["excluded"]:
+            ladder_basis += join + _copy(
+                "overview_finding_ladder_excluded",
+                lang,
+                item=col_label(SCHEMA, cell["col"], lang),
+                rate=cell["rate"],
+                n=cell["n"],
+                n_ladder=ladder["n"],
+            )
+        if ladder["excluded"]:
+            ladder_basis += join + _copy(
+                "overview_finding_ladder_excluded_ceiling",
+                lang,
+                high=ladder["easiest"]["rate"],
+            )
         lead.append(_finding_block(
             "finding-discharge-milestones",
             f"{ladder['hardest']['rate']:.0%}",
             _copy("overview_finding_ladder_unit", lang, item=rows[0]["label"]),
-            _copy(
-                "overview_finding_ladder_title",
-                lang,
-                low=ladder["hardest"]["rate"],
-                high=ladder["easiest"]["rate"],
-                count=len(rows),
-            ),
-            _copy("overview_finding_ladder_basis", lang, n=ladder["n"]),
+            _copy("overview_finding_ladder_title", lang, **ladder_copy),
+            _copy("overview_finding_ladder_reading", lang, **ladder_copy),
+            ladder_basis,
             fg.fig_milestone_ladder({"items": rows}, SCHEMA, lang),
         ))
 
     improve = facts.get("improve")
     if improve:
+        improve_copy = dict(
+            best_grade=improve["best"]["grade"],
+            best_rate=improve["best"]["rate"],
+            worst_grade=improve["worst"]["grade"],
+            worst_rate=improve["worst"]["rate"],
+        )
+        reading = _copy("overview_finding_improve_reading", lang, **improve_copy)
+        # The D→E ceiling is what makes the ordering non-monotone; it only explains the
+        # chart while D is in fact the lowest bar, the same gate the figure annotation uses.
+        if improve["worst"]["grade"] == "D":
+            reading += ("" if lang == "ja" else " ") + _copy(
+                "overview_finding_improve_ceiling", lang, **improve_copy
+            )
         lead.append(_finding_block(
             "finding-improvement-by-grade",
             f"{improve['best']['rate']:.0%}",
-            _copy("overview_finding_improve_unit", lang, grade=improve["best"]["grade"]),
-            t(SCHEMA, "overview_finding_improve_title", lang),
+            _copy(
+                "overview_finding_improve_unit",
+                lang,
+                grade=improve["best"]["grade"],
+                count=len(improve["grades"]),
+            ),
+            _copy("overview_finding_improve_title", lang, **improve_copy),
+            reading,
             _copy("overview_finding_improve_basis", lang, n=improve["n"]),
             fg.fig_improve_by_grade(improve, lang),
         ))
@@ -307,6 +363,7 @@ def _render_findings_lead(lang: str) -> list:
             n=value["n"],
             n_test=value["n_test"],
             baseline=value["baseline_r2"],
+            count=len(rows),
         )
         # The modality contrast is the point of the finding, but it only exists when both
         # modalities were modelled at this landmark.
@@ -328,28 +385,64 @@ def _render_findings_lead(lang: str) -> list:
                 measure=best_label,
                 count=len(rows),
             ),
+            _copy(
+                "overview_finding_measure_reading",
+                lang,
+                measure=best_label,
+                count=len(rows),
+                baseline=value["baseline_r2"],
+                best=value["best"]["r2"],
+            ),
             basis,
             fg.fig_measure_value({**value, "measures": rows}, lang),
         ))
 
     certainty = facts.get("certainty")
     if certainty:
+        landmarks = dict(
+            first_landmark=certainty["first_landmark"],
+            landmark=certainty["landmark"],
+        )
+        certainty_basis = _copy(
+            "overview_finding_certainty_basis",
+            lang,
+            n=certainty["n"],
+            n_first=certainty["n_test"][0],
+            n_last=certainty["n_test"][-1],
+            baseline=certainty["r2_baseline"],
+            observed=certainty["r2_observed"],
+            **landmarks,
+        )
+        # Achieved coverage is the honest qualifier on an 80% interval, so it is quoted
+        # whenever the trainer recorded it rather than asserted as a property.
+        cov_base, cov_obs = certainty["coverage_baseline"], certainty["coverage_observed"]
+        if cov_base is not None and cov_obs is not None:
+            certainty_basis += ("" if lang == "ja" else " ") + _copy(
+                "overview_finding_certainty_coverage",
+                lang,
+                cov_baseline=cov_base,
+                cov_observed=cov_obs,
+                **landmarks,
+            )
         lead.append(_finding_block(
             "finding-certainty-curve",
             f"±{certainty['last_baseline']:.0f}→±{certainty['last_observed']:.0f}",
-            t(SCHEMA, "overview_finding_certainty_unit", lang),
+            _copy("overview_finding_certainty_unit", lang, **landmarks),
             _copy(
                 "overview_finding_certainty_title",
                 lang,
                 shrink=certainty["pi_shrink"],
+                **landmarks,
             ),
             _copy(
-                "overview_finding_certainty_basis",
+                "overview_finding_certainty_reading",
                 lang,
-                n=certainty["n"],
-                baseline=certainty["r2_baseline"],
-                observed=certainty["r2_observed"],
+                baseline_pi=certainty["last_baseline"],
+                observed_pi=certainty["last_observed"],
+                shrink=certainty["pi_shrink"],
+                **landmarks,
             ),
+            certainty_basis,
             fg.fig_certainty_curve(certainty, lang),
         ))
 
@@ -366,7 +459,7 @@ def _render_findings_lead(lang: str) -> list:
                     n=motor["n"],
                     effect=motor["eta_squared"],
                 ),
-                className="overview-details__intro",
+                className="overview-details__intro overview-details__intro--prose",
             ),
             dcc.Graph(
                 figure=fg.fig_motor_strata_finding(motor, lang),

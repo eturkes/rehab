@@ -193,6 +193,38 @@ def test_overview_findings_precede_filtered_explorer(state, lang):
 
 
 @pytest.mark.parametrize("lang", LANGS)
+def test_finding_blocks_carry_reading_and_basis(state, lang):
+    """Structure only: number + claim + reading + basis present, every format field resolved.
+
+    Says nothing about whether the prose is *correct* — claim soundness against the metric
+    artifacts stays a review obligation, not a gate.
+    """
+    from rehab_sci.dashboard.tabs import overview as O
+
+    blocks = [
+        node
+        for node in _walk(O.render_overview(lang))
+        if str(getattr(node, "id", "")).startswith("finding-")
+    ]
+    assert len(blocks) == 4
+    for block in blocks:
+        copy = block.children[0]
+        metric, unit = (span.children for span in copy.children[0].children)
+        claim, reading, basis = (para.children for para in copy.children[1:4])
+        # Dash omits unset props entirely, so the reading picks up the body-copy rule
+        # `.finding-evidence__copy > p:not(.finding-evidence__caveat)` by carrying no class.
+        assert getattr(copy.children[2], "className", None) is None
+        assert copy.children[3].className == "finding-evidence__caveat"
+        assert metric and unit
+        # The reading has to do real explanatory work, and an unresolved {placeholder}
+        # or an un-substituted format field would ship as literal braces.
+        assert len(reading) > len(claim) > 0
+        assert len(basis) > 200
+        for text in (metric, unit, claim, reading, basis):
+            assert "{" not in text and "}" not in text
+
+
+@pytest.mark.parametrize("lang", LANGS)
 def test_overview_callback_builds_real_figures(state, lang):
     from rehab_sci.dashboard.tabs import overview as O
 

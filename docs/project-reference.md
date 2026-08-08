@@ -98,9 +98,12 @@ This is project documentation, not an instruction source; operational instructio
   `INDEPENDENCE`, `MULTISTATE`).  `findings-lead` + the four semantic `finding-*` blocks
   (`finding-discharge-milestones`, `finding-improvement-by-grade`, `finding-measure-value`,
   `finding-certainty-curve`) sit outside `cohort-explorer`; overview filters update
-  `overview-content` only.  Each block = headline number + claim + **one** basis line stating its
-  denominator and limits + its own figure.  Demographic/injury charts + model-derived recovery
-  types remain supporting detail, never equal-weight headline evidence.
+  `overview-content` only.  Each block = headline number + claim + **reading** + **basis** + its own
+  figure (`_finding_block`).  `reading` states what was measured, what the number means and how to
+  read that block's figure; `basis` states the denominator, the eligibility rule and every condition
+  that limits the claim.  Both are written to be exhaustive rather than short — a reader must not
+  need the Methods tab to interpret a headline number.  Demographic/injury charts + model-derived
+  recovery types remain supporting detail, never equal-weight headline evidence.
 * **Claim register (every user-facing string)** — describe what was measured; the reader is a
   clinician reading evidence, not an audience being sold one.  Name the instrument and the
   outcome (`SCIM mobility`, not "one functional score"), bound every ranking to the set actually
@@ -110,7 +113,19 @@ This is project documentation, not an instruction source; operational instructio
   preference: `governed by` for a descriptive gradient, `visual proof` for a regression slope,
   `misses its promise` for off-nominal coverage.  When a claim's own conditions weaken it, the
   basis line carries them — 3-month SCIM predicting discharge SCIM is the same instrument twice,
-  and n_test=70 point estimates without intervals do not separate adjacent ranks.
+  and n_test=70 point estimates without intervals do not separate adjacent ranks.  A claim that
+  holds only for the values the artifacts currently carry gets a **gated sentence** keyed on the
+  fact itself, never a hardcoded one: `overview_finding_improve_ceiling` (appended only while the
+  lowest bar is D), `overview_finding_measure_compare` (only when both modalities were modelled),
+  `overview_finding_certainty_coverage` (only when the trainer recorded `coverage_80`).
+  Three recurring mis-glosses, each a defect: a landmark feature is the **LOCF** value recorded
+  *on or before* `L`, never "the score taken at `L`"; `subgroups.py::kruskal_eta_squared` is a
+  **rank** effect size `(H-k+1)/(n-k)`, so it never licenses "explains {x}% of the variance" on the
+  raw scale; and a ladder/ranking sorted on cross-sectional discharge rates is a **difficulty**
+  order, never the order in which one patient recovers.  Untested comparisons stay hedged as
+  unresolvable from the reported numbers rather than asserted as null.  Where the trainer drops an
+  item (`INDEPENDENCE['excluded']`), the copy names it and its own denominator — a plotted range
+  otherwise reads as the instrument's full range.
 * **Disclosure spine** — the dashboard is organized by clinical question, not model family
   (G1–G11).  Patient + Simulator open on the answer block (identity/inputs → prediction → drivers)
   and file every family panel behind `layout.py::question_group(summary, deck, cards)`, keyed
