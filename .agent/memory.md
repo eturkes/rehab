@@ -10,7 +10,7 @@ Cross-session context beyond code, `docs/`, and `git log`. Durable operating fac
 
 ## Worktree gates
 
-`/session-prompt` isolates each teammate in `git worktree add -b wt/<name> .scratch/worktrees/<name>` (`.scratch/` is gitignored). A worktree carries tracked content only — no `data/raw`, no `models/<head>/` bundles — so its suite skips green (see Gate honesty). Link the gitignored artifacts, then gate off the primary environment:
+Mechanics = global `CLAUDE.md` `Subagents`; `/session-prompt` binds the path (`.scratch/`, gitignored). Project delta: a worktree carries tracked content only — no `data/raw`, no `models/<head>/` bundles — so its suite skips green (see Gate honesty). Link the gitignored artifacts, then gate off the primary environment:
 
 ```sh
 P=<primary root>; cd "$P/.scratch/worktrees/<name>"
@@ -25,9 +25,9 @@ PYTHONPATH="$PWD/src" "$P/.venv/bin/python" -m pytest    # 47 passed ⇒ links l
 - Artifact paths track the imported package (`RAW_PATH_DEFAULT` = `parents[3]/data/raw/…`), so the links belong in the worktree.
 - Absolute primary-interpreter calls only. `uv run` inside a worktree builds a second environment; under this recipe the primary environment stays read-only.
 - `.pytest_cache` + `.ruff_cache` land worktree-private (rootdir = worktree) → no shared-cache holder needed.
-- Baseline restore (`git reset --hard` + `git clean -fd`) strips the links, silently returning the gate to skips → an inherited or restored worktree re-runs the link block verbatim (idempotent) before gating.
+- Baseline restore strips the links, silently returning the gate to skips → an inherited or restored worktree re-runs the link block verbatim (idempotent) before gating.
 - Links are read paths **into** the primary tree: a write landing on one (`models/<head>/bundle.joblib`, `models/feature_spec.joblib`, `data/raw/*`) mutates the primary tree, so any retrain/regeneration unit takes real copies or a private output dir. Tracked `models/*.json` are real worktree files and stay isolated.
-- Teardown (Close order step): `git worktree remove --force` — plain `remove` aborts rc=128 (`contains modified or untracked files`) because the links + private caches are untracked; `--force` unlinks the links without traversing them, so primary `data/raw` + `models/` survive intact. Then `git branch -D wt/<name>`: `-d` refuses rc=1 `not fully merged` for every checkpointed branch, `prod` squash-harvests included, since a squash leaves no ancestry link. `git worktree list` + `git branch --list 'wt/*'` printing no `wt/` row = teardown proven.
+- Teardown (Close order's worktree-removal step): `git worktree remove --force` — plain `remove` aborts rc=128 (`contains modified or untracked files`) because the links + private caches are untracked; `--force` unlinks the links without traversing them, so primary `data/raw` + `models/` survive intact. Then `git branch -D wt/<name>`: `-d` refuses rc=1 `not fully merged` for every checkpointed branch, `prod` squash-harvests included, since a squash leaves no ancestry link. `git worktree list` + `git branch --list 'wt/*'` printing no `wt/` row = teardown proven.
 
 ## Read cost
 

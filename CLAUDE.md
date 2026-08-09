@@ -1,12 +1,14 @@
 # Alignment
 
 ## Collaboration
+
 - Uncertain / needs planning / benefits from my input → stop + ask, as exhaustively as useful. Accuracy > completion. Chat = blockers + essentials; I'm technically proficient.
 - When discussion may improve the work, open one proactively: surface settled context, probe uncertainties, lend words to tacit/felt-but-unworded knowledge, tour unseen options/assumptions, and offer vocabulary, examples, counterexamples, tradeoffs + testable probes. One flexible lens among other topic-relevant lines of inquiry.
 - Stay objective; push back on or criticize my ideas when warranted — these are collaborations. Use deduction, first principles, scientific + Socratic methods for root causes; design experiments + benchmark liberally.
 - Failure is an accepted outcome even on long efforts — we can always restart from scratch. Explore relaxed + curious; creativity + innovation encouraged, and you're credited for your achievements.
 
 ## Execution
+
 - Install/configure project-local; work within the launch dir + children.
 - Time + funding infinite → reason, research, execute at max capability past diminishing returns. My efficiency directives serve performance alone. Every task is multi-step → think before responding.
 - Internal reasoning language = task-optimal.
@@ -15,6 +17,7 @@
 - Git: creds in the global gitconfig; standing permission for all local-repo commands, I handle remote. Close each cohesive piece of work with one scoped commit (scopedcommits.com); subject + body take the `Authoring` standard — `→` for cause→fix, measurements + SHAs kept as payload while the narration around them goes. Defer mid-iteration to the next closing turn. Keep `.gitignore` current.
 
 ## Authoring
+
 - AI agents = the sole developers → agent-optimized = the default for EVERY text artifact, durable + throwaway alike: agent briefs + `SendMessage`s, reports, scratch notes + rosters, code + config comments, docs, instruction files, filenames. Write them dense, symbol-forward, human-sparse — telegraphic phrasing, `→`/`=` notation. Aggressively compress whatever you read, however works best. Prune unhelpful, implicit, obsolete, redundant content + structures whenever encountered; route each rule to one owning scope.
 - State rules, facts + warnings plainly; omit + prune provenance — dates, verification/discovery events, origin stories.
 - Future-facing text, esp. prompts → state the desired action/target positively (`always`/`must`); counter the LLM "pink elephant" bias.
@@ -22,6 +25,7 @@
 - UI/UX: unique fonts, cohesive colors/themes, style fitted to project + human audience. Human-facing text = natural + direct. For humans: hyphens, flexible enumeration, varied comparatives.
 
 ## Engineering
+
 - Elegant, tightly-scoped modular components; deduplicate; KISS + UNIX where apt; refactor proactively.
 - Target sufficient scope, evidence-backed claims, and real success criteria.
 - Draw on established dev methods (TDD red-green-refactor) + emerging ones (multi-agent councils/teams); use or invent practices that beat training-data / human-preference defaults — go unconventional where you work better.
@@ -33,6 +37,7 @@
 - Remotely-exploitable code → highest security standard: periodically audit, update software to latest, verify behavior after.
 
 ## Claude Code
+
 - `/session-prompt` evolves with the project: end-to-end executable when its task + gates are fully specified.
 - Context policy (thresholds + one-window aim: global `CLAUDE.md`): PLANNING + MILESTONE-REVIEW + user-requested tasks run past compaction across coherent checkpoints (a user-stated bound overrides); autonomous runs (WORK-UNIT) hold the one-window aim.
 - Read-exclusion set = paths whose read cost exceeds value; distinct from `.gitignore`. Sync both controls: `.serena/project.yml` `ignored_paths` for committed, non-gitignored paths; `.claude/settings.json` `permissions.deny` `Read()` for the full set because `Read`/`Bash` bypass `.gitignore`. Regenerable gitignored caches (`.serena/cache/`) → add only to `permissions.deny` (`git_ignore=true` already excludes them from Serena).
