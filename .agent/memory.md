@@ -10,7 +10,7 @@ Cross-session context beyond code, `docs/`, and `git log`. Durable operating fac
 
 ## Worktree gates
 
-Mechanics = global `CLAUDE.md` `Subagents`; `/session-prompt` binds the path (`.scratch/`, gitignored). Project delta: a worktree carries tracked content only — no `data/raw`, no `models/<head>/` bundles — so its suite skips green (see Gate honesty). Link the gitignored artifacts, then gate off the primary environment:
+Mechanics = global `CLAUDE.md` `Subagents`; `/session-roadmap` binds the path (`.scratch/`, gitignored). Project delta: a worktree carries tracked content only — no `data/raw`, no `models/<head>/` bundles — so its suite skips green (see Gate honesty). Link the gitignored artifacts, then gate off the primary environment:
 
 ```sh
 P=<primary root>; cd "$P/.scratch/worktrees/<name>"

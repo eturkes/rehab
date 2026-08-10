@@ -13,7 +13,7 @@ Mature SCI-recovery analytics project; all numbered features (F1–F27) and mode
 
 ## Backlog
 
-Milestone status (`UNPLANNED` / `IN-PROGRESS` / `IMPLEMENTED` / `REVIEWED`) selects the `/session-prompt` MODE; the active milestone is the first one not `REVIEWED`. Keep every milestone heading carrying an explicit status.
+Milestone status (`UNPLANNED` / `IN-PROGRESS` / `IMPLEMENTED` / `REVIEWED`) selects the `/session-roadmap` MODE; the active milestone is the first one not `REVIEWED`. Keep every milestone heading carrying an explicit status. Off-spine deferrals live in `.agent/polish.md` (`/session-polish` consumes them), not here.
 
 The raw data holds **no new field families** (219-col profile audit) — any new model reuses existing ISNCSCI / SCIM / AIS signal, and the standard neurological endpoints are covered (G9 Δ-score, G10 level descent, G11 dissociation). **Before starting any new feature, scope what / why / effort / files / data-dependency.**
 
@@ -22,18 +22,7 @@ The **new-predictive-head well is dry**: every reuse-only candidate is either a 
 ### M1 — PRR descriptive insight · UNPLANNED
 
 Content, NOT a predictive head. This cohort does **not** obey the proportional-recovery rule (admission→discharge ISNCSCI motor): Δmotor R²(initial deficit) ≈ 0.01–0.12, recovery-fraction median ~0.6 but IQR spans the full range (no ~0.7 clustering), ~29–44% non-fitters. A worthwhile Insights/Methods panel — reuses G9 targets + admission scores, no new training — that also motivates the ML Δ-heads. Effort M.
+
 ### M2 — Calibration-drift monitoring · UNPLANNED
 
 Infrastructure — the only on-record untried head idea; track whether head calibration degrades over time, extending F24's temporal backtest. Effort M.
-
-### M3 — Dashboard focus backlog · UNPLANNED
-
-Deferred flags from the focus/story pass (full ranked list + anchors: `.scratch/agents/map-task-1.md` §7; expires with scratch — re-derive by re-mapping if absent). Accepted-but-deferred, roughly by value:
-
-1. Outcome-driven prediction headings — patient + simulator fixed H2s say "discharge SCIM-III" while the outcome selector offers 11 heads; selected non-SCIM story looks broken. `tabs/patient.py` prediction card, `tabs/simulator.py` result card.
-2. Simulator quick-profile intake — 25-field wall before the answer; expose ~6–8 high-importance fields, collapse the rest per clinical group; keep missingness semantics.
-3. Methods per-outcome disclosures dump 11 repeated cards (tab totals ~60 cards/92 graphs behind details); add an outcome selector inside each section, render one at a time.
-4. Patient/simulator duplicate question-group decks — label mode per tab (observed episode vs hypothetical profile), cross-link.
-5. Smaller: archetype filter (model-derived) out of the observable explorer filter bar; scorecard task/metric labels to stop cross-outcome score comparison; data-quality badge beside scorecard; 132-cell ISNCSCI worksheet nested behind its own "advanced exam" disclosure.
-
-Effort S–M each, independent; all copy-safe against the reviewed reading/basis prose (untouched by design).
