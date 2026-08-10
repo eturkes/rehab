@@ -4,8 +4,8 @@ Cross-session context beyond code, `docs/`, and `git log`. Durable operating fac
 
 ## Gate honesty
 
-- `uv run pytest` → **51 passed, ~12 s**. `uv run ruff check .` → clean under the full `pyproject.toml` rule set (`E,F,I,B,UP,SIM,RUF`), so the narrower `--select F` regression gate is a subset, not the ceiling.
-- `tests/conftest.py` skips every data- and model-dependent test when `data/raw/ALL_SCIDATA.csv` or the `models/<head>/` joblib bundles are absent; only the pure-registry tests then run, and pytest still exits **0**. Read the counts, not the exit code — **51 passed** means the gate held, a green run dominated by skips proves nothing.
+- `uv run pytest` → **55 passed, ~19 s**. `uv run ruff check .` → clean under the full `pyproject.toml` rule set (`E,F,I,B,UP,SIM,RUF`), so the narrower `--select F` regression gate is a subset, not the ceiling.
+- `tests/conftest.py` skips every data- and model-dependent test when `data/raw/ALL_SCIDATA.csv` or the `models/<head>/` joblib bundles are absent; only the pure-registry tests then run, and pytest still exits **0**. Read the counts, not the exit code — **55 passed** means the gate held, a green run dominated by skips proves nothing.
 - Raw CSV + trained bundles are both present on this machine → gates are live here.
 
 ## Worktree gates
@@ -17,7 +17,7 @@ P=<primary root>; cd "$P/.scratch/worktrees/<name>"
 mkdir -p data && ln -sfn "$P/data/raw" data/raw
 for d in "$P"/models/*/; do ln -sfn "$d" "models/$(basename "$d")"; done
 ln -sfn "$P/models/feature_spec.joblib" models/feature_spec.joblib
-PYTHONPATH="$PWD/src" "$P/.venv/bin/python" -m pytest    # 51 passed ⇒ links live
+PYTHONPATH="$PWD/src" "$P/.venv/bin/python" -m pytest    # 55 passed ⇒ links live
 "$P/.venv/bin/ruff" check .
 ```
 
