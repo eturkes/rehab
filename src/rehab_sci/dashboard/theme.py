@@ -5,6 +5,10 @@ from __future__ import annotations
 import plotly.graph_objects as go
 import plotly.io as pio
 
+# Figure text tracks the page: same stack as the stylesheet's --font-sans, so the
+# self-hosted IBM Plex faces (assets/fonts/) cover the SVG labels too.
+FONT_SANS = '"IBM Plex Sans", "Hiragino Sans", "Noto Sans JP", "Yu Gothic UI", system-ui, sans-serif'
+
 # Calm, professional, color-blind-aware palette.
 PALETTE_CATEGORICAL = [
     "#117a8b",  # deep teal
@@ -89,7 +93,7 @@ def apply_template() -> None:
     pio.templates["medical"] = go.layout.Template(
         layout=dict(
             font=dict(
-                family='"Inter", "Hiragino Sans", "Noto Sans JP", "Yu Gothic UI", system-ui, sans-serif',
+                family=FONT_SANS,
                 size=12.5,
                 color=INK["900"],
             ),
@@ -124,8 +128,7 @@ def apply_template() -> None:
             hoverlabel=dict(
                 bgcolor="#fff",
                 bordercolor=INK["200"],
-                font=dict(family='"Inter", "Hiragino Sans", system-ui, sans-serif',
-                          color=INK["900"]),
+                font=dict(family=FONT_SANS, color=INK["900"]),
             ),
             hovermode="closest",
         )

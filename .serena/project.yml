@@ -123,6 +123,7 @@ ls_specific_settings: {}
 ignored_paths:
 - "uv.lock"
 - "models/**"
+- "src/rehab_sci/dashboard/assets/fonts/**"
 
 # list of workspace folder paths (LSP backend only).
 # These folders will be used to build up Serena's symbol index.

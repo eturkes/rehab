@@ -330,7 +330,7 @@ def _render_findings_lead(lang: str) -> list:
             high_item=rows[-1]["label"],
             count=len(rows),
         )
-        ladder_metric = f"{ladder['hardest']['rate']:.0%}→{ladder['easiest']['rate']:.0%}"
+        ladder_metric = f"{ladder['hardest']['rate']:.0%} → {ladder['easiest']['rate']:.0%}"
         ladder_basis = _copy("overview_finding_ladder_basis", lang, n=ladder["n"])
         join = "" if lang == "ja" else " "
         for cell in ladder["excluded"]:
@@ -497,10 +497,13 @@ def _render_findings_lead(lang: str) -> list:
                 cov_observed=cov_obs,
                 **landmarks,
             )
+        certainty_metric = (
+            f"±{certainty['last_baseline']:.0f} → ±{certainty['last_observed']:.0f}"
+        )
         tiles.append(_glance_tile(
             4,
             "finding-certainty-curve",
-            f"±{certainty['last_baseline']:.0f}→±{certainty['last_observed']:.0f}",
+            certainty_metric,
             _copy("overview_glance_certainty", lang, shrink=certainty["pi_shrink"]),
         ))
         lead.append(_finding_block(
@@ -508,7 +511,7 @@ def _render_findings_lead(lang: str) -> list:
             4,
             lang,
             t(SCHEMA, "overview_finding_certainty_kicker", lang),
-            f"±{certainty['last_baseline']:.0f}→±{certainty['last_observed']:.0f}",
+            certainty_metric,
             _copy("overview_finding_certainty_unit", lang, **landmarks),
             _copy(
                 "overview_finding_certainty_title",

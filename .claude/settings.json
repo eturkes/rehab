@@ -11,6 +11,7 @@
       "Read(**/*.pickle)",
       "Read(**/*.npy)",
       "Read(**/*.npz)",
+      "Read(**/*.woff2)",
       "Read(**/reports/**)",
       "Read(**/uv.lock)",
       "Read(**/.venv/lib/**)",

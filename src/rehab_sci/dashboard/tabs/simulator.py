@@ -465,8 +465,8 @@ def _simulate_regression(bundle: dict, X: pd.DataFrame, lang: str):
         range_suffix = f"/ {spec.clip_max:.0f}"
     pred_str = f"{pred:+.0f}" if is_delta else f"{pred:.0f}"
     pi_str = (
-        f"{pi_label} : {lo:+.0f} – {hi:+.0f}" if is_delta
-        else f"{pi_label} : {lo:.0f} – {hi:.0f}"
+        f"{pi_label}: {lo:+.0f} – {hi:+.0f}" if is_delta
+        else f"{pi_label}: {lo:.0f} – {hi:.0f}"
     )
     readout = [
         html.Div(label, style={"color": INK["500"], "fontSize": "13px"}),
@@ -499,8 +499,8 @@ def _simulate_multiclass(bundle: dict, X: pd.DataFrame, lang: str):
         html.Div(label, style={"color": INK["500"], "fontSize": "13px"}),
         html.Div(f"AIS {pred_class}", className="pred"),
         html.Div(f"{pred_prob:.0%}", className="pred-unit"),
-        html.Div(f"{pcls_label} : AIS {pred_class}", className="pi"),
-        html.Div(f"{set_label} : {{{', '.join(set_letters)}}}", className="pi"),
+        html.Div(f"{pcls_label}: AIS {pred_class}", className="pi"),
+        html.Div(f"{set_label}: {{{', '.join(set_letters)}}}", className="pi"),
     ]
     return readout, fig_class_probabilities(proba, class_labels, spec, lang, conformal_set), fig_shap_local(shap_vals, X, base, lang)
 
@@ -603,7 +603,7 @@ def simulate(num_vals, cat_vals, num_ids, cat_ids, outcome_key, lang, ref_data):
                     break
             delta = current_pred - ref_p
             readout.append(html.Div(
-                f"{ref_label} : {ref_p:.0f} · {delta_label} : {delta:+.0f}",
+                f"{ref_label}: {ref_p:.0f} · {delta_label}: {delta:+.0f}",
                 className="pi whatif-delta",
             ))
     else:
@@ -612,7 +612,7 @@ def simulate(num_vals, cat_vals, num_ids, cat_ids, outcome_key, lang, ref_data):
             ref_label = t(SCHEMA, "whatif_ref_label", lang)
             ref_cls = ref_pred_for_outcome["pred_class"]
             readout.append(html.Div(
-                f"{ref_label} : AIS {ref_cls}",
+                f"{ref_label}: AIS {ref_cls}",
                 className="pi whatif-delta",
             ))
 

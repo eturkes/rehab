@@ -635,7 +635,7 @@ def _patient_regression(bundle: dict, X: pd.DataFrame, key_record: int, lang: st
         html.Div(f"{pred:.0f}", className="pred"),
         html.Div(f"{range_suffix}  {unit}".strip(), className="pred-unit"),
         html.Div(
-            f"{t(SCHEMA, 'sim_prediction_interval', lang)} : {lo:.0f} – {hi:.0f}",
+            f"{t(SCHEMA, 'sim_prediction_interval', lang)}: {lo:.0f} – {hi:.0f}",
             className="pi",
         ),
     ]
@@ -645,8 +645,8 @@ def _patient_regression(bundle: dict, X: pd.DataFrame, key_record: int, lang: st
     else:
         residual = pred - observed
         readout.append(html.Div(
-            f"{t(SCHEMA, 'patient_prediction_observed', lang)} : {observed:.0f} · "
-            f"{t(SCHEMA, 'patient_prediction_residual', lang)} : {residual:+.0f}",
+            f"{t(SCHEMA, 'patient_prediction_observed', lang)}: {observed:.0f} · "
+            f"{t(SCHEMA, 'patient_prediction_residual', lang)}: {residual:+.0f}",
             className="pi",
         ))
 
@@ -683,14 +683,14 @@ def _patient_multiclass(bundle: dict, X: pd.DataFrame, key_record: int, lang: st
         html.Div(label, style={"color": INK["500"], "fontSize": "13px"}),
         html.Div(f"AIS {pred_class}", className="pred"),
         html.Div(f"{pred_prob:.0%}", className="pred-unit"),
-        html.Div(f"{pcls_label} : AIS {pred_class}", className="pi"),
-        html.Div(f"{set_label} : {{{', '.join(set_letters)}}}", className="pi"),
+        html.Div(f"{pcls_label}: AIS {pred_class}", className="pi"),
+        html.Div(f"{set_label}: {{{', '.join(set_letters)}}}", className="pi"),
     ]
     note: list = []
     if observed_ord is not None:
         obs_letter = AIS_ORD_TO_LETTER.get(int(observed_ord), "?")
         readout.append(html.Div(
-            f"{t(SCHEMA, 'patient_prediction_observed', lang)} : AIS {obs_letter}",
+            f"{t(SCHEMA, 'patient_prediction_observed', lang)}: AIS {obs_letter}",
             className="pi",
         ))
     else:

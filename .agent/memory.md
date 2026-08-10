@@ -37,3 +37,11 @@ PYTHONPATH="$PWD/src" "$P/.venv/bin/python" -m pytest    # 51 passed ⇒ links l
 ## Environments
 
 - `.venv` = uv-managed CPython 3.13.5, the interpreter `uv run` resolves. `.venv-host` = separate CPython 3.12.13 install, unused by `uv run`. Both gitignored; keep both.
+
+## Visual QA
+
+- Dashboard UI claims need a rendered check — the Dash tree renders per-callback, so a Python-side assert says nothing about type scale, wrap or resolved face. Harness = Playwright driving the chromiumfish binary (`$(chromiumfish path)`, `--no-sandbox --disable-gpu`), no browser download: `uv run --no-project --with playwright python .scratch/uiqa/shot.py <outdir> <tag> [--lang en|ja] [--tab <t>] [--w --h] [--full] [--wait ms] [--sel CSS ...]`. Scratch-local + gitignored → port pending (`.agent/polish.md`).
+- Tab switch = `.dash-tab` locator by label text; Dash tabs carry no ARIA `tab` role, so `get_by_role("tab")` never matches.
+- Callback-rendered tabs (patient, simulator) need `--wait 15000`+: at 3.5 s they screenshot as blank axes and read exactly like a broken figure. The dashboard log shows `POST /_dash-update-component 200` either way.
+- Resolved-face proof (never eyeball it): CDP `CSS.getPlatformFontsForNode` per selector returns the real family + glyph count — `IBM Plex Sans SmBld` vs `Liberation Serif` distinguishes a loaded webfont from a fontconfig substitution, and the returned weight name proves no synthetic bolding.
+- `pgrep -f 'rehab_sci[.]dashboard' | while read -r p; do kill "$p"; done` stops the server (bracketed pattern avoids self-match); the call can still exit 144 under the harness while the kill lands — verify with `curl -s -o /dev/null -w '%{http_code}'` rather than trusting rc.
