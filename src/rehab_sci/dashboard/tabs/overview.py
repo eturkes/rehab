@@ -219,32 +219,46 @@ def _certainty_facts(lm_outcome: dict) -> dict | None:
 
 def _finding_block(
     block_id: str,
+    index: int,
+    lang: str,
+    kicker: str,
     metric: str,
     unit: str,
     claim: str,
+    takeaway: str,
     reading: str,
     basis: str,
     figure,
 ) -> html.Section:
-    """One finding: headline number, the claim, how to read it, its basis, its evidence.
+    """One finding: numbered kicker, headline number, the claim, one takeaway, evidence.
 
-    ``reading`` spells out what was measured and how the figure should be read, in as
-    many words as that takes; ``basis`` carries the denominator, the eligibility rule
-    and every condition that limits the claim.  A reader who works through both should
-    need nothing from the Methods tab to interpret the number.
+    The visible layer stays tight — the figure carries the evidence and ``takeaway`` is
+    the single sentence a reader should retain.  ``reading`` (what was measured and how
+    to read the figure) and ``basis`` (the denominator, the eligibility rule and every
+    condition that limits the claim) keep their reviewed wording in full, one click away
+    behind the block's own disclosure, so the finding still explains itself without the
+    Methods tab.
     """
     return html.Section(
         id=block_id,
         className="finding-evidence",
         children=[
             html.Div(className="finding-evidence__copy", children=[
+                html.P(className="finding-kicker", children=[
+                    html.Span(f"{index:02d}", className="finding-kicker__index"),
+                    html.Span(kicker),
+                ]),
                 html.Div(className="finding-card__topline", children=[
                     html.Span(metric, className="finding-card__metric"),
                     html.Span(unit, className="finding-card__unit"),
                 ]),
                 html.H3(claim),
-                html.P(reading),
-                html.P(basis, className="finding-evidence__caveat"),
+                html.P(takeaway),
+                html.Details(className="finding-evidence__how", children=[
+                    html.Summary(t(SCHEMA, "overview_finding_how_summary", lang)),
+                    html.P(reading),
+                    html.P(basis, className="finding-evidence__caveat"),
+                ]),
             ]),
             html.Div(className="finding-evidence__chart", children=[
                 dcc.Graph(figure=figure, config={"displayModeBar": False, "responsive": True}),
@@ -274,6 +288,12 @@ def _render_findings_lead(lang: str) -> list:
             html.Dl(className="scope-list", children=[
                 html.Div(className="scope-stat", children=[html.Dt(label), html.Dd(value)])
                 for label, value in scope_stats
+            ]),
+            # The shared ground rules (observed rate vs held-out estimate, external
+            # validity) apply to every block, so they live here once, collapsed.
+            html.Details(className="findings-lead__note", children=[
+                html.Summary(t(SCHEMA, "overview_lead_note_summary", lang)),
+                html.P(t(SCHEMA, "overview_lead_note", lang)),
             ]),
         ],
     )
@@ -312,9 +332,13 @@ def _render_findings_lead(lang: str) -> list:
             )
         lead.append(_finding_block(
             "finding-discharge-milestones",
+            1,
+            lang,
+            t(SCHEMA, "overview_finding_ladder_kicker", lang),
             f"{ladder['hardest']['rate']:.0%}",
             _copy("overview_finding_ladder_unit", lang, item=rows[0]["label"]),
             _copy("overview_finding_ladder_title", lang, **ladder_copy),
+            t(SCHEMA, "overview_finding_ladder_takeaway", lang),
             _copy("overview_finding_ladder_reading", lang, **ladder_copy),
             ladder_basis,
             fg.fig_milestone_ladder({"items": rows}, SCHEMA, lang),
@@ -337,6 +361,9 @@ def _render_findings_lead(lang: str) -> list:
             )
         lead.append(_finding_block(
             "finding-improvement-by-grade",
+            2,
+            lang,
+            t(SCHEMA, "overview_finding_improve_kicker", lang),
             f"{improve['best']['rate']:.0%}",
             _copy(
                 "overview_finding_improve_unit",
@@ -345,6 +372,7 @@ def _render_findings_lead(lang: str) -> list:
                 count=len(improve["grades"]),
             ),
             _copy("overview_finding_improve_title", lang, **improve_copy),
+            t(SCHEMA, "overview_finding_improve_takeaway", lang),
             reading,
             _copy("overview_finding_improve_basis", lang, n=improve["n"]),
             fg.fig_improve_by_grade(improve, lang),
@@ -377,6 +405,9 @@ def _render_findings_lead(lang: str) -> list:
             )
         lead.append(_finding_block(
             "finding-measure-value",
+            3,
+            lang,
+            t(SCHEMA, "overview_finding_measure_kicker", lang),
             f"{value['best']['r2']:.2f}",
             _copy("overview_finding_measure_unit", lang, measure=best_label),
             _copy(
@@ -385,6 +416,7 @@ def _render_findings_lead(lang: str) -> list:
                 measure=best_label,
                 count=len(rows),
             ),
+            t(SCHEMA, "overview_finding_measure_takeaway", lang),
             _copy(
                 "overview_finding_measure_reading",
                 lang,
@@ -426,6 +458,9 @@ def _render_findings_lead(lang: str) -> list:
             )
         lead.append(_finding_block(
             "finding-certainty-curve",
+            4,
+            lang,
+            t(SCHEMA, "overview_finding_certainty_kicker", lang),
             f"±{certainty['last_baseline']:.0f}→±{certainty['last_observed']:.0f}",
             _copy("overview_finding_certainty_unit", lang, **landmarks),
             _copy(
@@ -434,6 +469,7 @@ def _render_findings_lead(lang: str) -> list:
                 shrink=certainty["pi_shrink"],
                 **landmarks,
             ),
+            t(SCHEMA, "overview_finding_certainty_takeaway", lang),
             _copy(
                 "overview_finding_certainty_reading",
                 lang,

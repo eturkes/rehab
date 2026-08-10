@@ -567,11 +567,16 @@ def render_patient(lang: str) -> html.Div:
         ]),
     )
 
-    # The answer a clinician came for stays open; the model-family panels sit one click away,
-    # filed under the clinical question each one settles rather than the model that produced it.
+    # The answer a clinician came for stays open — trajectory, then the prognosis at full
+    # width; the raw ISNCSCI record and the model-family panels sit one click away, filed
+    # under the clinical question each one settles rather than the model that produced it.
     content_children = [
         timeline_card,
-        html.Div(className="chart-row", children=[isncsci_card, prediction_card]),
+        html.Div(className="chart-row chart-row--spotlight", children=[prediction_card]),
+        html.Details(className="overview-details", children=[
+            html.Summary(t(SCHEMA, "patient_isncsci_summary", lang)),
+            isncsci_card,
+        ]),
     ]
     groups = [
         ("q_when", [_patient_landmark_card(lang)]),

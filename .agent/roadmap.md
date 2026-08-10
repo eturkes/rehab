@@ -7,7 +7,7 @@ Mature SCI-recovery analytics project; all numbered features (F1–F27) and mode
 * **Data layer** — schema-driven (`schema/*.yaml`), cp932 raw → ghost-filtered universe of **899 episodes / 866 patients**, 26-timepoint rectangular long frame ([project reference §1](../docs/project-reference.md#1-data-invariants-established--rely-on-them)). `data/quality.py` clinical-consistency report.
 * **Production heads** (`train.py`, byte-reproducible) — 4 SCIM (total + 3 subscales) + AIS multiclass + LOS + the 5 G9 Δ-score heads; split-conformal / Mondrian PI, APS sets (AIS), TreeSHAP + interactions. Plus 9-timepoint trajectory models and k=3 recovery archetypes.
 * **Diagnostic / inference families** — G1 landmark + G2 value-of-information, G3 growth-mixture phenotyping, G4 AIS conversion, G6 multi-state Markov + improve-by-6m, G7 18 functional-independence heads, G8 132-segment topography, G10 5 level-descent heads, G11 3-axis neuro-functional dissociation. F24 out-of-time temporal backtest (diagnostic).
-* **Dashboard** (Plotly Dash, JA default / EN toggle) — findings-first landing with four source-bound findings on unfiltered data, each carrying its denominator, its limits and its own figure, a collapsed admission-severity gradient, and a separate filtered cohort explorer; outcome drivers, patient, methods, simulator tabs; F25 blank partial-input simulator with a completeness/OOD reliability badge; What-if reference overlay.
+* **Dashboard** (Plotly Dash, JA default / EN toggle) — findings-first landing with four source-bound findings on unfiltered data, layered: visible = numbered kicker + headline metric + claim + one takeaway + figure; reviewed reading/basis prose complete behind a per-finding disclosure (gate caps visible claim+takeaway <480 chars, floors basis >200); shared ground-rules note collapsed under the lead; collapsed admission-severity gradient (one visible deck sentence names it); separate filtered cohort explorer. Story tab order overview→insights→patient→simulator→methods. Patient tab: prognosis full-width, ISNCSCI table behind a disclosure. Simulator: F25 completeness/OOD badge + cohort-baseline note on zero-input (test-gated); "fill defaults" labelled illustrative. What-if reference overlay.
 * **Quality gates** — F26 pytest harness (invariant + smoke + behavioral, ~12 s, skips when CSV/bundles absent), ruff (with the `--select F` regression gate), pip-audit.
 * **Known-good** — ruff clean, pytest green (47), pip-audit clean. Stack: scikit-learn 1.9.0, shap 0.52.0, lightgbm 4.6.0, numpy 2.4.6, pytest 9.1.0 (CVE-2025-71176 floor). All 66 `models/**/*.joblib` are pickled at sklearn 1.9.0 and load clean; `landmark_metrics.json` + `temporal_metrics.json` cover all 11 outcomes. Which metrics survive a retrain or a sklearn bump byte-identical: [project reference §0b](../docs/project-reference.md#0b-lessons-and-pitfalls).
 
@@ -25,3 +25,15 @@ Content, NOT a predictive head. This cohort does **not** obey the proportional-r
 ### M2 — Calibration-drift monitoring · UNPLANNED
 
 Infrastructure — the only on-record untried head idea; track whether head calibration degrades over time, extending F24's temporal backtest. Effort M.
+
+### M3 — Dashboard focus backlog · UNPLANNED
+
+Deferred flags from the focus/story pass (full ranked list + anchors: `.scratch/agents/map-task-1.md` §7; expires with scratch — re-derive by re-mapping if absent). Accepted-but-deferred, roughly by value:
+
+1. Outcome-driven prediction headings — patient + simulator fixed H2s say "discharge SCIM-III" while the outcome selector offers 11 heads; selected non-SCIM story looks broken. `tabs/patient.py` prediction card, `tabs/simulator.py` result card.
+2. Simulator quick-profile intake — 25-field wall before the answer; expose ~6–8 high-importance fields, collapse the rest per clinical group; keep missingness semantics.
+3. Methods per-outcome disclosures dump 11 repeated cards (tab totals ~60 cards/92 graphs behind details); add an outcome selector inside each section, render one at a time.
+4. Patient/simulator duplicate question-group decks — label mode per tab (observed episode vs hypothetical profile), cross-link.
+5. Smaller: archetype filter (model-derived) out of the observable explorer filter bar; scorecard task/metric labels to stop cross-outcome score comparison; data-quality badge beside scorecard; 132-cell ISNCSCI worksheet nested behind its own "advanced exam" disclosure.
+
+Effort S–M each, independent; all copy-safe against the reviewed reading/basis prose (untouched by design).

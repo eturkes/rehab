@@ -193,11 +193,14 @@ def test_overview_findings_precede_filtered_explorer(state, lang):
 
 
 @pytest.mark.parametrize("lang", LANGS)
-def test_finding_blocks_carry_reading_and_basis(state, lang):
-    """Structure only: number + claim + reading + basis present, every format field resolved.
+def test_finding_blocks_stay_tight_and_keep_their_basis(state, lang):
+    """Structure + focus: the visible layer is kicker/number/claim/takeaway, and the full
+    reading + basis prose waits complete behind the block's own disclosure.
 
-    Says nothing about whether the prose is *correct* — claim soundness against the metric
-    artifacts stays a review obligation, not a gate.
+    Two regressions trip this: flattening the disclosure back into visible wall-of-text
+    (the takeaway budget), and trimming the reviewed reading/basis prose away (the length
+    floors).  Says nothing about whether the prose is *correct* — claim soundness against
+    the metric artifacts stays a review obligation, not a gate.
     """
     from rehab_sci.dashboard.tabs import overview as O
 
@@ -207,21 +210,35 @@ def test_finding_blocks_carry_reading_and_basis(state, lang):
         if str(getattr(node, "id", "")).startswith("finding-")
     ]
     assert len(blocks) == 4
-    for block in blocks:
+    for position, block in enumerate(blocks, start=1):
         copy = block.children[0]
-        metric, unit = (span.children for span in copy.children[0].children)
-        claim, reading, basis = (para.children for para in copy.children[1:4])
-        # Dash omits unset props entirely, so the reading picks up the body-copy rule
-        # `.finding-evidence__copy > p:not(.finding-evidence__caveat)` by carrying no class.
-        assert getattr(copy.children[2], "className", None) is None
-        assert copy.children[3].className == "finding-evidence__caveat"
-        assert metric and unit
-        # The reading has to do real explanatory work, and an unresolved {placeholder}
-        # or an un-substituted format field would ship as literal braces.
-        assert len(reading) > len(claim) > 0
+        kicker, topline, headline, takeaway_p, how = copy.children
+        index_span, kicker_span = kicker.children
+        assert index_span.children == f"{position:02d}"  # chapters, in story order
+        assert kicker_span.children
+        metric, unit = (span.children for span in topline.children)
+        claim = headline.children
+        takeaway = takeaway_p.children
+        # Dash omits unset props entirely, so the takeaway picks up the body-copy rule
+        # `.finding-evidence__copy > p:not(...)` by carrying no class.
+        assert getattr(takeaway_p, "className", None) is None
+        # Focus budget: what renders on load is the number, one claim, one takeaway.
+        assert metric and unit and claim and takeaway
+        assert len(claim) + len(takeaway) < 480
+        # The full reviewed prose stays reachable inside the block, not deleted.
+        assert how.className == "finding-evidence__how"
+        summary, reading_p, basis_p = how.children
+        assert summary.children
+        reading, basis = reading_p.children, basis_p.children
+        assert basis_p.className == "finding-evidence__caveat"
+        assert len(reading) > len(claim)
         assert len(basis) > 200
-        for text in (metric, unit, claim, reading, basis):
+        # An unresolved {placeholder} would ship as literal braces.
+        for text in (metric, unit, claim, takeaway, reading, basis):
             assert "{" not in text and "}" not in text
+        # The evidence figure itself stays visible, never behind the disclosure.
+        shown, behind = _split_graphs(block)
+        assert shown and not behind
 
 
 @pytest.mark.parametrize("lang", LANGS)
@@ -259,6 +276,19 @@ def test_detail_waits_behind_a_named_disclosure(renderers, state, tab, max_open,
     ]
     assert summaries
     assert all(isinstance(text, str) and text.strip() for text in summaries)
+
+
+@pytest.mark.parametrize("lang", LANGS)
+def test_simulator_empty_form_is_labelled_cohort_baseline(state, lang):
+    """The prior a blank form produces must announce itself; one real input clears it."""
+    from rehab_sci.dashboard.tabs import simulator as S
+
+    num_ids = [{"type": "num", "col": "年齢"}]
+    empty = S.simulate([None], [], num_ids, [], "scim_total", lang, None)
+    filled = S.simulate([65], [], num_ids, [], "scim_total", lang, None)
+    note = "sim-baseline-note"
+    assert any(getattr(node, "className", None) == note for node in _walk(empty[0]))
+    assert not any(getattr(node, "className", None) == note for node in _walk(filled[0]))
 
 
 @pytest.mark.parametrize("lang", LANGS)

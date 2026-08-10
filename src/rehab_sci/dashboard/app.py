@@ -55,13 +55,15 @@ def create_app() -> Dash:
                         value="overview",
                         className="dash-tabs",
                         children=[
+                            # Story order: what the data shows → what drives it → one
+                            # patient's record → what-if → provenance.
                             dcc.Tab(value="overview", id="tab-overview",
                                     className="dash-tab", selected_className="dash-tab--selected"),
-                            dcc.Tab(value="simulator", id="tab-simulator",
+                            dcc.Tab(value="insights", id="tab-insights",
                                     className="dash-tab", selected_className="dash-tab--selected"),
                             dcc.Tab(value="patient", id="tab-patient",
                                     className="dash-tab", selected_className="dash-tab--selected"),
-                            dcc.Tab(value="insights", id="tab-insights",
+                            dcc.Tab(value="simulator", id="tab-simulator",
                                     className="dash-tab", selected_className="dash-tab--selected"),
                             dcc.Tab(value="methods", id="tab-methods",
                                     className="dash-tab", selected_className="dash-tab--selected"),

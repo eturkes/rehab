@@ -574,7 +574,8 @@ def simulate(num_vals, cat_vals, num_ids, cat_ids, outcome_key, lang, ref_data):
         return [], fg.blank_figure(), fg.blank_figure(), fg.blank_figure(), []
     bundle = OUTCOME_BUNDLES.get(outcome_key) or SCIM_TOTAL_BUNDLE
     X = collect_sim_inputs(num_vals, num_ids, cat_vals, cat_ids)
-    reliability = _reliability_badge(assess_input(X, bundle, FEATURE_SPEC), lang)
+    assessment = assess_input(X, bundle, FEATURE_SPEC)
+    reliability = _reliability_badge(assessment, lang)
 
     ref_pred_for_outcome: dict | None = None
     if ref_data and ref_data.get("outcomes"):
@@ -614,6 +615,13 @@ def simulate(num_vals, cat_vals, num_ids, cat_ids, outcome_key, lang, ref_data):
                 f"{ref_label} : AIS {ref_cls}",
                 className="pi whatif-delta",
             ))
+
+    # An empty form still yields the model's cohort prior; without this label that
+    # number reads as a confident prediction of nothing in particular.
+    if assessment["n_supplied"] == 0:
+        readout.insert(0, html.Div(
+            t(SCHEMA, "sim_baseline_note", lang), className="sim-baseline-note",
+        ))
 
     traj = predict_trajectory(X)
     ref_traj = ref_data.get("trajectory") if ref_data else None

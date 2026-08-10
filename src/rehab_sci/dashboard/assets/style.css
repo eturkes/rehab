@@ -213,6 +213,19 @@ html, body {
   line-height: 1;
 }
 .sim-readout .pred-unit { font-size: 14px; color: var(--ink-500); margin-top: -6px; }
+/* Empty-form framing: the cohort prior announces itself before it can pass as a
+   personalized prediction. */
+.sim-baseline-note {
+  align-self: stretch;
+  margin-bottom: 10px;
+  padding: 8px 12px;
+  border-radius: 8px;
+  background: var(--warm-soft);
+  color: var(--warm-700);
+  font-size: 12.5px;
+  line-height: 1.5;
+  text-align: center;
+}
 .sim-readout .pi {
   font-size: 13px;
   color: var(--ink-500);
@@ -708,7 +721,7 @@ input[type="number"]:focus, input[type="text"]:focus, select:focus {
   letter-spacing: -0.015em;
   line-height: 1.25;
 }
-.finding-evidence__copy > p:not(.finding-evidence__caveat),
+.finding-evidence__copy > p:not(.finding-evidence__caveat):not(.finding-kicker),
 .overview-section-head > p {
   margin: 14px 0 0;
   color: var(--ink-700);
@@ -724,6 +737,60 @@ input[type="number"]:focus, input[type="text"]:focus, select:focus {
   line-height: 1.5;
 }
 .finding-evidence__chart { min-width: 0; }
+
+/* Numbered kicker: the four findings read as chapters of one argument. */
+.finding-kicker {
+  display: flex;
+  align-items: baseline;
+  gap: 9px;
+  margin: 0 0 14px;
+  color: var(--ink-500);
+  font-size: 11px;
+  font-weight: 650;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+}
+.finding-kicker__index {
+  color: var(--accent);
+  font-family: var(--font-mono);
+  font-size: 12px;
+  letter-spacing: 0;
+}
+
+/* Per-finding disclosure: the reviewed reading + basis prose in full, one click away. */
+.finding-evidence__how {
+  margin-top: 16px;
+  border-top: 1px solid var(--ink-100);
+}
+.finding-evidence__how > summary {
+  padding: 11px 0 2px;
+  color: var(--ink-500);
+  font-size: 12px;
+  font-weight: 650;
+  cursor: pointer;
+}
+.finding-evidence__how > p {
+  margin: 12px 0 0;
+  color: var(--ink-700);
+  font-size: 12.5px;
+  line-height: 1.65;
+}
+.finding-evidence__how > .finding-evidence__caveat { margin-top: 14px; }
+
+/* Shared ground rules for the whole lead, collapsed under the scope stats. */
+.findings-lead__note { max-width: 74ch; margin-top: 14px; }
+.findings-lead__note > summary {
+  color: var(--ink-500);
+  font-size: 12px;
+  font-weight: 650;
+  cursor: pointer;
+}
+.findings-lead__note > p {
+  margin: 8px 0 0;
+  color: var(--ink-500);
+  font-size: 12.5px;
+  line-height: 1.6;
+}
 
 .cohort-explorer {
   margin-top: 64px;
