@@ -50,7 +50,7 @@ overview_lead_note:
   en: "Two kinds of number appear. Observed rates are counts taken from the clinical record. Held-out model estimates are measured on patients withheld from training, and estimate how the model performs on patients it has not seen. Eligibility differs from one finding to the next, so each finding states its denominator, what was measured, how to read its figure, and the conditions that limit it inside “How this was measured”. All findings are based on data from one rehabilitation centre; none establishes a causal effect or has been validated in an external population."
 overview_glance_ladder:
   ja: "退院時自立率はSCIM動作ごとに異なる"
-  en: "Discharge independence varies by SCIM activity"
+  en: "Discharge independence rate varies by SCIM activity"
 overview_glance_improve:
   ja: "6か月AIS改善率は入院時重症度順に並ばない"
   en: "6-month AIS improvement does not follow severity order"
@@ -67,8 +67,8 @@ overview_finding_how_summary:
   ja: "測定の詳細 — 母数・図の読み方・解釈の制限"
   en: "How this was measured — denominator, reading, limits"
 overview_finding_ladder_kicker:
-  ja: "退院時に自立している動作はどれか"
-  en: "Which activities are independent at discharge"
+  ja: "自立している患者はどれだけいるか"
+  en: "How many patients are independent"
 overview_finding_ladder_takeaway:
   ja: "合計点が同じでも自立している動作は異なりうるため、SCIM合計だけでは退院後にどの動作へ支援が要るかは読み取れない。"
   en: "Patients with the same summary score can differ in which activities are independent, so a SCIM total alone cannot say which supports a patient will still need after discharge."
@@ -76,8 +76,8 @@ overview_finding_ladder_unit:
   ja: "退院時に自立していた患者の割合 — SCIM-III {count} 項目中の最低から最高まで"
   en: "of patients independent at discharge — lowest to highest of {count} SCIM-III activities"
 overview_finding_ladder_title:
-  ja: "退院時自立率は動作により異なる — はしごの下段には移動・移乗、上段には身の回り動作が並ぶ"
-  en: "Independence at discharge depends on the activity — walking and transfers fill the bottom of the ladder, self-care the top"
+  ja: "移動は自立している患者が最も少なく、セルフケアは最も多い"
+  en: "Mobility is where the fewest patients are independent, self-care where the most are"
 overview_finding_ladder_reading:
   ja: "1本の棒が SCIM-III で採点される1つの日常生活動作にあたり、棒の長さは退院日にその動作を自立して行えていた患者の割合を示す。自立率の順に並べると尺度が「はしご」になり、最下段は「{low_item}」の {low:.0%}、最上段は「{high_item}」の {high:.0%} である。棒の色は動作の領域を表すため、どの領域がはしごのどこに位置するかも読み取れる。本コホートでは下段を移動・移乗の項目が占め、最も多くの患者が到達しているのは身の回り動作の項目である。個々の棒よりも、この開きの大きさが本所見の要点である。食事や整容が自立していても屋外移動や階段昇降には介助を要する例があり、SCIM 合計点のみでは、退院後にどの動作でどの支援が必要になるかは特定できない。はしごは「どの動作が退院までに自立に至りにくいか」という難易度の順位であり、回復の順序ではない。いずれも退院時点の断面の割合であり、1人の患者が自立を取り戻す順序については情報を持たない。個々の棒は、その動作単独での退院時点の見込みとして読む。"
   en: "Each bar is one activity of daily living scored on the SCIM-III, and its length is the share of patients who performed that activity independently on the day of discharge. Sorted by rate, the bars form a ladder running from {low_item} at the bottom, reached by {low:.0%} of patients, to {high_item} at the top, reached by {high:.0%}. Bar colour marks the domain, so the chart also shows where each domain sits on the ladder: in this cohort the ambulation and transfer items occupy the bottom, and the activities reached by the most patients are self-care items. The spread across activities, rather than any single bar, is the finding. A patient who is independent in eating and grooming may still require assistance to walk outdoors or climb stairs, so a single summary SCIM score does not identify which supports that patient will need after discharge. The ladder is a difficulty ranking, that is, which activities the fewest patients had regained by discharge, and not a recovery sequence: these are all discharge-day rates and carry no information about the order in which an individual patient regains activities. An individual bar is the discharge-time prospect for that single activity."
