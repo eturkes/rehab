@@ -61,6 +61,8 @@ ignore = ["E501", "B008", "RUF001", "RUF002", "RUF003"]
 # CSV / model bundles are absent — see tests/conftest.py skip gates.
 testpaths = ["tests"]
 addopts = "-q -ra"
+# The font coverage gate shares its corpus scanner with scripts/02_build_fonts.py.
+pythonpath = ["scripts"]
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/rehab_sci"]

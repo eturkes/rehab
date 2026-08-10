@@ -7,7 +7,7 @@ import plotly.io as pio
 
 # Figure text tracks the page: same stack as the stylesheet's --font-sans, so the
 # self-hosted IBM Plex faces (assets/fonts/) cover the SVG labels too.
-FONT_SANS = '"IBM Plex Sans", "Hiragino Sans", "Noto Sans JP", "Yu Gothic UI", system-ui, sans-serif'
+FONT_SANS = '"IBM Plex Sans", "IBM Plex Sans JP", sans-serif'
 
 # Calm, professional, color-blind-aware palette.
 PALETTE_CATEGORICAL = [

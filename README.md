@@ -39,6 +39,7 @@ schema/                           # bilingual schema (committed)
 scripts/
   01_profile_raw.py               # rebuild schema/raw_profile.json from the CSV
   02_build_fonts.py               # rebuild the dashboard's subset IBM Plex woff2 faces
+  font_charset.py                 # characters the UI can render; shared by the build + its coverage gate
 
 src/rehab_sci/
   schema.py                       # Schema loader (by_raw, level_label, t, ...)
@@ -53,7 +54,7 @@ src/rehab_sci/
     app.py state.py compute.py layout.py figures/ tabs/ theme.py i18n.py
     reliability.py                # partial-input completeness + OOD assessment
     assets/style.css              # design system; @font-face → assets/fonts/
-    assets/fonts/                 # self-hosted IBM Plex subsets (OFL), regen via scripts/02_build_fonts.py
+    assets/fonts/                 # self-hosted IBM Plex Sans/Mono/Sans JP subsets (OFL), regen via scripts/02_build_fonts.py
 
 models/                           # trained artifacts (gitignored)
 reports/                          # exported figures (gitignored)
