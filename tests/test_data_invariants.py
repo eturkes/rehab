@@ -11,17 +11,17 @@ import pandas as pd
 
 from rehab_sci.data.dataset import ADMISSION_FEATURES
 
-N_EPISODES = 899  # post ghost-filter universe
+N_EPISODES = 893  # post ghost-filter, post duplicate-registration merge
 N_PATIENTS = 866  # unique non-null IDNumber
 N_ORPHANS = 27  # admission features present but IDNumber null
 N_TIMEPOINTS = 26  # rectangular grid: every episode has all 26 slots
-N_LONG = N_EPISODES * N_TIMEPOINTS  # 23374
+N_LONG = N_EPISODES * N_TIMEPOINTS  # 23218
 N_FEATURES = 30  # 2 demographics + 9 injury/admin + 15 ISNCSCI/AIS + 4 SCIM-ADL
-CARDINALITY = {  # discharge-outcome availability over the 899-episode universe
+CARDINALITY = {  # discharge-outcome availability over the 893-episode universe
     "y_discharge_scim": 507,
-    "y_discharge_ais": 638,
+    "y_discharge_ais": 634,
     "y_discharge_wisci": 50,  # too sparse to model — stays dropped
-    "LOS_days": 682,
+    "LOS_days": 677,
 }
 
 
@@ -29,6 +29,13 @@ def test_episode_and_patient_counts(ep):
     assert len(ep) == N_EPISODES
     assert int(ep["IDNumber"].nunique()) == N_PATIENTS
     assert int(ep["IDNumber"].isna().sum()) == N_ORPHANS
+
+
+def test_duplicate_registrations_are_merged(ep):
+    # a stay re-entered under a second KeyRecordNumber is collapsed into one episode (§1),
+    # so an identified patient contributes exactly one row; orphans carry no ID to check
+    per_patient = ep.dropna(subset=["IDNumber"]).groupby("IDNumber").size()
+    assert int(per_patient.max()) == 1
 
 
 def test_long_frame_is_rectangular(long_df):

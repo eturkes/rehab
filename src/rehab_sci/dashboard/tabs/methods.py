@@ -778,7 +778,9 @@ def _dataquality_block(lang: str) -> html.Div | None:
                  "cross_field": "項目間" if lang == "ja" else "Cross-field",
                  "longitudinal": "経時" if lang == "ja" else "Longitudinal"}
     findings_lbl = "総検出数" if lang == "ja" else "Total findings"
-    ep_lbl = "対象症例" if lang == "ja" else "Episodes flagged"
+    # counts raw register records: the quality report reads the CSV directly, ahead of
+    # the ghost filter and the duplicate-registration merge
+    ep_lbl = "対象記録" if lang == "ja" else "Records flagged"
     sev_line = "   ".join(f"{sev_label.get(k, k)}={v}" for k, v in tot["by_severity"].items())
     kpi = html.P(
         f"{findings_lbl}: {tot['violations']:,}     "

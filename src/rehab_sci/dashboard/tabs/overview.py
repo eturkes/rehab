@@ -551,6 +551,15 @@ def _render_findings_lead(lang: str) -> list:
                     lang,
                     n=motor["n"],
                     effect=motor["eta_squared"],
+                    # unlike the four headline findings, whose model cohorts all require a
+                    # real IDNumber, this observed aggregate still carries the id-less rows
+                    n_orphans=int(
+                        (
+                            EP["TotalMotor"].notna()
+                            & EP["y_discharge_scim"].notna()
+                            & EP["IDNumber"].isna()
+                        ).sum()
+                    ),
                 ),
                 className="overview-details__intro overview-details__intro--prose",
             ),

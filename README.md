@@ -116,11 +116,13 @@ The unit of analysis is `KeyRecordNumber`.  The raw CSV ships a perfect
 1 200 × 26 grid (1 200 episodes × 26 timepoint slots), but 301 of those
 episodes are pure placeholder rows (`IDNumber` is null *and* every
 admission feature is null *and* every outcome is null), so
-`build_analysis_dataset()` filters them at load time.  The analysis
-universe is therefore **899 episodes / 866 unique patients** (with 27
-partial-data orphans that have admission features but no `IDNumber`, so
-they cannot enter a group-by-patient training split but still contribute
-to cohort-level visuals).
+`build_analysis_dataset()` filters them at load time.  A further 6 stays
+were entered twice under two `KeyRecordNumber`s each and are merged into
+one episode apiece, so the analysis universe is **893 episodes / 866
+unique patients** (with 27 partial-data orphans that have admission
+features but no `IDNumber`, so they cannot enter a group-by-patient
+training split but still contribute to cohort-level visuals).  Apart from
+those orphans, an episode is one patient.
 
 Admission features are taken from the `0day` timepoint with backfill from
 `72h → 2w → 4w` (first-non-null wins) so that patients with a missing

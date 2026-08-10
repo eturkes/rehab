@@ -4,8 +4,8 @@ Cross-session context beyond code, `docs/`, and `git log`. Durable operating fac
 
 ## Gate honesty
 
-- `uv run pytest` → **55 passed, ~19 s**. `uv run ruff check .` → clean under the full `pyproject.toml` rule set (`E,F,I,B,UP,SIM,RUF`), so the narrower `--select F` regression gate is a subset, not the ceiling.
-- `tests/conftest.py` skips every data- and model-dependent test when `data/raw/ALL_SCIDATA.csv` or the `models/<head>/` joblib bundles are absent; only the pure-registry tests then run, and pytest still exits **0**. Read the counts, not the exit code — **55 passed** means the gate held, a green run dominated by skips proves nothing.
+- `uv run pytest` → **56 passed, ~19 s**. `uv run ruff check .` → clean under the full `pyproject.toml` rule set (`E,F,I,B,UP,SIM,RUF`), so the narrower `--select F` regression gate is a subset, not the ceiling.
+- `tests/conftest.py` skips every data- and model-dependent test when `data/raw/ALL_SCIDATA.csv` or the `models/<head>/` joblib bundles are absent; only the pure-registry tests then run, and pytest still exits **0**. Read the counts, not the exit code — **56 passed** means the gate held, a green run dominated by skips proves nothing.
 - Raw CSV + trained bundles are both present on this machine → gates are live here.
 
 ## Worktree gates
@@ -17,7 +17,7 @@ P=<primary root>; cd "$P/.scratch/worktrees/<name>"
 mkdir -p data && ln -sfn "$P/data/raw" data/raw
 for d in "$P"/models/*/; do ln -sfn "$d" "models/$(basename "$d")"; done
 ln -sfn "$P/models/feature_spec.joblib" models/feature_spec.joblib
-PYTHONPATH="$PWD/src" "$P/.venv/bin/python" -m pytest    # 55 passed ⇒ links live
+PYTHONPATH="$PWD/src" "$P/.venv/bin/python" -m pytest    # 56 passed ⇒ links live
 "$P/.venv/bin/ruff" check .
 ```
 
@@ -28,6 +28,13 @@ PYTHONPATH="$PWD/src" "$P/.venv/bin/python" -m pytest    # 55 passed ⇒ links l
 - Baseline restore strips the links, silently returning the gate to skips → an inherited or restored worktree re-runs the link block verbatim (idempotent) before gating.
 - Links are read paths **into** the primary tree: a write landing on one (`models/<head>/bundle.joblib`, `models/feature_spec.joblib`, `data/raw/*`) mutates the primary tree, so any retrain/regeneration unit takes real copies or a private output dir. Tracked `models/*.json` are real worktree files and stay isolated.
 - Teardown (Close order's worktree-removal step): `git worktree remove --force` — plain `remove` aborts rc=128 (`contains modified or untracked files`) because the links + private caches are untracked; `--force` unlinks the links without traversing them, so primary `data/raw` + `models/` survive intact. Then `git branch -D wt/<name>`: `-d` refuses rc=1 `not fully merged` for every checkpointed branch, `prod` squash-harvests included, since a squash leaves no ancestry link. `git worktree list` + `git branch --list 'wt/*'` printing no `wt/` row = teardown proven.
+
+## Denominator semantics
+
+- **Every headline-finding cohort requires a real `IDNumber`** — `independence.py` (`score.notna() & IDNumber.notna()`), `multistate.py` improve head, `landmark.py` (`dropna([target, IDNumber])`). The 27 partial-id orphans are therefore **absent** from the ladder / improve / measure / certainty denominators, and post-merge those counts are exactly distinct patients. **`subgroups.py` does NOT filter `IDNumber`** → the gradient panel (n=482) carries 9 id-less rows and is the one place the id-less caveat belongs. Bind any such caveat to a live count, never a literal: the universe-wide 27 is the wrong number for every individual finding.
+- `data/quality.py` reads the raw CSV through `Context.build`, **upstream of both the ghost filter and the duplicate-registration merge** → its `n_episodes` is the 1,200-record register, not the 893-episode universe. Its labels say *records* for that reason; the count disagreeing with the dashboard is correct, not drift.
+- Full artifact regeneration = the §6 cheat-sheet order run start to finish (`train → subgroups → archetypes → quality → temporal → landmark → phenotypes → conversion → multistate → independence → topography → level_descent → dissociation`), ~75 min on a loaded box, `landmark` alone ~35 min. `archetypes` must follow `train` (it rewrites `training_metrics.json` last).
+- **New dashboard copy can break the font gate.** `tests/test_font_coverage.py` fails on any character no shipped subset draws (two new JA glyphs did). Fix = `uv run python scripts/02_build_fonts.py`, which rewrites the four `ibm-plex-sans-jp-*.woff2`; rerun pytest.
 
 ## Read cost
 
