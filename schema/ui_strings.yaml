@@ -67,14 +67,14 @@ overview_finding_how_summary:
   ja: "測定の詳細 — 母数・図の読み方・解釈の制限"
   en: "How this was measured — denominator, reading, limits"
 overview_finding_ladder_kicker:
-  ja: "どの動作が退院までに自立に至るか"
-  en: "Which activities come back by discharge"
+  ja: "退院時に自立している動作はどれか"
+  en: "Which activities are independent at discharge"
 overview_finding_ladder_takeaway:
   ja: "合計点が同じでも自立している動作は異なりうるため、SCIM合計だけでは退院後にどの動作へ支援が要るかは読み取れない。"
   en: "Episodes with the same summary score can differ in which activities are independent, so a SCIM total alone cannot say which supports a patient will still need after discharge."
 overview_finding_ladder_unit:
-  ja: "動作別の退院時自立率（SCIM-III {count} 項目）"
-  en: "independent at discharge, across {count} SCIM-III activities"
+  ja: "退院時に自立していた症例の割合 — SCIM-III {count} 項目中の最低から最高まで"
+  en: "of episodes independent at discharge — lowest to highest of {count} SCIM-III activities"
 overview_finding_ladder_title:
   ja: "退院時自立率は動作により異なる — はしごの下段には移動・移乗、上段には身の回り動作が並ぶ"
   en: "Independence at discharge depends on the activity — walking and transfers fill the bottom of the ladder, self-care the top"

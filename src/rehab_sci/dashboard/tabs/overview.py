@@ -330,7 +330,14 @@ def _render_findings_lead(lang: str) -> list:
             high_item=rows[-1]["label"],
             count=len(rows),
         )
-        ladder_metric = f"{ladder['hardest']['rate']:.0%} → {ladder['easiest']['rate']:.0%}"
+        # A spread across activities at one timepoint, never a change over time.  The
+        # arrow belongs to the certainty block, where it really does mark a transition
+        # (admission-only → with observation); reusing it three tiles away for a range
+        # reads as recovery over the stay.  So: an en-dash range, and a unit line that
+        # names both ends the way every other block names what its two numbers are.
+        ladder_metric = (
+            f"{ladder['hardest']['rate'] * 100:.0f}–{ladder['easiest']['rate']:.0%}"
+        )
         ladder_basis = _copy("overview_finding_ladder_basis", lang, n=ladder["n"])
         join = "" if lang == "ja" else " "
         for cell in ladder["excluded"]:

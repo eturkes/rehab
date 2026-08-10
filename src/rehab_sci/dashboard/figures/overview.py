@@ -65,8 +65,14 @@ def fig_milestone_ladder(ladder: dict, schema: Schema, lang: str) -> go.Figure:
         ))
     fig.update_layout(
         height=22 * len(rows) + 92,
-        margin=dict(l=10, r=52, t=38, b=28),
-        xaxis=dict(range=[0, 1], tickformat=".0%"),
+        margin=dict(l=10, r=52, t=38, b=48),
+        xaxis=dict(
+            # Eighteen bare percentages otherwise leave their denominator to the copy.
+            title=("退院時に自立していた症例の割合" if lang == "ja"
+                   else "% of episodes independent at discharge"),
+            range=[0, 1],
+            tickformat=".0%",
+        ),
         yaxis=dict(
             tickmode="array",
             tickvals=names,

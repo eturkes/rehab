@@ -14,7 +14,7 @@ Three families, because the UI is bilingual and numeric:
 
 Why subset locally instead of vendoring off-the-shelf webfont builds: the Google /
 Fontsource ``latin`` subsets drop U+2192 ``→``, U+2248 ``≈``, U+2265 ``≥`` and Greek —
-characters the headline metrics and Methods prose use ("43% → 82%", "±23 → ±13", "ΔUEMS")
+characters the headline metrics and Methods prose use ("±23 → ±13", "ΔUEMS")
 — and a stock Plex Sans JP is 2.3 MB per weight.  Subsetting to ``RANGES`` ∪ the corpus
 in ``font_charset`` keeps every character the repo can render and nothing else;
 ``tests/test_font_coverage.py`` fails if that promise ever breaks.
