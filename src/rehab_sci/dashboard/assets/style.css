@@ -649,54 +649,65 @@ input[type="number"]:focus, input[type="text"]:focus, select:focus {
   font-variant-numeric: tabular-nums;
 }
 
-.finding-grid {
+/* At-a-glance band: all four findings in one viewport, each tile an anchor to its
+   evidence block.  The tile is number-first; the label is a micro-claim, not a title. */
+.finding-glance {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 16px;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 14px;
   margin-top: 18px;
 }
-.finding-card {
+.glance-card {
   display: flex;
-  min-height: 220px;
   flex-direction: column;
-  padding: 20px 22px 18px;
+  gap: 6px;
+  padding: 15px 17px 13px;
   border: 1px solid var(--ink-100);
+  border-left: 3px solid var(--accent);
   border-radius: 10px;
   background: var(--card);
+  box-shadow: var(--shadow-sm);
+  text-decoration: none;
+  transition: border-color 0.15s ease, transform 0.15s ease;
 }
-.finding-card__topline { display: flex; align-items: baseline; gap: 7px; min-height: 44px; }
+.glance-card:hover {
+  border-color: var(--accent);
+  transform: translateY(-1px);
+}
+.glance-card__index {
+  color: var(--accent);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 650;
+  letter-spacing: 0.04em;
+}
+.glance-card__metric {
+  color: var(--ink-900);
+  font-family: var(--font-mono);
+  font-size: 25px;
+  font-weight: 650;
+  letter-spacing: -0.045em;
+  line-height: 1.05;
+  white-space: nowrap;
+}
+.glance-card__label { color: var(--ink-700); font-size: 12.5px; line-height: 1.4; }
+.finding-card__topline { display: flex; align-items: baseline; gap: 9px; }
 .finding-card__metric {
   color: var(--ink-900);
   font-family: var(--font-mono);
-  font-size: 31px;
+  font-size: 38px;
   font-weight: 650;
   letter-spacing: -0.055em;
   line-height: 1;
+  white-space: nowrap;
 }
-.finding-card__unit { color: var(--ink-500); font-size: 10.5px; line-height: 1.2; }
-.finding-card h3 {
-  margin: 13px 0 7px;
-  color: var(--ink-900);
-  font-size: 16px;
-  font-weight: 650;
-  letter-spacing: -0.01em;
-  line-height: 1.35;
-}
-.finding-card__body { margin: 0; color: var(--ink-700); font-size: 12.5px; line-height: 1.55; }
-.finding-card__caveat {
-  margin: auto 0 0;
-  padding-top: 14px;
-  color: var(--ink-500);
-  font-size: 12px;
-  line-height: 1.45;
-}
+.finding-card__unit { color: var(--ink-500); font-size: 11px; line-height: 1.3; max-width: 30ch; }
 
-/* The copy column carries full explanatory prose, so it is sized for a readable measure
-   (~34 Japanese / ~69 Latin characters) and top-aligned against its figure rather than
-   centred — a tall column beside a short chart would otherwise float the chart mid-block. */
+/* The visible copy column is just number + one claim, so it stays narrow and
+   top-aligned against its figure; the full prose waits inside the block's disclosure. */
 .finding-evidence {
   display: grid;
-  grid-template-columns: minmax(320px, 0.5fr) minmax(0, 1fr);
+  grid-template-columns: minmax(300px, 0.42fr) minmax(0, 1fr);
   gap: 30px;
   align-items: start;
   margin-top: 18px;
@@ -704,6 +715,7 @@ input[type="number"]:focus, input[type="text"]:focus, select:focus {
   border: 1px solid var(--ink-100);
   border-radius: 10px;
   background: var(--card);
+  scroll-margin-top: 18px;
 }
 .finding-evidence__copy { padding: 8px 4px 12px; }
 .finding-evidence__copy h3 {
@@ -932,8 +944,7 @@ input[type="number"]:focus, input[type="text"]:focus, select:focus {
 }
 
 @media (max-width: 940px) {
-  .finding-grid { grid-template-columns: 1fr; }
-  .finding-card { min-height: 0; }
+  .finding-glance { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .insights-lead { grid-template-columns: minmax(0, 1fr); align-items: start; }
 }
 
@@ -956,7 +967,7 @@ input[type="number"]:focus, input[type="text"]:focus, select:focus {
   }
   .tab-body { padding-top: 16px; }
   .scope-list { gap: 10px 24px; }
-  .finding-card { padding: 18px; }
+  .glance-card { padding: 13px 14px 11px; }
   .finding-evidence { padding: 22px 18px 14px; }
   .overview-section-head h2 { font-size: 20px; }
   .cohort-explorer { margin-top: 44px; }
@@ -974,7 +985,8 @@ input[type="number"]:focus, input[type="text"]:focus, select:focus {
   .topbar { flex-direction: column; }
   .topbar-left h1 { font-size: 20px; letter-spacing: -0.025em; }
   .card-row { grid-template-columns: minmax(0, 1fr); }
-  .finding-card__metric { font-size: 27px; }
+  .finding-glance { grid-template-columns: minmax(0, 1fr); }
+  .finding-card__metric { font-size: 30px; }
 }
 
 /* Dash slider overrides */

@@ -4,8 +4,8 @@ app_title:
   ja: "脊髄損傷リハビリ解析・予測スイート"
   en: "SCI Rehabilitation Analytics & Prediction Suite"
 app_subtitle:
-  ja: "脊髄損傷後の回復について本コホートが示すこと ― 早期測定は退院時予測をどこまで確かにするか"
-  en: "What this cohort shows about recovery after spinal cord injury — and how early measurement sharpens the discharge forecast"
+  ja: "脊髄損傷後の回復経過（実測）と退院時予測 — 単一施設コホート"
+  en: "Observed recovery and discharge prediction after spinal cord injury — a single-centre cohort"
 loading:
   ja: "読み込み中…"
   en: "Loading…"
@@ -40,14 +40,26 @@ overview_lead_title:
   ja: "このコホートにみる回復の実際"
   en: "What recovery looks like in this cohort"
 overview_lead_deck:
-  ja: "主要所見は4件。絞り込みを一切かけない全症例で算出しており、ページ下部のエクスプローラーを操作しても変わらない。4件の背景には共通の勾配がある。入院時に運動機能が残っているほど退院時機能は平均的に高く、個々の転帰は各層内で大きく散らばる（所見の下に展開できる）。いずれも単一施設で観測された関連であり、因果効果ではない。測定方法・母数・解釈を制限する条件は、各所見の「測定の詳細」に畳んで示す。"
-  en: "Four findings, computed on every episode with no filters applied — the explorer further down never changes them. One gradient sits behind all four: the more motor function at admission, the higher the discharge function on average, with wide individual spread inside every stratum (opened below the findings). All are associations observed at a single rehabilitation centre, not causal effects; each finding keeps its full measurement detail, denominator and limits one click away inside the block."
+  ja: "主要所見は4件。全症例・絞り込みなしで算出し、下のフィルターでは変わらない。"
+  en: "Four findings, computed on every episode with no filters — the filters below never change them."
 overview_lead_note_summary:
   ja: "数値の種類と読み方の前提を開く"
   en: "Open the ground rules for reading these numbers"
 overview_lead_note:
-  ja: "数値には2種類ある。実測割合は診療録に記録された事象の集計値である。ホールドアウト推定値は学習に使用していない患者で測定したモデルの成績であり、未学習の患者に対する性能の推定値にあたる。対象患者の条件は所見ごとに異なるため、各所見に母数・測定内容・図の読み方・解釈を制限する条件を明記している。外部集団での検証は行っていない。"
-  en: "Two kinds of number appear. Observed rates are counts taken from the clinical record. Held-out model estimates are measured on patients withheld from training, and estimate how the model performs on patients it has not seen. Eligibility differs from one finding to the next, so each finding states the episodes it covers, what was measured, how to read its figure, and the conditions that limit it. None of it has been validated on an external population."
+  ja: "数値には2種類ある。実測割合は診療録に記録された事象の集計値である。ホールドアウト推定値は学習に使用していない患者で測定したモデルの成績であり、未学習の患者に対する性能の推定値にあたる。対象患者の条件は所見ごとに異なるため、各所見の「測定の詳細」に母数・測定内容・図の読み方・解釈を制限する条件を明記している。いずれも単一施設のデータに基づく所見であり、因果効果を示すものではない。外部集団での検証は行っていない。"
+  en: "Two kinds of number appear. Observed rates are counts taken from the clinical record. Held-out model estimates are measured on patients withheld from training, and estimate how the model performs on patients it has not seen. Eligibility differs from one finding to the next, so each finding states its denominator, what was measured, how to read its figure, and the conditions that limit it inside “How this was measured”. All findings are based on data from one rehabilitation centre; none establishes a causal effect or has been validated in an external population."
+overview_glance_ladder:
+  ja: "退院時自立率はSCIM動作ごとに異なる"
+  en: "Discharge independence varies by SCIM activity"
+overview_glance_improve:
+  ja: "6か月AIS改善率は入院時重症度順に並ばない"
+  en: "6-month AIS improvement does not follow severity order"
+overview_glance_measure:
+  ja: "{measure}：{count}指標中R²点推定が最高"
+  en: "{measure}: highest R² estimate of {count} tested"
+overview_glance_certainty:
+  ja: "80%予測区間（退院時SCIM）が{shrink:.0%}狭まる"
+  en: "Discharge-SCIM 80% interval narrows by {shrink:.0%}"
 overview_scope_years:
   ja: "事業年度"
   en: "Business years"
@@ -58,14 +70,14 @@ overview_finding_ladder_kicker:
   ja: "どの動作が退院までに自立に至るか"
   en: "Which activities come back by discharge"
 overview_finding_ladder_takeaway:
-  ja: "下段を移動・移乗、上段を身の回り動作が占める。合計点が同じでも自立している動作は異なりうるため、SCIM合計だけでは退院後にどの動作へ支援が要るかは読み取れない。"
-  en: "Ambulation and transfer items fill the bottom of the ladder and self-care items the top — a single summary score cannot say which activities a patient will still need help with."
+  ja: "合計点が同じでも自立している動作は異なりうるため、SCIM合計だけでは退院後にどの動作へ支援が要るかは読み取れない。"
+  en: "Episodes with the same summary score can differ in which activities are independent, so a SCIM total alone cannot say which supports a patient will still need after discharge."
 overview_finding_ladder_unit:
-  ja: "の患者が退院時に「{item}」で自立していた（全項目中で自立率が最も低い項目）"
-  en: "of patients were independent in {item} at discharge, the lowest rate of any item"
+  ja: "動作別の退院時自立率（SCIM-III {count} 項目）"
+  en: "independent at discharge, across {count} SCIM-III activities"
 overview_finding_ladder_title:
-  ja: "退院時に自立できるかどうかは動作によって大きく異なり、SCIM-III の日常生活動作 {count} 項目で自立率は {low:.0%} から {high:.0%} まで開く"
-  en: "Whether a patient is independent at discharge depends on the activity: rates run from {low:.0%} to {high:.0%} across the {count} SCIM-III activities of daily living"
+  ja: "退院時自立率は動作により異なる — はしごの下段には移動・移乗、上段には身の回り動作が並ぶ"
+  en: "Independence at discharge depends on the activity — walking and transfers fill the bottom of the ladder, self-care the top"
 overview_finding_ladder_reading:
   ja: "1本の棒が SCIM-III で採点される1つの日常生活動作にあたり、棒の長さは退院日にその動作を自立して行えていた患者の割合を示す。自立率の順に並べると尺度が「はしご」になり、最下段は「{low_item}」の {low:.0%}、最上段は「{high_item}」の {high:.0%} である。棒の色は動作の領域を表すため、どの領域がはしごのどこに位置するかも読み取れる。本コホートでは下段を移動・移乗の項目が占め、最も多くの患者が到達しているのは身の回り動作の項目である。個々の棒よりも、この開きの大きさが本所見の要点である。食事や整容が自立していても屋外移動や階段昇降には介助を要する例があり、SCIM 合計点のみでは、退院後にどの動作でどの支援が必要になるかは特定できない。はしごは「どの動作が退院までに自立に至りにくいか」という難易度の順位であり、回復の順序ではない。いずれも退院時点の断面の割合であり、1人の患者が自立を取り戻す順序については情報を持たない。個々の棒は、その動作単独での退院時点の見込みとして読む。"
   en: "Each bar is one activity of daily living scored on the SCIM-III, and its length is the share of patients who performed that activity independently on the day of discharge. Sorted by rate, the bars form a ladder running from {low_item} at the bottom, reached by {low:.0%} of patients, to {high_item} at the top, reached by {high:.0%}. Bar colour marks the domain, so the chart also shows where each domain sits on the ladder: in this cohort the ambulation and transfer items occupy the bottom, and the activities reached by the most patients are self-care items. The spread across activities, rather than any single bar, is the finding. A patient who is independent in eating and grooming may still require assistance to walk outdoors or climb stairs, so a single summary SCIM score does not identify which supports that patient will need after discharge. The ladder is a difficulty ranking, that is, which activities the fewest patients had regained by discharge, and not a recovery sequence: these are all discharge-day rates and carry no information about the order in which an individual patient regains activities. An individual bar is the discharge-time prospect for that single activity."
@@ -82,14 +94,14 @@ overview_finding_improve_kicker:
   ja: "AIS の改善はどの重症度で記録されるか"
   en: "Who records an AIS-grade improvement"
 overview_finding_improve_takeaway:
-  ja: "この順序は患者側ではなく尺度側の性質による。改善と数えられる閾値が入院時の段階ごとに異なり、AIS D は E（全髄節で正常）への到達を要する。"
-  en: "The ordering is a property of the scale, not the patients: each admission grade is counted against its own threshold, and improving out of D means reaching E — normal function in every segment."
+  ja: "各入院時グレードで「1段階以上」が指す到達先は異なる。とくに AIS D の改善には E（全髄節で正常）への到達が必要であり、この尺度上の閾値を踏まえて群間差を読む必要がある。"
+  en: "“At least one grade” has a different endpoint for each admission grade. In particular, improvement from AIS D requires reaching E — normal function in every segment — so the between-grade rates must be read against these scale thresholds."
 overview_finding_improve_unit:
-  ja: "の患者（入院時 AIS {grade}）が6か月以内に AIS を1段階以上改善した（入院時重症度 {count} 群のうち最も高い）"
-  en: "of patients admitted at AIS {grade} gained at least one AIS grade within 6 months, the highest rate of the {count} admission grades"
+  ja: "6か月以内に AIS 1段階以上改善 — 入院時 AIS {best_grade} 対 AIS {worst_grade}"
+  en: "improved ≥1 AIS grade within 6 months — admission AIS {best_grade} vs {worst_grade}"
 overview_finding_improve_title:
-  ja: "改善率は入院時の重症度の順には並ばない。最も高いのは入院時 AIS {best_grade} の {best_rate:.0%}、最も低いのは入院時 AIS {worst_grade} の {worst_rate:.0%} である"
-  en: "Improvement is not ordered by admission severity: AIS {best_grade} improves most often at {best_rate:.0%} and AIS {worst_grade} least often at {worst_rate:.0%}"
+  ja: "AIS 改善率は入院時重症度の順に並ばない — 入院時グレードごとに「1段階以上」が指す到達先は異なる"
+  en: "AIS improvement rates do not follow admission severity — “at least one grade” has a different endpoint for each admission grade"
 overview_finding_improve_reading:
   ja: "ここでいう改善とは、入院後6か月以内のいずれかの評価で記録された AIS が、入院時の AIS より1段階以上良いことを指す。棒の高さの順序が重症度の順序と一致しないのは、患者側の事情ではなく尺度側の事情による。改善と判定される閾値が、入院時の段階ごとに異なるためである。入院時 AIS C の患者は D に到達すれば改善と数えられ、入院時 AIS B の患者は C に到達すれば改善と数えられるが、入院時の段階が高いほど、次の段階に到達するために必要な機能回復は大きくなる。各棒は隣の棒とではなく、それぞれの判定閾値と併せて読む必要がある。各棒が示すのは、その入院時重症度のうち1段階以上上がった患者の割合であり、その群が回復した機能量ではない。"
   en: "Improvement here means that an AIS grade recorded at some point in the first 6 months is at least one letter better than the grade recorded on admission. The bars are not ordered by admission severity, and the cause lies in the scale rather than in the patients: the threshold for being counted as improved differs by admission grade. A patient admitted at AIS C is counted on reaching D and a patient admitted at AIS B on reaching C, but the higher the admission grade, the larger the functional gain the next grade represents. Each bar is to be read against its own threshold rather than against the adjacent bars. A bar reports how often an admission grade moved up at least one letter; it does not report how much function that group regained."
@@ -103,14 +115,14 @@ overview_finding_measure_kicker:
   ja: "3か月時点で測り直す価値が最も高い1指標"
   en: "The one measure worth repeating"
 overview_finding_measure_takeaway:
-  ja: "3か月時点で1指標だけ測り直すなら、このコホートで退院時SCIM合計を最もよく説明したのは神経学的評価ではなく機能評価だった。"
-  en: "If a single measure were repeated at three months, a functional score — not a neurological examination — explained the most variance in discharge SCIM in this cohort."
+  ja: "入院時情報のみのホールドアウトR²は{baseline:.2f}。3か月までの直近の{measure}を加えたモデルは{best:.2f}で、検証した{count}指標中もっとも高い点推定値だった。"
+  en: "Admission-only held-out R² was {baseline:.2f}; adding the latest {measure} recorded by 3 months gave {best:.2f}, the highest point estimate among the {count} tested."
 overview_finding_measure_unit:
-  ja: "入院時情報に、3か月時点までに記録された直近の「{measure}」1項目を加えたときの、退院時SCIM合計に対する R²"
-  en: "R² for discharge SCIM total when the most recent {measure} score recorded by 3 months is added to admission data"
+  ja: "退院時SCIM合計のホールドアウトR² — 入院時情報 + 3か月までの直近の{measure}"
+  en: "held-out R² for discharge SCIM total — admission data + latest {measure} by 3 months"
 overview_finding_measure_title:
-  ja: "3か月時点までの値を1指標ずつ追加した {count} 指標のうち、退院時SCIM合計を最もよく説明したのは{measure}だった"
-  en: "Of {count} measures each added on its own as of the 3-month landmark, {measure} explains the most variance in discharge SCIM total"
+  ja: "検証した{count}指標では、3か月までの直近の{measure}を加えたモデルのホールドアウトR²点推定が最も高かった"
+  en: "Among {count} measures tested one at a time, latest {measure} by 3 months had the highest held-out R² point estimate"
 overview_finding_measure_reading:
   ja: "点線の基準線は、入院時情報だけを使ったモデルである。学習に使っていない患者での R² は {baseline:.2f}、すなわち退院時SCIM合計のばらつきのおよそ {baseline:.0%} を説明し、残りは説明できていない。各行はこの同じモデルに、指標をちょうど1つだけ加えて作り直したものである。加えるのは3か月時点までに記録された直近の値を持ち越したもので、最後の評価が6週時点の患者であればその6週時点の値が用いられる。予測対象・入院時の特徴量・検証用患者はいずれも共通であり、基準線から丸印までの距離が、その指標が3か月時点で得られていることによる説明力の増分にあたる。R² は説明できた分散の割合で、1.00 なら完全予測、0.00 なら全員にコホート平均値を当てはめるのと同等を意味する。したがってこの順位は、3か月時点で1指標のみを測り直す場合に、どの指標が退院時SCIM合計の予測をどれだけ改善するかを示す。本コホートでの最上位は{measure}の {best:.2f} であり、神経学的指標ではなく機能評価である。この比較を制限する条件は下記に示す。"
   en: "The dotted reference line is a model given admission data alone. On held-out patients it reaches an R² of {baseline:.2f}, meaning it accounts for roughly {baseline:.0%} of the variation in discharge SCIM total and leaves the rest unexplained. Each row repeats that same model with exactly one measure added: the most recent value of that measure recorded on or before the 3-month mark, carried forward, so a patient last examined at 6 weeks contributes that 6-week value. Everything else is held fixed, with the same outcome, the same admission features and the same held-out patients. The distance from the line to a marker is therefore the gain attributable to having that one measure available at 3 months. R² is the share of variance explained: 1.00 would be perfect prediction, and 0.00 would be equivalent to assigning every patient the cohort mean. The ranking thus indicates how much each measure would improve a discharge-SCIM prediction if it were the only measure repeated at 3 months. In this cohort the highest-ranked measure is a functional score, {measure} at {best:.2f}, rather than a neurological one. The conditions stated below bound that comparison."
@@ -127,11 +139,11 @@ overview_finding_certainty_takeaway:
   ja: "狭まりは時間の経過ではなく追加された測定によるものである。各時点で、同一の在院患者・同一分割で学習したモデル同士を比較している。"
   en: "The narrowing comes from the added measurements, not from time passing: at every landmark the two models are compared on the same still-admitted patients."
 overview_finding_certainty_unit:
-  ja: "SCIM点。{landmark} 時点における退院時SCIM合計の80%予測区間の半幅（入院時情報のみ → 観測あり）"
-  en: "SCIM points: half-width of the 80% prediction interval for discharge SCIM total at {landmark}, admission data only → with observation"
+  ja: "退院時SCIM合計の80%予測区間の半幅（SCIM点）— {landmark} 時点、入院時のみ → 観測あり"
+  en: "80% discharge-SCIM prediction-interval half-width (points) at {landmark} — admission-only → with observation"
 overview_finding_certainty_title:
-  ja: "{landmark} までに記録された測定値を加えると、退院時SCIM合計の80%予測区間は入院時情報のみの場合より {shrink:.0%} 狭くなる"
-  en: "Adding the measurements recorded through {landmark} narrows the 80% prediction interval for discharge SCIM total by {shrink:.0%}"
+  ja: "{landmark} までの測定値を加えると、退院時SCIMの80%予測区間は入院時情報のみより {shrink:.0%} 狭くなる"
+  en: "The measurements recorded through {landmark} narrow the 80% interval for discharge SCIM by {shrink:.0%}"
 overview_finding_certainty_reading:
   ja: "予測区間とは、その患者の退院時SCIM合計がこの範囲に入るとモデルが見込む幅であり、80%予測区間は100人中80人で真の値を含むように構成されている。図はその半幅、すなわち点推定に併記する ±値を、{first_landmark} から {landmark} までの各評価時点についてプロットしたものである。破線は入院時情報だけを使ったモデル、実線は同じ時点の同じモデルに、その時点までに記録された臨床測定値をすべて与えたものである。比較は同一時点内での縦方向で行い、その差が追加した観測による不確実性の減少にあたる。{landmark} 時点では ±{baseline_pi:.0f} と ±{observed_pi:.0f} SCIM点の差にあたる。横方向の比較は弱い。時点が進むほど患者は退院していくため、各時点はより小さく、より選択された在院患者群を記述しているからである。"
   en: "A prediction interval is the range within which the model expects a patient's discharge SCIM total to fall, and an 80% interval is constructed to contain the true value for 80 of every 100 patients. The chart plots its half-width, the ± value reported alongside a point prediction, at each landmark from {first_landmark} to {landmark}. The dashed line is a model working from admission data alone; the solid line is the same model at the same landmark, additionally given every clinical measurement recorded up to that point. The two lines are compared vertically, within a landmark: that gap is the reduction in uncertainty attributable to the added observations, and at {landmark} it is the difference between ±{baseline_pi:.0f} and ±{observed_pi:.0f} SCIM points. Comparison along the horizontal axis is weaker, because patients are discharged as the landmarks advance, so each landmark describes a smaller and more selected group of still-admitted patients."
@@ -151,14 +163,11 @@ overview_explorer_title:
   ja: "絞り込みコホートの要約"
   en: "Filtered cohort summaries"
 overview_explorer_deck:
-  ja: "下のフィルターはこのセクションだけを更新する。上の主要所見は未絞り込みデータに固定され、各解析の完全症例・リスク集合の対象数を個別に示す。"
-  en: "Filters update this section only. Headline findings stay tied to the unfiltered data; each shows its own complete-case or risk-set denominator."
+  ja: "フィルターはこのセクションだけを更新する。上の主要所見は変わらない。"
+  en: "Filters update this section only; the findings above never change."
 overview_selected_outcomes_title:
   ja: "選択集団の転帰パターン"
   en: "Outcome patterns in the selected cohort"
-overview_selected_outcomes_deck:
-  ja: "平均的な経時変化、AIS遷移、退院時の機能分布に絞って表示。"
-  en: "Focused on average longitudinal change, AIS transitions, and discharge function."
 overview_context_summary:
   ja: "損傷・人口統計の背景を見る"
   en: "View injury and demographic context"

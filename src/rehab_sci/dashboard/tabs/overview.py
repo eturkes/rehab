@@ -230,14 +230,14 @@ def _finding_block(
     basis: str,
     figure,
 ) -> html.Section:
-    """One finding: numbered kicker, headline number, the claim, one takeaway, evidence.
+    """One finding: numbered kicker, headline number, one claim, evidence figure.
 
-    The visible layer stays tight — the figure carries the evidence and ``takeaway`` is
-    the single sentence a reader should retain.  ``reading`` (what was measured and how
-    to read the figure) and ``basis`` (the denominator, the eligibility rule and every
-    condition that limits the claim) keep their reviewed wording in full, one click away
-    behind the block's own disclosure, so the finding still explains itself without the
-    Methods tab.
+    The visible layer is glanceable — number + one sentence; the figure carries the
+    evidence.  ``takeaway`` (the retained qualifier), ``reading`` (what was measured and
+    how to read the figure) and ``basis`` (the denominator, the eligibility rule and
+    every condition that limits the claim) keep their reviewed wording in full, one
+    click away behind the block's own disclosure, so the finding still explains itself
+    without the Methods tab.
     """
     return html.Section(
         id=block_id,
@@ -253,9 +253,9 @@ def _finding_block(
                     html.Span(unit, className="finding-card__unit"),
                 ]),
                 html.H3(claim),
-                html.P(takeaway),
                 html.Details(className="finding-evidence__how", children=[
                     html.Summary(t(SCHEMA, "overview_finding_how_summary", lang)),
+                    html.P(takeaway, className="finding-evidence__takeaway"),
                     html.P(reading),
                     html.P(basis, className="finding-evidence__caveat"),
                 ]),
@@ -263,6 +263,19 @@ def _finding_block(
             html.Div(className="finding-evidence__chart", children=[
                 dcc.Graph(figure=figure, config={"displayModeBar": False, "responsive": True}),
             ]),
+        ],
+    )
+
+
+def _glance_tile(index: int, target: str, metric: str, label: str) -> html.A:
+    """One at-a-glance tile: number + micro-claim, anchor-linked to its evidence block."""
+    return html.A(
+        className="glance-card",
+        href=f"#{target}",
+        children=[
+            html.Span(f"{index:02d}", className="glance-card__index"),
+            html.Span(metric, className="glance-card__metric"),
+            html.Span(label, className="glance-card__label"),
         ],
     )
 
@@ -289,8 +302,9 @@ def _render_findings_lead(lang: str) -> list:
                 html.Div(className="scope-stat", children=[html.Dt(label), html.Dd(value)])
                 for label, value in scope_stats
             ]),
-            # The shared ground rules (observed rate vs held-out estimate, external
-            # validity) apply to every block, so they live here once, collapsed.
+            # The shared ground rules (observed rate vs held-out estimate, single-centre
+            # association, external validity) apply to every block, so they live here
+            # once, collapsed.
             html.Details(className="findings-lead__note", children=[
                 html.Summary(t(SCHEMA, "overview_lead_note_summary", lang)),
                 html.P(t(SCHEMA, "overview_lead_note", lang)),
@@ -298,6 +312,9 @@ def _render_findings_lead(lang: str) -> list:
         ],
     )
 
+    # The glance band repeats each block's headline number + a micro-claim so all four
+    # findings fit one viewport; tiles anchor-jump to their evidence blocks.
+    tiles: list = []
     lead: list = [lead_head]
 
     ladder = facts.get("ladder")
@@ -313,6 +330,7 @@ def _render_findings_lead(lang: str) -> list:
             high_item=rows[-1]["label"],
             count=len(rows),
         )
+        ladder_metric = f"{ladder['hardest']['rate']:.0%}→{ladder['easiest']['rate']:.0%}"
         ladder_basis = _copy("overview_finding_ladder_basis", lang, n=ladder["n"])
         join = "" if lang == "ja" else " "
         for cell in ladder["excluded"]:
@@ -330,14 +348,20 @@ def _render_findings_lead(lang: str) -> list:
                 lang,
                 high=ladder["easiest"]["rate"],
             )
+        tiles.append(_glance_tile(
+            1,
+            "finding-discharge-milestones",
+            ladder_metric,
+            t(SCHEMA, "overview_glance_ladder", lang),
+        ))
         lead.append(_finding_block(
             "finding-discharge-milestones",
             1,
             lang,
             t(SCHEMA, "overview_finding_ladder_kicker", lang),
-            f"{ladder['hardest']['rate']:.0%}",
-            _copy("overview_finding_ladder_unit", lang, item=rows[0]["label"]),
-            _copy("overview_finding_ladder_title", lang, **ladder_copy),
+            ladder_metric,
+            _copy("overview_finding_ladder_unit", lang, count=len(rows)),
+            t(SCHEMA, "overview_finding_ladder_title", lang),
             t(SCHEMA, "overview_finding_ladder_takeaway", lang),
             _copy("overview_finding_ladder_reading", lang, **ladder_copy),
             ladder_basis,
@@ -359,19 +383,22 @@ def _render_findings_lead(lang: str) -> list:
             reading += ("" if lang == "ja" else " ") + _copy(
                 "overview_finding_improve_ceiling", lang, **improve_copy
             )
+        vs = " 対 " if lang == "ja" else " vs "
+        improve_metric = f"{improve['best']['rate']:.0%}{vs}{improve['worst']['rate']:.0%}"
+        tiles.append(_glance_tile(
+            2,
+            "finding-improvement-by-grade",
+            improve_metric,
+            t(SCHEMA, "overview_glance_improve", lang),
+        ))
         lead.append(_finding_block(
             "finding-improvement-by-grade",
             2,
             lang,
             t(SCHEMA, "overview_finding_improve_kicker", lang),
-            f"{improve['best']['rate']:.0%}",
-            _copy(
-                "overview_finding_improve_unit",
-                lang,
-                grade=improve["best"]["grade"],
-                count=len(improve["grades"]),
-            ),
-            _copy("overview_finding_improve_title", lang, **improve_copy),
+            improve_metric,
+            _copy("overview_finding_improve_unit", lang, **improve_copy),
+            t(SCHEMA, "overview_finding_improve_title", lang),
             t(SCHEMA, "overview_finding_improve_takeaway", lang),
             reading,
             _copy("overview_finding_improve_basis", lang, n=improve["n"]),
@@ -403,12 +430,18 @@ def _render_findings_lead(lang: str) -> list:
                 other=t(SCHEMA, f"lm_measure_{other['measure'].lower()}", lang),
                 other_r2=other["r2"],
             )
+        tiles.append(_glance_tile(
+            3,
+            "finding-measure-value",
+            f"R² {value['best']['r2']:.2f}",
+            _copy("overview_glance_measure", lang, count=len(rows), measure=best_label),
+        ))
         lead.append(_finding_block(
             "finding-measure-value",
             3,
             lang,
             t(SCHEMA, "overview_finding_measure_kicker", lang),
-            f"{value['best']['r2']:.2f}",
+            f"R² {value['best']['r2']:.2f}",
             _copy("overview_finding_measure_unit", lang, measure=best_label),
             _copy(
                 "overview_finding_measure_title",
@@ -416,7 +449,14 @@ def _render_findings_lead(lang: str) -> list:
                 measure=best_label,
                 count=len(rows),
             ),
-            t(SCHEMA, "overview_finding_measure_takeaway", lang),
+            _copy(
+                "overview_finding_measure_takeaway",
+                lang,
+                measure=best_label,
+                count=len(rows),
+                baseline=value["baseline_r2"],
+                best=value["best"]["r2"],
+            ),
             _copy(
                 "overview_finding_measure_reading",
                 lang,
@@ -431,9 +471,10 @@ def _render_findings_lead(lang: str) -> list:
 
     certainty = facts.get("certainty")
     if certainty:
+        # Prose placeholders take the localized landmark names; raw codes stay artifact keys.
         landmarks = dict(
-            first_landmark=certainty["first_landmark"],
-            landmark=certainty["landmark"],
+            first_landmark=level_label(SCHEMA, "time_name", certainty["first_landmark"], lang),
+            landmark=level_label(SCHEMA, "time_name", certainty["landmark"], lang),
         )
         certainty_basis = _copy(
             "overview_finding_certainty_basis",
@@ -456,6 +497,12 @@ def _render_findings_lead(lang: str) -> list:
                 cov_observed=cov_obs,
                 **landmarks,
             )
+        tiles.append(_glance_tile(
+            4,
+            "finding-certainty-curve",
+            f"±{certainty['last_baseline']:.0f}→±{certainty['last_observed']:.0f}",
+            _copy("overview_glance_certainty", lang, shrink=certainty["pi_shrink"]),
+        ))
         lead.append(_finding_block(
             "finding-certainty-curve",
             4,
@@ -479,7 +526,7 @@ def _render_findings_lead(lang: str) -> list:
                 **landmarks,
             ),
             certainty_basis,
-            fg.fig_certainty_curve(certainty, lang),
+            fg.fig_certainty_curve(certainty, SCHEMA, lang),
         ))
 
     # Admission severity sets the level every finding above is measured against; it stays
@@ -502,6 +549,8 @@ def _render_findings_lead(lang: str) -> list:
                 config={"displayModeBar": False, "responsive": True},
             ),
         ]))
+    if tiles:
+        lead.insert(1, html.Nav(className="finding-glance", children=tiles))
     return lead
 
 
@@ -685,7 +734,6 @@ def update_overview_content(ais, para, age_range, arch, lang):
 
     children.append(html.Div(className="overview-subhead", children=[
         html.H3(t(SCHEMA, "overview_selected_outcomes_title", lang)),
-        html.P(t(SCHEMA, "overview_selected_outcomes_deck", lang)),
     ]))
     children.append(html.Div(className="chart-row chart-row--spotlight", children=[
         chart_card(

@@ -194,43 +194,48 @@ def test_overview_findings_precede_filtered_explorer(state, lang):
 
 @pytest.mark.parametrize("lang", LANGS)
 def test_finding_blocks_stay_tight_and_keep_their_basis(state, lang):
-    """Structure + focus: the visible layer is kicker/number/claim/takeaway, and the full
-    reading + basis prose waits complete behind the block's own disclosure.
+    """Structure + focus: the visible layer is kicker/number/one claim, and the full
+    takeaway + reading + basis prose waits complete behind the block's own disclosure.
 
     Two regressions trip this: flattening the disclosure back into visible wall-of-text
-    (the takeaway budget), and trimming the reviewed reading/basis prose away (the length
-    floors).  Says nothing about whether the prose is *correct* — claim soundness against
-    the metric artifacts stays a review obligation, not a gate.
+    (the claim/unit budgets), and trimming the reviewed prose away (the length floors).
+    Says nothing about whether the prose is *correct* — claim soundness against the
+    metric artifacts stays a review obligation, not a gate.
     """
     from rehab_sci.dashboard.tabs import overview as O
 
+    page = O.render_overview(lang)
     blocks = [
         node
-        for node in _walk(O.render_overview(lang))
+        for node in _walk(page)
         if str(getattr(node, "id", "")).startswith("finding-")
     ]
     assert len(blocks) == 4
     for position, block in enumerate(blocks, start=1):
+        assert len(block.children) == 2  # the copy column and the chart — nothing else visible
         copy = block.children[0]
-        kicker, topline, headline, takeaway_p, how = copy.children
+        kicker, topline, headline, how = copy.children
         index_span, kicker_span = kicker.children
         assert index_span.children == f"{position:02d}"  # chapters, in story order
         assert kicker_span.children
         metric, unit = (span.children for span in topline.children)
         claim = headline.children
-        takeaway = takeaway_p.children
-        # Dash omits unset props entirely, so the takeaway picks up the body-copy rule
-        # `.finding-evidence__copy > p:not(...)` by carrying no class.
-        assert getattr(takeaway_p, "className", None) is None
-        # Focus budget: what renders on load is the number, one claim, one takeaway.
-        assert metric and unit and claim and takeaway
-        assert len(claim) + len(takeaway) < 480
-        # The full reviewed prose stays reachable inside the block, not deleted.
+        # Glance budget: what renders on load is the number and one short claim.
+        assert metric and unit and claim
+        assert len(claim) < 170
+        assert len(unit) < 110
+        # The full reviewed prose stays reachable inside the block — a real disclosure,
+        # closed on load, not a Div wearing the class name.
+        assert isinstance(how, html.Details)
+        assert getattr(how, "open", False) is not True
         assert how.className == "finding-evidence__how"
-        summary, reading_p, basis_p = how.children
+        summary, takeaway_p, reading_p, basis_p = how.children
+        assert isinstance(summary, html.Summary)
         assert summary.children
-        reading, basis = reading_p.children, basis_p.children
+        takeaway, reading, basis = takeaway_p.children, reading_p.children, basis_p.children
+        assert takeaway_p.className == "finding-evidence__takeaway"
         assert basis_p.className == "finding-evidence__caveat"
+        assert takeaway
         assert len(reading) > len(claim)
         assert len(basis) > 200
         # An unresolved {placeholder} would ship as literal braces.
@@ -239,6 +244,46 @@ def test_finding_blocks_stay_tight_and_keep_their_basis(state, lang):
         # The evidence figure itself stays visible, never behind the disclosure.
         shown, behind = _split_graphs(block)
         assert shown and not behind
+    # The shared ground-rules note honours the same contract: a disclosure, closed on load.
+    note = next(
+        node for node in _walk(page)
+        if getattr(node, "className", None) == "findings-lead__note"
+    )
+    assert isinstance(note, html.Details)
+    assert getattr(note, "open", False) is not True
+
+
+@pytest.mark.parametrize("lang", LANGS)
+def test_overview_glance_band_mirrors_the_blocks(state, lang):
+    """The at-a-glance band shows all four findings in one strip: each tile carries the
+    same headline metric as its evidence block, a micro-claim, and an anchor to it."""
+    from rehab_sci.dashboard.tabs import overview as O
+
+    page = O.render_overview(lang)
+    nav = next(
+        node for node in _walk(page)
+        if getattr(node, "className", None) == "finding-glance"
+    )
+    tiles = nav.children
+    assert len(tiles) == 4
+    block_metric = {
+        node.id: next(
+            span.children
+            for span in _walk(node)
+            if getattr(span, "className", None) == "finding-card__metric"
+        )
+        for node in _walk(page)
+        if str(getattr(node, "id", "")).startswith("finding-")
+    }
+    assert len({tile.href for tile in tiles}) == 4  # four distinct anchors, none duplicated
+    for tile in tiles:
+        target = tile.href.lstrip("#")
+        assert target in block_metric
+        _index_span, metric_span, label_span = tile.children
+        assert metric_span.children == block_metric[target]  # same source-bound number
+        label = label_span.children
+        assert label and len(label) < 60
+        assert "{" not in label and "}" not in label
 
 
 @pytest.mark.parametrize("lang", LANGS)
