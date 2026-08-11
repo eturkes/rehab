@@ -101,7 +101,7 @@ overview_finding_improve_unit:
   en: "improved ≥1 AIS grade within 6 months — admission AIS {best_grade} vs {worst_grade}"
 overview_finding_improve_title:
   ja: "AIS 改善率は入院時重症度の順に並ばない — 1段階の改善とは、A では B への到達だが、D では全髄節が正常な E への到達を指す"
-  en: "AIS improvement rates do not follow admission severity — one grade up from A is B, but from D it is E, normal function in every segment"
+  en: "AIS improvement rates do not follow admission severity — from A, one grade up means reaching B; from D, it means reaching E (normal function in every segment)"
 overview_finding_improve_reading:
   ja: "ここでいう改善とは、入院後6か月以内のいずれかの評価で記録された AIS が、入院時の AIS より1段階以上良いことを指す。棒の高さの順序が重症度の順序と一致しないのは、患者側の事情ではなく尺度側の事情による。改善と判定される閾値が、入院時の段階ごとに異なるためである。入院時 AIS C の患者は D に到達すれば改善と数えられ、入院時 AIS B の患者は C に到達すれば改善と数えられるが、入院時の段階が高いほど、次の段階に到達するために必要な機能回復は大きくなる。各棒は隣の棒とではなく、それぞれの判定閾値と併せて読む必要がある。各棒が示すのは、その入院時重症度のうち1段階以上上がった患者の割合であり、その群が回復した機能量ではない。"
   en: "Improvement here means that an AIS grade recorded at some point in the first 6 months is at least one letter better than the grade recorded on admission. The bars are not ordered by admission severity, and the cause lies in the scale rather than in the patients: the threshold for being counted as improved differs by admission grade. A patient admitted at AIS C is counted on reaching D and a patient admitted at AIS B on reaching C, but the higher the admission grade, the larger the functional gain the next grade represents. Each bar is to be read against its own threshold rather than against the adjacent bars. A bar reports how often an admission grade moved up at least one letter; it does not report how much function that group regained."
