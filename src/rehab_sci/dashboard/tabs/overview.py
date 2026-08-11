@@ -242,6 +242,9 @@ def _finding_block(
     return html.Section(
         id=block_id,
         className="finding-evidence",
+        # Phrase-level line breaking (style.css) needs the content language declared, or
+        # JA claims wrap per character and split katakana and numeral+counter pairs.
+        lang=lang,
         children=[
             html.Div(className="finding-evidence__copy", children=[
                 html.P(className="finding-kicker", children=[

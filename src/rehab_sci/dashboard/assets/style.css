@@ -831,6 +831,10 @@ input[type="number"]:focus, input[type="text"]:focus, select:focus {
   font-size: 17px;
   font-weight: 600;
   line-height: 1.35;
+  /* JA claims carry no spaces, so the default per-character wrap splits katakana words
+     and numeral+counter pairs (セルフ|ケア, 1|段階) mid-token.  Phrase-level breaking is
+     Japanese-only and degrades to the default where unsupported; EN is unaffected. */
+  word-break: auto-phrase;
 }
 .overview-section-head h2 {
   margin: 0;
