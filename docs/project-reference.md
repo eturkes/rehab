@@ -124,9 +124,13 @@ This is project documentation, not an instruction source; operational instructio
 * **Claim register (every user-facing string)** — describe what was measured; the reader is a
   clinician reading evidence, not an audience being sold one.  Name the instrument and the
   outcome (`SCIM mobility`, not "one functional score"), bound every ranking to the set actually
-  tested (`highest among the 10 measures added one at a time`, not "better than any neurological
+  tested (`highest of the 10 measures each added on its own`, not "better than any neurological
   measure"), and keep the measured quantity in the words (`80% prediction interval`, not
-  "prognostic uncertainty").  A verb the design does not license is a defect, not a style
+  "prognostic uncertainty").  A model score belongs to the model, not to the input it was handed
+  (`the latest SCIM mobility recorded by 3 months gave the highest held-out R²`, never "SCIM
+  mobility had the highest R²"), and the comparison design is spelled out where the bound is:
+  `each added on its own` says one model per measure, where `tested one at a time` also reads as
+  a single model accumulating them.  A verb the design does not license is a defect, not a style
   preference: `governed by` for a descriptive gradient, `visual proof` for a regression slope,
   `misses its promise` for off-nominal coverage.  When a claim's own conditions weaken it, the
   basis line carries them — 3-month SCIM predicting discharge SCIM is the same instrument twice,
