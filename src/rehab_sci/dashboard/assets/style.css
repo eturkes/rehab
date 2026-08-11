@@ -754,7 +754,9 @@ input[type="number"]:focus, input[type="text"]:focus, select:focus {
 }
 
 /* At-a-glance band: all four findings in one viewport, each tile an anchor to its
-   evidence block.  The tile is number-first; the label is a micro-claim, not a title. */
+   evidence block.  The tile carries its finding's claim, not a headline figure: the
+   quantities these findings report are spreads, transitions and R² rankings, none of
+   which survives being lifted off its axis into a display numeral. */
 .finding-glance {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
@@ -785,32 +787,14 @@ input[type="number"]:focus, input[type="text"]:focus, select:focus {
   font-weight: 600;
   letter-spacing: 0.04em;
 }
-.glance-card__metric {
+.glance-card__claim {
   color: var(--ink-900);
-  font-family: var(--font-mono);
-  font-size: 21px;
-  font-weight: 600;
-  letter-spacing: -0.01em;
-  line-height: 1.15;
-  white-space: nowrap;
+  font-size: 14px;
+  font-weight: 500;
+  line-height: 1.5;
 }
-.glance-card__label { color: var(--ink-700); font-size: 12.5px; line-height: 1.4; }
-/* Topline = number over its unit caption.  Side-by-side on one baseline forced the unit
-   into a 3.5×-smaller ragged column beside a display numeral; stacked, the unit reads as
-   the number's caption and stays legible in both languages. */
-.finding-card__topline { display: flex; flex-direction: column; gap: 4px; }
-.finding-card__metric {
-  color: var(--ink-900);
-  font-family: var(--font-mono);
-  font-size: 27px;
-  font-weight: 600;
-  letter-spacing: -0.01em;
-  line-height: 1.1;
-  white-space: nowrap;
-}
-.finding-card__unit { color: var(--ink-500); font-size: 12.5px; line-height: 1.4; max-width: 36ch; }
 
-/* The visible copy column is just number + one claim, so it stays narrow and
+/* The visible copy column is just the claim over its scope line, so it stays narrow and
    top-aligned against its figure; the full prose waits inside the block's disclosure. */
 .finding-evidence {
   display: grid;
@@ -825,15 +809,32 @@ input[type="number"]:focus, input[type="text"]:focus, select:focus {
   scroll-margin-top: 18px;
 }
 .finding-evidence__copy { padding: 8px 4px 12px; }
+/* The claim is the headline: the finding stated in one sentence, sized to be read first.
+   Nothing above it competes — the kicker files the finding, the scope line under it names
+   the measurement, and the numbers stay on the figure where their axis explains them. */
 .finding-evidence__copy h3 {
-  margin: 14px 0 0;
+  margin: 0;
   color: var(--ink-900);
-  font-size: 17px;
+  font-size: 21px;
   font-weight: 600;
-  line-height: 1.35;
-  /* JA claims carry no spaces, so the default per-character wrap splits katakana words
-     and numeral+counter pairs (セルフ|ケア, 1|段階) mid-token.  Phrase-level breaking is
-     Japanese-only and degrades to the default where unsupported; EN is unaffected. */
+  letter-spacing: -0.01em;
+  line-height: 1.4;
+}
+/* Scope line: what was measured, on whom, in the caption register under the claim. */
+.finding-evidence__scope {
+  margin: 12px 0 0;
+  color: var(--ink-500);
+  font-size: 12.5px;
+  line-height: 1.55;
+}
+/* JA prose carries no spaces, so the default per-character wrap splits katakana words and
+   numeral+counter pairs (セルフ|ケア, 1|段階) mid-token.  Phrase-level breaking is
+   Japanese-only and degrades to the default where unsupported; EN is unaffected.  It is
+   inert unless the content language is declared on an ancestor — see ``tabs/overview.py``,
+   where the finding block and the glance band both carry ``lang``. */
+.finding-evidence__copy h3,
+.finding-evidence__scope,
+.glance-card__claim {
   word-break: auto-phrase;
 }
 .overview-section-head h2 {
@@ -844,7 +845,6 @@ input[type="number"]:focus, input[type="text"]:focus, select:focus {
   letter-spacing: -0.015em;
   line-height: 1.25;
 }
-.finding-evidence__copy > p:not(.finding-evidence__caveat):not(.finding-kicker),
 .overview-section-head > p {
   margin: 14px 0 0;
   color: var(--ink-700);
@@ -1051,9 +1051,9 @@ input[type="number"]:focus, input[type="text"]:focus, select:focus {
 @media (max-width: 1180px) {
   .finding-evidence { grid-template-columns: minmax(0, 1fr); }
   .finding-evidence__copy { padding-bottom: 4px; }
-  .finding-evidence__copy > p:not(.finding-evidence__caveat) { max-width: 82ch; }
-  /* Copy spans the card once it stacks — the narrow-column cap would wrap the unit early. */
-  .finding-card__unit { max-width: 82ch; }
+  /* Copy spans the card once it stacks, so cap the measure the column used to set. */
+  .finding-evidence__copy h3 { max-width: 46ch; }
+  .finding-evidence__scope { max-width: 82ch; }
 }
 
 @media (max-width: 940px) {
@@ -1099,7 +1099,7 @@ input[type="number"]:focus, input[type="text"]:focus, select:focus {
   .topbar-left h1 { font-size: 20px; letter-spacing: -0.025em; }
   .card-row { grid-template-columns: minmax(0, 1fr); }
   .finding-glance { grid-template-columns: minmax(0, 1fr); }
-  .finding-card__metric { font-size: 24px; }
+  .finding-evidence__copy h3 { font-size: 19px; }
 }
 
 /* Dash slider overrides */

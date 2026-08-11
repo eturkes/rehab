@@ -97,16 +97,27 @@ This is project documentation, not an instruction source; operational instructio
 ## 4. Dashboard conventions
 
 * **Findings-first landing contract** — `tabs/overview.py::_finding_metrics()` binds every
-  headline number to unfiltered artifact-derived analyses (`SUBGROUPS`, `LANDMARK`,
+  claim to unfiltered artifact-derived analyses (`SUBGROUPS`, `LANDMARK`,
   `INDEPENDENCE`, `MULTISTATE`).  `findings-lead` + the four semantic `finding-*` blocks
   (`finding-discharge-milestones`, `finding-improvement-by-grade`, `finding-measure-value`,
   `finding-certainty-curve`) sit outside `cohort-explorer`; overview filters update
-  `overview-content` only.  Each block = headline number + claim + **reading** + **basis** + its own
+  `overview-content` only.  Each block = claim + **scope line** + **reading** + **basis** + its own
   figure (`_finding_block`).  `reading` states what was measured, what the number means and how to
   read that block's figure; `basis` states the denominator, the eligibility rule and every condition
   that limits the claim.  Both are written to be exhaustive rather than short — a reader must not
-  need the Methods tab to interpret a headline number.  Demographic/injury charts + model-derived
+  need the Methods tab to interpret a finding.  Demographic/injury charts + model-derived
   recovery types remain supporting detail, never equal-weight headline evidence.
+* **The claim is the headline; numbers stay on the figure.** Every quantity these findings report
+  is a *relation* — a spread across activities, a peak against a final grade, an R² ranking, an
+  interval with and without observation — and neither end of one means anything lifted off its
+  axis, so no display numeral sits above the copy (glance tile and block alike).  Each figure
+  labels its own values in place (`figures/overview.py`: direct bar labels, a reference line, one
+  inline annotation), the claim states the finding in one sentence, and the scope line under it
+  names what was measured and on whom.  The failure this replaces was concrete: a `43–82%` topline
+  read as an interval estimate, a `49% → 44%` one as a decline over time, and finding 02 carried
+  three different reversion percentages at once (net topline, gross figure annotation, per-grade
+  claim).  A block whose copy re-prints a value the chart already labels has moved the number
+  somewhere it explains less.
 * **Claim register (every user-facing string)** — describe what was measured; the reader is a
   clinician reading evidence, not an audience being sold one.  Name the instrument and the
   outcome (`SCIM mobility`, not "one functional score"), bound every ranking to the set actually
@@ -153,7 +164,7 @@ This is project documentation, not an instruction source; operational instructio
 * `dcc.Store("lang-store")` holds `"ja"`/`"en"`; most text callbacks take it as `Input` for instant swaps. **Exception:** `update_overview_content` takes it as `State` to avoid a race with `update_tab` (both fire on lang change — `State` makes overview fire *after* `update_tab` rebuilds the filter components with new-lang labels).
 * Pattern-matched simulator inputs use IDs `{"type":"num"/"cat","col":<raw>}` with `dash.ALL`; order fixed by `feature_spec['feature_cols']`. Numeric fields are **clearable `dcc.Input(number)`** (not sliders); the form opens **blank** (F25) — `collect_sim_inputs` leaves blanks as NaN (no imputation); *Fill cohort defaults* / *Clear all* set every value via one pattern-matching value-Output callback; What-if mode prefills from the reference episode. (`simulate` returns 5 outputs incl. `sim-reliability`.)
 * Plotly template `"medical"` (registered in `theme.py`). Palettes `PALETTE_CATEGORICAL`, `PALETTE_AIS` (A→E cool→warm), `PALETTE_PARA`, `PALETTE_ARCHETYPE` — use them for every chart. `theme.py::FONT_SANS` is the single Plotly-side copy of `--font-sans` and must track it — SVG figure text is audited for host fallback alongside the DOM.
-* **Typography = self-hosted IBM Plex, three families** (`assets/fonts/*.woff2`, OFL, `@font-face` at the top of `style.css`): Sans 400/500/600/700, Mono 400/600, **Sans JP 400/500/600/700**. A name-only stack is a defect here: an absent family resolves through fontconfig to whatever it returns — Liberation Serif for the mono numerals, VL Gothic for every kanji. Ship a face for every weight a rule names; an unshipped weight (the former `650`) rounds to the next heavier face. Plex Sans JP closes **both** stacks, mono included: the JA headline metric is `58% 対 21%`, so a Latin-only mono stack drops a kanji mid-number. It also supplies the JIS math symbols (`⇔ ∈ ≧ ≫ ⊇ ▲`) that no Latin face carries; Plex Sans supplies the one character Plex Sans JP lacks, U+2212 `−`.
+* **Typography = self-hosted IBM Plex, three families** (`assets/fonts/*.woff2`, OFL, `@font-face` at the top of `style.css`): Sans 400/500/600/700, Mono 400/600, **Sans JP 400/500/600/700**. A name-only stack is a defect here: an absent family resolves through fontconfig to whatever it returns — Liberation Serif for the mono numerals, VL Gothic for every kanji. Ship a face for every weight a rule names; an unshipped weight (the former `650`) rounds to the next heavier face. Plex Sans JP closes **both** stacks, mono included: nothing tracks which string reaches which face, so `test_stacks_cover_their_own_scripts` scores every stack against the whole UI corpus — a Latin-only mono stack drops a kanji into a host font the first time JA copy meets a `var(--font-mono)` rule. It also supplies the JIS math symbols (`⇔ ∈ ≧ ≫ ⊇ ▲`) that no Latin face carries; Plex Sans supplies the one character Plex Sans JP lacks, U+2212 `−`.
 * Form controls (`button, input, optgroup, select, textarea`) get `font: inherit` in one reset — they do not inherit `font-family`, so a bare `<button>` renders in the UA default (Arial → Liberation Sans) and drops its JA label into a host CJK face. That reset is the only way to reach Dash's own injected controls (numeric-input steppers).
 * Faces come from `scripts/02_build_fonts.py` — pinned npm tarballs → fontTools subset → woff2, rerunnable to byte-identical output (`recalcTimestamp = False`). Each face is cut to `RANGES` (whole Latin/Greek/punctuation blocks) ∪ the repo's own character corpus from `scripts/font_charset.py`, which is what keeps a full 2.3 MB/weight JP face down to ~270 KB. **`tests/test_font_coverage.py` is the guarantee**: corpus ⊆ ⋃ shipped cmaps, each stack self-sufficient for CJK, no stack naming an unshipped family, JP `ascent/descent-override` matching the Latin face. New copy with an uncovered character fails there — rerun the build.
 * `dcc.Store("patient-ref")` (session-scoped) carries the What-if reference `{id_number,key_record,features,outcomes,trajectory}`; `update_tab` reads it as `State` to prefill simulator defaults, `simulate` reads it as `State` for the reference overlay.

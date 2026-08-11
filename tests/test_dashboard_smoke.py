@@ -194,13 +194,15 @@ def test_overview_findings_precede_filtered_explorer(state, lang):
 
 @pytest.mark.parametrize("lang", LANGS)
 def test_finding_blocks_stay_tight_and_keep_their_basis(state, lang):
-    """Structure + focus: the visible layer is kicker/number/one claim, and the full
+    """Structure + focus: the visible layer is kicker / claim / scope line, and the full
     takeaway + reading + basis prose waits complete behind the block's own disclosure.
 
     Two regressions trip this: flattening the disclosure back into visible wall-of-text
-    (the claim/unit budgets), and trimming the reviewed prose away (the length floors).
-    Says nothing about whether the prose is *correct* — claim soundness against the
-    metric artifacts stays a review obligation, not a gate.
+    (the claim/scope budgets), and trimming the reviewed prose away (the length floors).
+    The claim is the headline element, so it is asserted to be an ``H3`` — a fourth
+    visible copy node, in particular a display figure lifted off the chart, would fail
+    the unpacking below.  Says nothing about whether the prose is *correct* — claim
+    soundness against the metric artifacts stays a review obligation, not a gate.
     """
     from rehab_sci.dashboard.tabs import overview as O
 
@@ -214,16 +216,18 @@ def test_finding_blocks_stay_tight_and_keep_their_basis(state, lang):
     for position, block in enumerate(blocks, start=1):
         assert len(block.children) == 2  # the copy column and the chart — nothing else visible
         copy = block.children[0]
-        kicker, topline, headline, how = copy.children
+        kicker, headline, scope_p, how = copy.children
         index_span, kicker_span = kicker.children
         assert index_span.children == f"{position:02d}"  # chapters, in story order
         assert kicker_span.children
-        metric, unit = (span.children for span in topline.children)
+        assert isinstance(headline, html.H3)  # the claim leads the block
         claim = headline.children
-        # Glance budget: what renders on load is the number and one short claim.
-        assert metric and unit and claim
+        scope = scope_p.children
+        assert scope_p.className == "finding-evidence__scope"
+        # Glance budget: what renders on load is one claim over one scope line.
+        assert claim and scope
         assert len(claim) < 170
-        assert len(unit) < 110
+        assert len(scope) < 125
         # The full reviewed prose stays reachable inside the block — a real disclosure,
         # closed on load, not a Div wearing the class name.
         assert isinstance(how, html.Details)
@@ -239,7 +243,7 @@ def test_finding_blocks_stay_tight_and_keep_their_basis(state, lang):
         assert len(reading) > len(claim)
         assert len(basis) > 200
         # An unresolved {placeholder} would ship as literal braces.
-        for text in (metric, unit, claim, takeaway, reading, basis):
+        for text in (claim, scope, takeaway, reading, basis):
             assert "{" not in text and "}" not in text
         # The evidence figure itself stays visible, never behind the disclosure.
         shown, behind = _split_graphs(block)
@@ -255,8 +259,14 @@ def test_finding_blocks_stay_tight_and_keep_their_basis(state, lang):
 
 @pytest.mark.parametrize("lang", LANGS)
 def test_overview_glance_band_mirrors_the_blocks(state, lang):
-    """The at-a-glance band shows all four findings in one strip: each tile carries the
-    same headline metric as its evidence block, a micro-claim, and an anchor to it."""
+    """The at-a-glance band shows all four findings in one strip: tile ``i`` states
+    finding ``i`` in one line and anchors to it, in the same order as the blocks.
+
+    The tile is prose, never a figure lifted off its chart, so the band is gated on
+    saying something rather than on matching a number: a claim inside the one-line
+    budget, an anchor that resolves to a real block, and its own wording rather than a
+    copy of the block headline the reader is about to reach.
+    """
     from rehab_sci.dashboard.tabs import overview as O
 
     page = O.render_overview(lang)
@@ -264,26 +274,26 @@ def test_overview_glance_band_mirrors_the_blocks(state, lang):
         node for node in _walk(page)
         if getattr(node, "className", None) == "finding-glance"
     )
+    assert nav.lang == lang  # phrase-level JA wrapping needs the language declared
     tiles = nav.children
-    assert len(tiles) == 4
-    block_metric = {
-        node.id: next(
-            span.children
-            for span in _walk(node)
-            if getattr(span, "className", None) == "finding-card__metric"
+    blocks = [
+        node for node in _walk(page) if str(getattr(node, "id", "")).startswith("finding-")
+    ]
+    assert len(tiles) == len(blocks) == 4
+    block_claim = {
+        block.id: next(
+            node.children for node in _walk(block) if isinstance(node, html.H3)
         )
-        for node in _walk(page)
-        if str(getattr(node, "id", "")).startswith("finding-")
+        for block in blocks
     }
-    assert len({tile.href for tile in tiles}) == 4  # four distinct anchors, none duplicated
-    for tile in tiles:
-        target = tile.href.lstrip("#")
-        assert target in block_metric
-        _index_span, metric_span, label_span = tile.children
-        assert metric_span.children == block_metric[target]  # same source-bound number
-        label = label_span.children
-        assert label and len(label) < 60
-        assert "{" not in label and "}" not in label
+    assert [tile.href for tile in tiles] == [f"#{block.id}" for block in blocks]  # same order
+    for position, tile in enumerate(tiles, start=1):
+        index_span, claim_span = tile.children
+        assert index_span.children == f"{position:02d}"
+        claim = claim_span.children
+        assert claim and len(claim) < 60
+        assert "{" not in claim and "}" not in claim
+        assert claim != block_claim[tile.href.lstrip("#")]
 
 
 @pytest.mark.parametrize("lang", LANGS)

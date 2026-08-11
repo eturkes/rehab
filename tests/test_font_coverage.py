@@ -59,8 +59,9 @@ def test_every_character_has_a_shipped_glyph(faces):
 def test_stacks_cover_their_own_scripts(faces):
     """Each stack must carry CJK itself, not lean on the next stack's face.
 
-    ``--font-mono`` is the one that bites: the JA headline metric is ``58% 対 21%``, so a
-    mono stack of Latin faces alone drops a kanji into a host font mid-number.
+    Nothing tracks which string reaches which face, so every stack is scored against the
+    whole corpus.  ``--font-mono`` is the one that bites: a mono stack of Latin faces
+    alone drops a kanji into a host font the first time JA copy meets a mono rule.
     """
     css = CSS.read_text(encoding="utf-8")
     families = {

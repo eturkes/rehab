@@ -7,14 +7,15 @@ output, so the committed ``assets/fonts/`` tree is replayable from a clean base.
 Three families, because the UI is bilingual and numeric:
 
 * **Plex Sans** — Latin, Greek, punctuation, arrows, the U+2212 minus.
-* **Plex Mono** — the headline metrics and tabular readouts.
+* **Plex Mono** — scope stats, index labels and tabular readouts.
 * **Plex Sans JP** — kana, kanji and the JIS math symbols (⇔ ∈ ≧ ≫ ⊇ ▲) that a Latin
-  face has no reason to carry.  It is the tail of *both* stacks: a JA metric string
-  reads ``58% 対 21%``, so even the mono elements need CJK behind them.
+  face has no reason to carry.  It is the tail of *both* stacks: nothing tracks which
+  string reaches which face, so a mono stack of Latin faces alone would drop a kanji
+  into a host font the first time JA copy meets a mono rule.
 
 Why subset locally instead of vendoring off-the-shelf webfont builds: the Google /
 Fontsource ``latin`` subsets drop U+2192 ``→``, U+2248 ``≈``, U+2265 ``≥`` and Greek —
-characters the headline metrics and Methods prose use ("±23 → ±13", "ΔUEMS")
+characters the figure annotations and Methods prose use ("±23 → ±13", "ΔUEMS")
 — and a stock Plex Sans JP is 2.3 MB per weight.  Subsetting to ``RANGES`` ∪ the corpus
 in ``font_charset`` keeps every character the repo can render and nothing else;
 ``tests/test_font_coverage.py`` fails if that promise ever breaks.

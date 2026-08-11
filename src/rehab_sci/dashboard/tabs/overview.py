@@ -224,22 +224,25 @@ def _finding_block(
     index: int,
     lang: str,
     kicker: str,
-    metric: str,
-    unit: str,
     claim: str,
+    scope: str,
     takeaway: str,
     reading: str,
     basis: str,
     figure,
 ) -> html.Section:
-    """One finding: numbered kicker, headline number, one claim, evidence figure.
+    """One finding: numbered kicker, the claim as headline, its scope, evidence figure.
 
-    The visible layer is glanceable — number + one sentence; the figure carries the
-    evidence.  ``takeaway`` (the retained qualifier), ``reading`` (what was measured and
-    how to read the figure) and ``basis`` (the denominator, the eligibility rule and
-    every condition that limits the claim) keep their reviewed wording in full, one
-    click away behind the block's own disclosure, so the finding still explains itself
-    without the Methods tab.
+    The claim leads because the quantity behind each of these findings is a relation —
+    a spread across activities, a peak against a final grade, a ranking of R², an
+    interval with and without observation — and lifting either end of it into a display
+    numeral strips the axis, the category and the reference line that give it meaning.
+    Every figure already labels its own values in place, so the copy states the finding
+    in one sentence and ``scope`` names what was measured and on whom.  ``takeaway``
+    (the retained qualifier), ``reading`` (what was measured and how to read the figure)
+    and ``basis`` (the denominator, the eligibility rule and every condition that limits
+    the claim) keep their reviewed wording in full, one click away behind the block's own
+    disclosure, so the finding still explains itself without the Methods tab.
     """
     return html.Section(
         id=block_id,
@@ -253,11 +256,8 @@ def _finding_block(
                     html.Span(f"{index:02d}", className="finding-kicker__index"),
                     html.Span(kicker),
                 ]),
-                html.Div(className="finding-card__topline", children=[
-                    html.Span(metric, className="finding-card__metric"),
-                    html.Span(unit, className="finding-card__unit"),
-                ]),
                 html.H3(claim),
+                html.P(scope, className="finding-evidence__scope"),
                 html.Details(className="finding-evidence__how", children=[
                     html.Summary(t(SCHEMA, "overview_finding_how_summary", lang)),
                     html.P(takeaway, className="finding-evidence__takeaway"),
@@ -272,15 +272,14 @@ def _finding_block(
     )
 
 
-def _glance_tile(index: int, target: str, metric: str, label: str) -> html.A:
-    """One at-a-glance tile: number + micro-claim, anchor-linked to its evidence block."""
+def _glance_tile(index: int, target: str, claim: str) -> html.A:
+    """One at-a-glance tile: the finding's claim, anchor-linked to its evidence block."""
     return html.A(
         className="glance-card",
         href=f"#{target}",
         children=[
             html.Span(f"{index:02d}", className="glance-card__index"),
-            html.Span(metric, className="glance-card__metric"),
-            html.Span(label, className="glance-card__label"),
+            html.Span(claim, className="glance-card__claim"),
         ],
     )
 
@@ -317,8 +316,8 @@ def _render_findings_lead(lang: str) -> list:
         ],
     )
 
-    # The glance band repeats each block's headline number + a micro-claim so all four
-    # findings fit one viewport; tiles anchor-jump to their evidence blocks.
+    # The glance band states each finding in one short line so all four fit one viewport;
+    # tiles anchor-jump to their evidence blocks.
     tiles: list = []
     lead: list = [lead_head]
 
@@ -334,14 +333,6 @@ def _render_findings_lead(lang: str) -> list:
             low_item=rows[0]["label"],
             high_item=rows[-1]["label"],
             count=len(rows),
-        )
-        # A spread across activities at one timepoint, never a change over time.  The
-        # arrow belongs to the certainty block, where it really does mark a transition
-        # (admission-only → with observation); reusing it three tiles away for a range
-        # reads as recovery over the stay.  So: an en-dash range, and a unit line that
-        # names both ends the way every other block names what its two numbers are.
-        ladder_metric = (
-            f"{ladder['hardest']['rate'] * 100:.0f}–{ladder['easiest']['rate']:.0%}"
         )
         ladder_basis = _copy("overview_finding_ladder_basis", lang, n=ladder["n"])
         join = "" if lang == "ja" else " "
@@ -363,7 +354,6 @@ def _render_findings_lead(lang: str) -> list:
         tiles.append(_glance_tile(
             1,
             "finding-discharge-milestones",
-            ladder_metric,
             t(SCHEMA, "overview_glance_ladder", lang),
         ))
         lead.append(_finding_block(
@@ -371,9 +361,8 @@ def _render_findings_lead(lang: str) -> list:
             1,
             lang,
             t(SCHEMA, "overview_finding_ladder_kicker", lang),
-            ladder_metric,
-            _copy("overview_finding_ladder_unit", lang, count=len(rows)),
             t(SCHEMA, "overview_finding_ladder_title", lang),
+            _copy("overview_finding_ladder_scope", lang, count=len(rows), n=ladder["n"]),
             t(SCHEMA, "overview_finding_ladder_takeaway", lang),
             _copy("overview_finding_ladder_reading", lang, **ladder_copy),
             ladder_basis,
@@ -400,13 +389,9 @@ def _render_findings_lead(lang: str) -> list:
             n=flow["n"],
         )
         reading = t(SCHEMA, "overview_finding_improve_reading", lang)
-        improve_metric = (
-            f"{flow['overall']['rate_best']:.0%} → {flow['overall']['rate_last']:.0%}"
-        )
         tiles.append(_glance_tile(
             2,
             "finding-improvement-by-grade",
-            improve_metric,
             t(SCHEMA, "overview_glance_improve", lang),
         ))
         lead.append(_finding_block(
@@ -414,9 +399,8 @@ def _render_findings_lead(lang: str) -> list:
             2,
             lang,
             t(SCHEMA, "overview_finding_improve_kicker", lang),
-            improve_metric,
-            _copy("overview_finding_improve_unit", lang, **improve_copy),
             _copy("overview_finding_improve_title", lang, **improve_copy),
+            _copy("overview_finding_improve_scope", lang, **improve_copy),
             t(SCHEMA, "overview_finding_improve_takeaway", lang),
             reading,
             _copy("overview_finding_improve_basis", lang, n=flow["n"]),
@@ -451,7 +435,6 @@ def _render_findings_lead(lang: str) -> list:
         tiles.append(_glance_tile(
             3,
             "finding-measure-value",
-            f"R² {value['best']['r2']:.2f}",
             _copy("overview_glance_measure", lang, count=len(rows), measure=best_label),
         ))
         lead.append(_finding_block(
@@ -459,13 +442,17 @@ def _render_findings_lead(lang: str) -> list:
             3,
             lang,
             t(SCHEMA, "overview_finding_measure_kicker", lang),
-            f"R² {value['best']['r2']:.2f}",
-            _copy("overview_finding_measure_unit", lang, measure=best_label),
             _copy(
                 "overview_finding_measure_title",
                 lang,
                 measure=best_label,
                 count=len(rows),
+            ),
+            _copy(
+                "overview_finding_measure_scope",
+                lang,
+                count=len(rows),
+                n_test=value["n_test"],
             ),
             _copy(
                 "overview_finding_measure_takeaway",
@@ -515,13 +502,9 @@ def _render_findings_lead(lang: str) -> list:
                 cov_observed=cov_obs,
                 **landmarks,
             )
-        certainty_metric = (
-            f"±{certainty['last_baseline']:.0f} → ±{certainty['last_observed']:.0f}"
-        )
         tiles.append(_glance_tile(
             4,
             "finding-certainty-curve",
-            certainty_metric,
             _copy("overview_glance_certainty", lang, shrink=certainty["pi_shrink"]),
         ))
         lead.append(_finding_block(
@@ -529,12 +512,16 @@ def _render_findings_lead(lang: str) -> list:
             4,
             lang,
             t(SCHEMA, "overview_finding_certainty_kicker", lang),
-            certainty_metric,
-            _copy("overview_finding_certainty_unit", lang, **landmarks),
             _copy(
                 "overview_finding_certainty_title",
                 lang,
                 shrink=certainty["pi_shrink"],
+                **landmarks,
+            ),
+            _copy(
+                "overview_finding_certainty_scope",
+                lang,
+                n=certainty["n"],
                 **landmarks,
             ),
             t(SCHEMA, "overview_finding_certainty_takeaway", lang),
@@ -580,7 +567,9 @@ def _render_findings_lead(lang: str) -> list:
             ),
         ]))
     if tiles:
-        lead.insert(1, html.Nav(className="finding-glance", children=tiles))
+        # Same contract as a finding block: the tiles are prose now, so phrase-level JA
+        # line breaking needs the content language declared on their container.
+        lead.insert(1, html.Nav(className="finding-glance", lang=lang, children=tiles))
     return lead
 
 

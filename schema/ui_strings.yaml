@@ -53,7 +53,7 @@ overview_glance_ladder:
   en: "Discharge independence rate varies by SCIM activity"
 overview_glance_improve:
   ja: "入院時 AIS A で一度上がった患者の3人に1人が最終評価では戻っていた"
-  en: "a third of AIS A gains had reverted by the last assessment"
+  en: "A third of AIS A gains had reverted by the last assessment"
 overview_glance_measure:
   ja: "{measure}：{count}指標中R²点推定が最高"
   en: "{measure}: highest R² estimate of {count} tested"
@@ -72,9 +72,9 @@ overview_finding_ladder_kicker:
 overview_finding_ladder_takeaway:
   ja: "合計点が同じでも自立している動作は異なりうるため、SCIM合計だけでは退院後にどの動作へ支援が要るかは読み取れない。"
   en: "Patients with the same summary score can differ in which activities are independent, so a SCIM total alone cannot say which supports a patient will still need after discharge."
-overview_finding_ladder_unit:
-  ja: "退院時に自立していた患者の割合 — SCIM-III {count} 項目中の最低から最高まで"
-  en: "of patients independent at discharge — lowest to highest of {count} SCIM-III activities"
+overview_finding_ladder_scope:
+  ja: "SCIM-III の {count} 動作それぞれについて、退院時に自立していた患者の割合 · {n} 名"
+  en: "Share of patients independent at discharge, for each of {count} SCIM-III activities · {n} patients"
 overview_finding_ladder_title:
   ja: "移動は自立している患者が最も少なく、セルフケアは最も多い"
   en: "Mobility is where the fewest patients are independent, self-care where the most are"
@@ -96,9 +96,9 @@ overview_finding_improve_kicker:
 overview_finding_improve_takeaway:
   ja: "この改善率は2つの数え方に左右される。1つは入院時グレードごとに「改善」の到達先が異なること — AIS D を出るには E（全髄節で正常）への到達が必要である。もう1つは、各患者を期間内の最高評価時点で数えるか、最終評価時点で数えるかである。図はその両方を示す。"
   en: "Two separate counting choices move this rate. Which grade counts as improvement differs by admission grade — leaving AIS D requires reaching E, normal function in every segment — and the rate is higher when each patient is counted at their best in-window assessment than at their last."
-overview_finding_improve_unit:
-  ja: "入院時 AIS を上回った割合 — 期間内の最高評価時点、次いで最終評価時点（{n} エピソード、入院時 A–D）"
-  en: "above admission AIS at the best in-window assessment, then at the last — {n} episodes, admission A–D"
+overview_finding_improve_scope:
+  ja: "入院時・6か月以内の最高到達・最終評価時点の AIS グレード · {n} エピソード（入院時 A–D）"
+  en: "AIS grade on admission, at its best within 6 months, and at the last assessment · {n} episodes admitted A–D"
 overview_finding_improve_title:
   ja: "入院時 AIS {peak_grade} で一度でも {peak_grade} を上回った患者のうち {peak_reverted:.0%} が、最終評価では {peak_grade} 以下に戻っていた — 入院時 {hold_grade} では {hold_reverted:.0%}"
   en: "Of the AIS {peak_grade} episodes that ever rose above {peak_grade}, {peak_reverted:.0%} were back at {peak_grade} or below by the last assessment — against {hold_reverted:.0%} of those admitted at {hold_grade}"
@@ -114,9 +114,9 @@ overview_finding_measure_kicker:
 overview_finding_measure_takeaway:
   ja: "入院時情報のみのホールドアウトR²は{baseline:.2f}。3か月までの直近の{measure}を加えたモデルは{best:.2f}で、検証した{count}指標中もっとも高い点推定値だった。"
   en: "Admission-only held-out R² was {baseline:.2f}; adding the latest {measure} recorded by 3 months gave {best:.2f}, the highest point estimate among the {count} tested."
-overview_finding_measure_unit:
-  ja: "退院時SCIM合計のホールドアウトR² — 入院時情報 + 3か月までの直近の{measure}"
-  en: "held-out R² for discharge SCIM total — admission data + latest {measure} by 3 months"
+overview_finding_measure_scope:
+  ja: "退院時SCIM合計に対するホールドアウト R² — 3か月時点の {count} 指標を1つずつ追加 · 検証 {n_test} 名"
+  en: "Held-out R² for discharge SCIM total, adding each of {count} measures at 3 months in turn · {n_test} test patients"
 overview_finding_measure_title:
   ja: "検証した{count}指標では、3か月までの直近の{measure}を加えたモデルのホールドアウトR²点推定が最も高かった"
   en: "Among {count} measures tested one at a time, latest {measure} by 3 months had the highest held-out R² point estimate"
@@ -135,9 +135,9 @@ overview_finding_certainty_kicker:
 overview_finding_certainty_takeaway:
   ja: "狭まりは時間の経過ではなく追加された測定によるものである。各時点で、同一の在院患者・同一分割で学習したモデル同士を比較している。"
   en: "The narrowing comes from the added measurements, not from time passing: at every landmark the two models are compared on the same still-admitted patients."
-overview_finding_certainty_unit:
-  ja: "退院時SCIM合計の80%予測区間の半幅（SCIM点）— {landmark} 時点、入院時のみ → 観測あり"
-  en: "80% discharge-SCIM prediction-interval half-width (points) at {landmark} — admission-only → with observation"
+overview_finding_certainty_scope:
+  ja: "退院時SCIM合計の80%予測区間の半幅（SCIM点）— 入院時情報のみと観測ありの比較 · {landmark} 時点 {n} 名"
+  en: "Half-width of the 80% interval for discharge SCIM, with and without observation · {n} patients at {landmark}"
 overview_finding_certainty_title:
   ja: "{landmark} までの測定値を加えると、退院時SCIMの80%予測区間は入院時情報のみより {shrink:.0%} 狭くなる"
   en: "The measurements recorded through {landmark} narrow the 80% interval for discharge SCIM by {shrink:.0%}"
