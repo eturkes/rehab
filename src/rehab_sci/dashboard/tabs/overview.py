@@ -151,6 +151,40 @@ def _improve_by_grade_facts() -> dict | None:
     }
 
 
+def _improve_basis_copy(flow: dict) -> dict:
+    """Named values for finding 02's basis line: how unevenly crossings failed to hold.
+
+    Which grade the line names is read off ``by_admission_grade`` rather than fixed, and the
+    remaining grades are pooled — the least-reverted grade on its own is a single episode, a
+    contrast arm too thin to state.  Counts come from the ``adm_peak_last`` triples rather
+    than from multiplying ``reverted_of_peaked`` back out: the published field is a rate,
+    and it means *fell below its own peak*, not *back at the admission grade*.
+    """
+    by_grade = flow["by_admission_grade"]
+    rank = {grade: i for i, grade in enumerate(flow["dest_grades"])}
+    fell = dict.fromkeys(by_grade, 0)
+    for cell in flow["adm_peak_last"]:
+        adm, peak = cell["adm"], cell["peak"]
+        if adm in fell and rank[peak] > rank[adm] and rank[cell["last"]] < rank[peak]:
+            fell[adm] += int(cell["n"])
+
+    reverted = {
+        grade: cell["reverted_of_peaked"]
+        for grade, cell in by_grade.items()
+        if cell.get("n_peaked") and cell.get("reverted_of_peaked") is not None
+    }
+    peak_grade = max(reverted, key=lambda g: reverted[g])
+    rest = [g for g in by_grade if g != peak_grade]
+    return {
+        "n": flow["n"],
+        "peak_grade": peak_grade,
+        "peak_n_fell": fell[peak_grade],
+        "peak_n_peaked": int(by_grade[peak_grade]["n_peaked"]),
+        "rest_n_fell": sum(fell[g] for g in rest),
+        "rest_n_peaked": sum(int(by_grade[g]["n_peaked"]) for g in rest),
+    }
+
+
 def _measure_value_facts(lm_outcome: dict) -> dict | None:
     """Discharge-SCIM R² from adding exactly one 3-month measure, ranked (G2)."""
     cell = (lm_outcome.get("by_landmark") or {}).get(_VOI_LANDMARK) or {}
@@ -372,27 +406,16 @@ def _render_findings_lead(lang: str) -> list:
     improve = facts.get("improve")
     flow = (improve or {}).get("flow")
     if improve and flow:
-        # Which grade leads the claim is read off the artifact, never fixed: the point is
-        # that reversion concentrates somewhere, not that it concentrates at A.
-        reverted = {
-            grade: cell["reverted_of_peaked"]
-            for grade, cell in flow["by_admission_grade"].items()
-            if cell.get("n_peaked") and cell.get("reverted_of_peaked") is not None
-        }
-        peak_grade = max(reverted, key=lambda g: reverted[g])
-        hold_grade = min(reverted, key=lambda g: reverted[g])
         improve_copy = dict(
-            peak_grade=peak_grade,
-            peak_reverted=reverted[peak_grade],
-            hold_grade=hold_grade,
-            hold_reverted=reverted[hold_grade],
+            rate_best=flow["overall"]["rate_best"],
+            rate_last=flow["overall"]["rate_last"],
             n=flow["n"],
         )
         reading = t(SCHEMA, "overview_finding_improve_reading", lang)
         tiles.append(_glance_tile(
             2,
             "finding-improvement-by-grade",
-            t(SCHEMA, "overview_glance_improve", lang),
+            _copy("overview_glance_improve", lang, **improve_copy),
         ))
         lead.append(_finding_block(
             "finding-improvement-by-grade",
@@ -403,7 +426,7 @@ def _render_findings_lead(lang: str) -> list:
             _copy("overview_finding_improve_scope", lang, **improve_copy),
             t(SCHEMA, "overview_finding_improve_takeaway", lang),
             reading,
-            _copy("overview_finding_improve_basis", lang, n=flow["n"]),
+            _copy("overview_finding_improve_basis", lang, **_improve_basis_copy(flow)),
             fg.fig_improve_flow(flow, lang),
         ))
 

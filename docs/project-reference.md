@@ -114,10 +114,13 @@ This is project documentation, not an instruction source; operational instructio
   labels its own values in place (`figures/overview.py`: direct bar labels, a reference line, one
   inline annotation), the claim states the finding in one sentence, and the scope line under it
   names what was measured and on whom.  The failure this replaces was concrete: a `43–82%` topline
-  read as an interval estimate, a `49% → 44%` one as a decline over time, and finding 02 carried
-  three different reversion percentages at once (net topline, gross figure annotation, per-grade
-  claim).  A block whose copy re-prints a value the chart already labels has moved the number
-  somewhere it explains less.
+  read as an interval estimate, a `49% → 44%` pair read as a decline over time, and finding 02
+  carried three different reversion percentages at once (net topline, gross figure annotation,
+  per-grade claim).  A block whose copy re-prints a value the chart already labels has moved the
+  number somewhere it explains less.  A rate the figure does *not* label can sit inside the claim
+  sentence, where the grammar carries the guard the display numeral could not: finding 02's
+  `counted at … counted at …` states one cohort under two counting rules, which is what stops its
+  49/44 pair reading as decay over time.
 * **Claim register (every user-facing string)** — describe what was measured; the reader is a
   clinician reading evidence, not an audience being sold one.  Name the instrument and the
   outcome (`SCIM mobility`, not "one functional score"), bound every ranking to the set actually
@@ -132,8 +135,11 @@ This is project documentation, not an instruction source; operational instructio
   fact itself, never a hardcoded one: `overview_finding_measure_compare` (only when both
   modalities were modelled),
   `overview_finding_certainty_coverage` (only when the trainer recorded `coverage_80`).  The
-  same rule covers which *subject* a claim names: finding 02 reads its two grades off
-  `flow.by_admission_grade` (most- and least-reverted) rather than naming A and D.
+  same rule covers which *subject* a claim names: finding 02's basis reads the most-reverted
+  admission grade off `flow.by_admission_grade` rather than naming A, and pools every other grade
+  rather than contrasting it with the least-reverted one, whose whole arm is a single episode.
+  Per-grade splits belong in the basis, never the headline — the visible claim stays a
+  cohort-wide relation.
   Three recurring mis-glosses, each a defect: a landmark feature is the **LOCF** value recorded
   *on or before* `L`, never "the score taken at `L`"; `subgroups.py::kruskal_eta_squared` is a
   **rank** effect size `(H-k+1)/(n-k)`, so it never licenses "explains {x}% of the variance" on the
