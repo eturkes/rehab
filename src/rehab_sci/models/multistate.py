@@ -303,6 +303,91 @@ def _improve_cohort(ep: pd.DataFrame, grid: pd.DataFrame) -> pd.DataFrame:
     return coh[(coh["_wobs"] >= MIN_WINDOW_OBS) & coh["_wmax"].notna()].copy()
 
 
+def _destination_flow(ep: pd.DataFrame, grid: pd.DataFrame) -> dict:
+    """Admission -> destination episode counts on the improve-head cohort, under both destinations.
+
+    ``best`` is the window maximum, the grade the improve head scores its target against;
+    ``last`` is the final observed in-window grade.  Holding the cohort fixed and varying only
+    the destination is what separates a threshold crossing that held from one that did not.
+    ``best`` has an all-zero below-diagonal by construction (the maximum cannot fall under the
+    admission grade it includes), so decline is visible in ``last`` alone.
+    """
+    cohort = _improve_cohort(ep, grid)
+    wlast = grid.ffill(axis=1).iloc[:, -1]
+    adm = pd.to_numeric(cohort[ADM_COL], errors="coerce").to_numpy()
+    best = cohort["_wmax"].to_numpy()
+    last = cohort["KeyRecordNumber"].map(wlast).to_numpy()
+
+    ok = ~(np.isnan(adm) | np.isnan(best) | np.isnan(last))
+    adm, best, last = adm[ok].astype(int), best[ok].astype(int), last[ok].astype(int)
+
+    def _matrix(dest: np.ndarray) -> dict[str, dict[str, int]]:
+        return {
+            AIS_ORD_TO_LETTER[g]: {
+                AIS_ORD_TO_LETTER[d]: int(((adm == g) & (dest == d)).sum()) for d in STATES
+            }
+            for g in IMPROVE_ADM_GRADES
+        }
+
+    by_grade: dict[str, dict] = {}
+    for g in IMPROVE_ADM_GRADES:
+        m = adm == g
+        if not m.any():
+            continue
+        peaked, held = best[m] > adm[m], last[m] > adm[m]
+        by_grade[AIS_ORD_TO_LETTER[g]] = {
+            "n": int(m.sum()),
+            "n_peaked": int(peaked.sum()),
+            "n_held": int(held.sum()),
+            "rate_best": float(peaked.mean()),
+            "rate_last": float(held.mean()),
+            "reverted_of_peaked": (
+                float((best[m] > last[m])[peaked].mean()) if peaked.any() else None
+            ),
+        }
+
+    return {
+        "n": len(adm),
+        "adm_grades": [AIS_ORD_TO_LETTER[g] for g in IMPROVE_ADM_GRADES],
+        "dest_grades": [AIS_ORD_TO_LETTER[g] for g in STATES],
+        "best": _matrix(best),
+        "last": _matrix(last),
+        # Peak -> final closes the chain admission -> peak -> final, so a crossing that did
+        # not hold is a descending ribbon rather than a difference the reader has to take
+        # between two separate panels.  Keyed over all five states: a peak can be E.
+        "peak_to_last": {
+            AIS_ORD_TO_LETTER[b]: {
+                AIS_ORD_TO_LETTER[d]: int(((best == b) & (last == d)).sum()) for d in STATES
+            }
+            for b in STATES
+        },
+        # Non-zero (admission, peak, final) triples.  Carrying the admission grade through
+        # the second stage is what lets a descending ribbon stay attributable: aggregating
+        # peak -> final alone would show that 15 episodes fell from peak C to A without
+        # showing that they were nearly all admitted at A.
+        "adm_peak_last": [
+            {
+                "adm": AIS_ORD_TO_LETTER[g],
+                "peak": AIS_ORD_TO_LETTER[b],
+                "last": AIS_ORD_TO_LETTER[d],
+                "n": int(((adm == g) & (best == b) & (last == d)).sum()),
+            }
+            for g in IMPROVE_ADM_GRADES
+            for b in STATES
+            for d in STATES
+            if ((adm == g) & (best == b) & (last == d)).any()
+        ],
+        "by_admission_grade": by_grade,
+        "overall": {
+            "rate_best": float((best > adm).mean()),
+            "rate_last": float((last > adm).mean()),
+            "fell_back": float((best > last).mean()),
+            "n_ended_below": int((last < adm).sum()),
+            "rate_ended_below": float((last < adm).mean()),
+        },
+    }
+
+
 def _run_improve_head(ep: pd.DataFrame, grid: pd.DataFrame, af: AnalysisFrame) -> tuple[dict, dict]:
     """Fit + score the binary 'improves >=1 grade within the window' head; return (metrics, model)."""
     cohort = _improve_cohort(ep, grid)
@@ -379,6 +464,7 @@ def main() -> None:
 
     pop = _population_dynamics(grid)
     landscape = _landscape(grid, ep)
+    flow = _destination_flow(ep, grid)
     print(f"within-window: improve {landscape['improve_rate']:.1%}  "
           f"stable {landscape['stable_rate']:.1%}  decline {landscape['decline_rate']:.1%}  "
           f"(n={landscape['n_eligible']})")
@@ -388,6 +474,15 @@ def main() -> None:
         print(f"  adm {AIS_ORD_TO_LETTER[g0]}: 6m occupancy "
               f"{{{', '.join(f'{AIS_ORD_TO_LETTER[s]}:{occ_end[i]:.2f}' for i, s in enumerate(STATES))}}}  "
               f"median d->improve {md if md is None else round(md)}")
+
+    print(f"destination flow (n={flow['n']}): crossed-at-best {flow['overall']['rate_best']:.1%}  "
+          f"still-up-at-last {flow['overall']['rate_last']:.1%}  "
+          f"fell-back {flow['overall']['fell_back']:.1%}  "
+          f"ended-below-admission {flow['overall']['n_ended_below']}")
+    for g, d in flow["by_admission_grade"].items():
+        rev = d["reverted_of_peaked"]
+        print(f"  adm {g}: n={d['n']:>3}  best {d['rate_best']:.1%} -> last {d['rate_last']:.1%}  "
+              f"reverted-of-crossed {'n/a' if rev is None else f'{rev:.1%}'}")
 
     print("\n[improve head]  P(>=1-grade AIS improvement within 0day..6m), admission A-D")
     imp_metrics, imp_model = _run_improve_head(ep, grid, af)
@@ -432,6 +527,7 @@ def main() -> None:
         "conv_thresholds": list(CONV_THRESHOLDS),
         "min_window_obs": MIN_WINDOW_OBS,
         "landscape": landscape,
+        "flow": flow,
         "transition": {
             "P_step": [p.tolist() for p in pop["P_step"]],
             "P_step_n": [c.tolist() for c in pop["P_step_n"]],

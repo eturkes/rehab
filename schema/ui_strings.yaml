@@ -52,8 +52,8 @@ overview_glance_ladder:
   ja: "退院時自立率はSCIM動作ごとに異なる"
   en: "Discharge independence rate varies by SCIM activity"
 overview_glance_improve:
-  ja: "6か月AIS改善率は入院時重症度順に並ばない"
-  en: "6-month AIS improvement does not follow severity order"
+  ja: "入院時 AIS A で一度上がった患者の3人に1人が最終評価では戻っていた"
+  en: "a third of AIS A gains had reverted by the last assessment"
 overview_glance_measure:
   ja: "{measure}：{count}指標中R²点推定が最高"
   en: "{measure}: highest R² estimate of {count} tested"
@@ -91,26 +91,23 @@ overview_finding_ladder_basis:
   ja: "母数は退院時に SCIM-III が記録されている {n} 名。採点は項目ごとに行われるため、ある項目の欠測はその項目の割合からのみ除かれ、項目間で母数は数名ずつ異なる。自立とは人的介助なしで当該動作を完遂できることを指し、装具・車椅子などの補助具の使用は自立を妨げるものとみなさない（車椅子使用者が移動項目で自立と判定されうるのはこのため）。いずれも退院時記録から数え上げた実測値であってモデル予測ではなく、本コホートが到達した水準を示すものであって、個々の患者が到達する水準を示すものではない。"
   en: "Denominator: {n} patients with a SCIM-III recorded at discharge. Items are scored one by one, so a missing score drops that patient from its own item only, and per-item denominators differ by a few. Independent means the patient completed the activity with no human assistance; aids, braces, wheelchairs and other devices are permitted and do not count against independence, so a wheelchair user can be independent in several mobility items. These are counts taken from the discharge record rather than model predictions, and they describe the level this cohort reached, not the level any individual patient will reach."
 overview_finding_improve_kicker:
-  ja: "AIS の改善はどの重症度で記録されるか"
-  en: "Who records an AIS-grade improvement"
+  ja: "AIS の改善はどれだけ持続するか"
+  en: "How much AIS improvement holds"
 overview_finding_improve_takeaway:
-  ja: "各入院時グレードで「1段階以上」が指す到達先は異なる。とくに AIS D の改善には E（全髄節で正常）への到達が必要であり、この尺度上の閾値を踏まえて群間差を読む必要がある。"
-  en: "The grade a patient must reach to count as improved depends on the grade they were admitted at. In particular, improvement from AIS D requires reaching E — normal function in every segment — so the between-grade rates must be read against these scale thresholds."
+  ja: "この改善率は2つの数え方に左右される。1つは入院時グレードごとに「改善」の到達先が異なること — AIS D を出るには E（全髄節で正常）への到達が必要である。もう1つは、各患者を期間内の最高評価時点で数えるか、最終評価時点で数えるかである。図はその両方を示す。"
+  en: "Two separate counting choices move this rate. Which grade counts as improvement differs by admission grade — leaving AIS D requires reaching E, normal function in every segment — and the rate is higher when each patient is counted at their best in-window assessment than at their last."
 overview_finding_improve_unit:
-  ja: "6か月以内に AIS 1段階以上改善 — 入院時 AIS {best_grade} 対 AIS {worst_grade}"
-  en: "improved ≥1 AIS grade within 6 months — admission AIS {best_grade} vs {worst_grade}"
+  ja: "入院時 AIS を上回った割合 — 期間内の最高評価時点、次いで最終評価時点（{n} エピソード、入院時 A–D）"
+  en: "above admission AIS at the best in-window assessment, then at the last — {n} episodes, admission A–D"
 overview_finding_improve_title:
-  ja: "AIS 改善率は入院時重症度の順に並ばない — 1段階の改善とは、A では B への到達だが、D では全髄節が正常な E への到達を指す"
-  en: "AIS improvement rates do not follow admission severity — from A, one grade up means reaching B; from D, it means reaching E (normal function in every segment)"
+  ja: "入院時 AIS {peak_grade} で一度でも {peak_grade} を上回った患者のうち {peak_reverted:.0%} が、最終評価では {peak_grade} 以下に戻っていた — 入院時 {hold_grade} では {hold_reverted:.0%}"
+  en: "Of the AIS {peak_grade} episodes that ever rose above {peak_grade}, {peak_reverted:.0%} were back at {peak_grade} or below by the last assessment — against {hold_reverted:.0%} of those admitted at {hold_grade}"
 overview_finding_improve_reading:
-  ja: "ここでいう改善とは、入院後6か月以内のいずれかの評価で記録された AIS が、入院時の AIS より1段階以上良いことを指す。棒の高さの順序が重症度の順序と一致しないのは、患者側の事情ではなく尺度側の事情による。改善と判定される閾値が、入院時の段階ごとに異なるためである。入院時 AIS C の患者は D に到達すれば改善と数えられ、入院時 AIS B の患者は C に到達すれば改善と数えられるが、入院時の段階が高いほど、次の段階に到達するために必要な機能回復は大きくなる。各棒は隣の棒とではなく、それぞれの判定閾値と併せて読む必要がある。各棒が示すのは、その入院時重症度のうち1段階以上上がった患者の割合であり、その群が回復した機能量ではない。"
-  en: "Improvement here means that an AIS grade recorded at some point in the first 6 months is at least one letter better than the grade recorded on admission. The bars are not ordered by admission severity, and the cause lies in the scale rather than in the patients: the threshold for being counted as improved differs by admission grade. A patient admitted at AIS C is counted on reaching D and a patient admitted at AIS B on reaching C, but the higher the admission grade, the larger the functional gain the next grade represents. Each bar is to be read against its own threshold rather than against the adjacent bars. A bar reports how often an admission grade moved up at least one letter; it does not report how much function that group regained."
-overview_finding_improve_ceiling:
-  ja: "この影響が最も大きいのは入院時 AIS {worst_grade} である。改善と数えられるには AIS E、すなわち ISNCSCI の全髄節で運動・感覚がいずれも正常と判定される状態に到達する必要がある。このため最も軽症の入院群でありながら改善率は {worst_rate:.0%} と最も低く、この群が閾値に達しない範囲で得た回復は本指標に反映されない。"
-  en: "The effect is largest at AIS {worst_grade}, where being counted as improved requires reaching AIS E: normal motor and sensory function in every segment on the ISNCSCI examination. The least impaired admission group therefore records the lowest rate, {worst_rate:.0%}, and recovery made by those patients short of that threshold is not represented in this measure."
+  ja: "図は各エピソードを3列で追う。入院時のグレード、入院後6か月以内に記録された最高グレード、そして同じ期間内で最後に記録されたグレードである。第1列から第2列へ上がるリボンは、いずれかの時点で改善の閾値を越えた患者を表す。第2列から第3列へ下がる赤いリボンは、その最高グレードが最終記録時には保たれていなかった患者である。改善ヘッドが予測するのは第1の到達であり、一度上がってから戻った患者もそこに数えられる。"
+  en: "Each episode enters the figure three times: the grade it was admitted at, the best grade recorded anywhere in the first six months, and the last grade recorded in that window. A ribbon rising between the first two columns is a patient who met the improvement threshold at some point; a red ribbon between the second and third is one whose best grade was not the grade they were last recorded at. The rate the improve head models is that first crossing, so a patient who rose and then returned is counted in it."
 overview_finding_improve_basis:
-  ja: "母数は入院時 AIS A–D で、0日から6か月の観察窓内に AIS 評価が2回以上ある {n} 名。入院時 AIS E は改善先の段階が存在しないため除外し、評価が1回のみの患者は変化を定義できないため除外している。窓内のいずれかの評価で入院時より良い段階が記録されていれば改善と数えるので、その後に元の段階へ戻った場合も改善に含まれ、逆に窓内最後の評価より後に生じた改善は含まれない。モデル出力ではなく記録上の実測遷移であり、評価がいつ実施されたかが割合を左右する。"
-  en: "Denominator: {n} patients admitted at AIS A through D with at least two AIS assessments inside the window running from day 0 to 6 months. Patients admitted at AIS E are excluded because they have no grade to improve into, and patients assessed only once are excluded because a change cannot be defined from a single examination. A patient counts as improved if any assessment in the window records a better grade, so an improvement that later reverts still counts, while an improvement first recorded after the last in-window assessment does not. These are observed transitions in the record rather than model output, so the timing of follow-up examinations affects the rates."
+  ja: "{n} エピソード。入院時 AIS A–D、実在の患者 ID を持ち、0日〜6か月の期間内に AIS 評価が2回以上あるものに限る。入院時グレードのみで再評価のないエピソードは数えないため、この割合は再評価を受けたことを条件とする。6か月より後に記録されたグレード、およびその時点で初めて記録された変化は期間外となる。維持されなかった到達は、それ自体では機能が失われた証拠にはならない。A から B の境界は仙髄の所見ひとつで決まり、評価者間で最も食い違いやすい測定であるため、実際の不安定さと評価者間のばらつきの双方が赤いリボンに含まれる。"
+  en: "{n} episodes admitted at AIS A–D with a real patient identifier and at least two AIS assessments in the 0-day-to-6-month window; an episode carrying only an admission grade and no reassessment is not counted, so the rate is conditional on having been looked at again. Grades recorded after six months, and any change first recorded then, fall outside the window. A crossing that did not persist is not by itself evidence that function was lost: the A-to-B boundary turns on a single sacral finding, the measurement most exposed to disagreement between examinations, so both genuine instability and inter-rater variation land in the red ribbons."
 overview_finding_measure_kicker:
   ja: "3か月時点で測り直す価値が最も高い1指標"
   en: "The one measure worth repeating"

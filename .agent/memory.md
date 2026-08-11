@@ -45,6 +45,13 @@ PYTHONPATH="$PWD/src" "$P/.venv/bin/python" -m pytest    # 56 passed ⇒ links l
 
 - `.venv` = uv-managed CPython 3.13.5, the interpreter `uv run` resolves. `.venv-host` = separate CPython 3.12.13 install, unused by `uv run`. Both gitignored; keep both.
 
+## AIS improvement semantics
+
+- **Two cohorts, both live, easily confused.** `_landscape` (n=714) takes any admission grade, no `IDNumber` requirement. `_improve_cohort` (n=686) = admitted A–D + real `IDNumber` + ≥2 in-window obs — **this is finding 02's denominator and the improve head's**. Both persist to `multistate_metrics.json`; building a finding off `landscape.by_admission_grade` silently mismatches the block metric by ~10 episodes + adds an E row.
+- Improvement target = `wmax > adm` — window **maximum**, so ≥1 grade (not exactly 1), transient crossings count permanently, and `improved`/`declined` are computed independently against admission (a fluctuating episode is in both; only `stable` is the complement of both).
+- `flow` block = `best`/`last`/`peak_to_last`/`adm_peak_last` matrices + per-grade `rate_best`/`rate_last`/`reverted_of_peaked`. Peak→final is **non-ascending by construction** (max includes the last obs) → decline surfaces in `last` alone, never in `best`.
+- Reversion is wildly asymmetric: adm A 34.1% of crossings do not hold vs D 2.3%; 13 episodes (1.9%) end below admission. **Never gloss this as lost recovery** — the A→B boundary turns on one sacral finding, the measurement most exposed to inter-rater disagreement, so instability and exam disagreement are not separable here. `basis` carries that caveat.
+
 ## Visual QA
 
 - Dashboard UI claims need a rendered check — the Dash tree renders per-callback, so a Python-side assert says nothing about type scale, wrap or resolved face. Harness = Playwright driving the chromiumfish binary (`$(chromiumfish path)`, `--no-sandbox --disable-gpu`), no browser download: `uv run --no-project --with playwright python .scratch/uiqa/shot.py <outdir> <tag> [--lang en|ja] [--tab <t>] [--w --h] [--full] [--wait ms] [--sel CSS ...]`. Scratch-local + gitignored → port pending (`.agent/polish.md`).

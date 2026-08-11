@@ -140,12 +140,14 @@ def _improve_by_grade_facts() -> dict | None:
     rows.sort(key=lambda row: row["grade"])
     best = max(rows, key=lambda row: row["rate"])
     worst = min(rows, key=lambda row: row["rate"])
+    flow = (MULTISTATE or {}).get("flow") or None
     return {
         "grades": rows,
         "best": best,
         "worst": worst,
         "n": int(head.get("n") or sum(row["n"] for row in rows)),
         "auc": float(head["auc"]) if head.get("auc") is not None else None,
+        "flow": flow,
     }
 
 
@@ -379,22 +381,28 @@ def _render_findings_lead(lang: str) -> list:
         ))
 
     improve = facts.get("improve")
-    if improve:
+    flow = (improve or {}).get("flow")
+    if improve and flow:
+        # Which grade leads the claim is read off the artifact, never fixed: the point is
+        # that reversion concentrates somewhere, not that it concentrates at A.
+        reverted = {
+            grade: cell["reverted_of_peaked"]
+            for grade, cell in flow["by_admission_grade"].items()
+            if cell.get("n_peaked") and cell.get("reverted_of_peaked") is not None
+        }
+        peak_grade = max(reverted, key=lambda g: reverted[g])
+        hold_grade = min(reverted, key=lambda g: reverted[g])
         improve_copy = dict(
-            best_grade=improve["best"]["grade"],
-            best_rate=improve["best"]["rate"],
-            worst_grade=improve["worst"]["grade"],
-            worst_rate=improve["worst"]["rate"],
+            peak_grade=peak_grade,
+            peak_reverted=reverted[peak_grade],
+            hold_grade=hold_grade,
+            hold_reverted=reverted[hold_grade],
+            n=flow["n"],
         )
-        reading = _copy("overview_finding_improve_reading", lang, **improve_copy)
-        # The D→E ceiling is what makes the ordering non-monotone; it only explains the
-        # chart while D is in fact the lowest bar, the same gate the figure annotation uses.
-        if improve["worst"]["grade"] == "D":
-            reading += ("" if lang == "ja" else " ") + _copy(
-                "overview_finding_improve_ceiling", lang, **improve_copy
-            )
-        vs = " 対 " if lang == "ja" else " vs "
-        improve_metric = f"{improve['best']['rate']:.0%}{vs}{improve['worst']['rate']:.0%}"
+        reading = t(SCHEMA, "overview_finding_improve_reading", lang)
+        improve_metric = (
+            f"{flow['overall']['rate_best']:.0%} → {flow['overall']['rate_last']:.0%}"
+        )
         tiles.append(_glance_tile(
             2,
             "finding-improvement-by-grade",
@@ -408,11 +416,11 @@ def _render_findings_lead(lang: str) -> list:
             t(SCHEMA, "overview_finding_improve_kicker", lang),
             improve_metric,
             _copy("overview_finding_improve_unit", lang, **improve_copy),
-            t(SCHEMA, "overview_finding_improve_title", lang),
+            _copy("overview_finding_improve_title", lang, **improve_copy),
             t(SCHEMA, "overview_finding_improve_takeaway", lang),
             reading,
-            _copy("overview_finding_improve_basis", lang, n=improve["n"]),
-            fg.fig_improve_by_grade(improve, lang),
+            _copy("overview_finding_improve_basis", lang, n=flow["n"]),
+            fg.fig_improve_flow(flow, lang),
         ))
 
     value = facts.get("measure_value")

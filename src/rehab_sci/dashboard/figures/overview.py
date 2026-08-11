@@ -9,6 +9,7 @@ import pandas as pd
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 
+from rehab_sci.dashboard.figures._common import _hex_to_rgba
 from rehab_sci.dashboard.i18n import col_label, level_label, t
 from rehab_sci.dashboard.theme import (
     INK,
@@ -87,53 +88,121 @@ def fig_milestone_ladder(ladder: dict, schema: Schema, lang: str) -> go.Figure:
     return fig
 
 
-def fig_improve_by_grade(improve: dict, lang: str) -> go.Figure:
-    """P(≥1 AIS-grade improvement by 6 months) by admission grade — the non-monotone finding.
+def fig_improve_flow(flow: dict, lang: str) -> go.Figure:
+    """Admission → best grade reached → grade at the last in-window assessment.
 
-    The best and worst grades carry full ink; the others recede.  AIS-D sits lowest
-    because improving out of D means reaching E (normal), a different bar to clear;
-    that asymmetry is annotated on the plot rather than left to a caveat.
+    Three columns rather than two panels: the reader sees a crossing that did not hold as a
+    single descending ribbon instead of having to difference two distributions by eye.  The
+    middle column is the window maximum, the definition the improve head scores its target
+    against, so stage 1 is exactly the modelled event and stage 2 is what became of it.
+    Stage 2 can only descend — the maximum includes the last observation — which is why the
+    bar chart this replaces could not show reversion or decline at all.  Ribbons holding
+    their grade recede so the ink tracks the episodes that moved.
     """
-    rows = improve["grades"]
-    labels = [f"AIS {row['grade']}<br><span style='font-size:10px'>n={row['n']}</span>" for row in rows]
-    rates = [row["rate"] for row in rows]
-    colors = [PALETTE_AIS.get(row["grade"], PALETTE_CATEGORICAL[0]) for row in rows]
-    peak = max(range(len(rows)), key=lambda i: rates[i])
-    floor = min(range(len(rows)), key=lambda i: rates[i])
-    edge = [i in (peak, floor) for i in range(len(rows))]
+    adm_grades: list[str] = flow["adm_grades"]
+    states: list[str] = flow["dest_grades"]
+    by_grade = flow["by_admission_grade"]
+    rank = {g: i for i, g in enumerate(states)}
+    n_adm, n_state = len(adm_grades), len(states)
 
-    fig = go.Figure(go.Bar(
-        x=labels,
-        y=rates,
-        marker=dict(color=colors, opacity=[1.0 if e else 0.5 for e in edge]),
-        text=[f"{value:.0%}" for value in rates],
-        textposition="outside",
-        textfont=dict(
-            size=[17 if e else 13 for e in edge],
-            color=[INK["900"] if e else INK["500"] for e in edge],
-        ),
-        hovertemplate="%{x}<br>%{y:.0%}<extra></extra>",
-        showlegend=False,
-    ))
-    fig.add_annotation(
-        x=labels[peak], y=rates[peak], yshift=38, showarrow=False,
-        text=("改善率が最も高い" if lang == "ja" else "highest improvement rate"),
-        font=dict(size=11, color=INK["700"]),
-    )
-    if rows and rows[floor]["grade"] == "D":
-        fig.add_annotation(
-            x=labels[floor], y=rates[floor], yshift=34, showarrow=False,
-            text=("「改善」= E (正常) への到達" if lang == "ja"
-                  else "“improved” = reaching E (normal)"),
-            font=dict(size=10.5, color=INK["500"]),
+    # Three columns: admission, peak, final, each ordered E at top down to A, so a ribbon's
+    # slope alone reads as direction — rising is improvement, falling is a peak not held.
+    # Hints have to be cumulative in node size rather than evenly spaced: "snap" repacks
+    # around an oversized node, and final-D alone carries ~63% of the column, which is
+    # enough to push E below it and invert the scale the slopes are read against.
+    def _column_y(values: dict[str, int]) -> dict[str, float]:
+        total = sum(values.values()) or 1
+        centres, cum = {}, 0.0
+        for g in sorted(values, key=lambda k: -rank[k]):
+            centres[g] = (cum + values[g] / 2) / total
+            cum += values[g]
+        return centres
+
+    adm_y = _column_y({g: by_grade[g]["n"] for g in adm_grades})
+    peak_y = _column_y({d: sum(flow["best"][g].get(d, 0) for g in adm_grades) for d in states})
+    last_y = _column_y({d: sum(flow["last"][g].get(d, 0) for g in adm_grades) for d in states})
+    peak_base, last_base = n_adm, n_adm + n_state
+
+    src: list[int] = []
+    tgt: list[int] = []
+    val: list[int] = []
+    link_colors: list[str] = []
+
+    def _add(s: int, t: int, n: int, color: str) -> None:
+        src.append(s)
+        tgt.append(t)
+        val.append(n)
+        link_colors.append(color)
+
+    # Stage 1, admission -> peak: the crossing the improve head scores.
+    for i, g in enumerate(adm_grades):
+        for d, count in flow["best"][g].items():
+            if count:
+                alpha = 0.46 if rank[d] > rank[g] else 0.14
+                _add(i, peak_base + rank[d], int(count), _hex_to_rgba(PALETTE_AIS[g], alpha))
+
+    # Stage 2, peak -> final: descending ribbons are crossings that did not hold.  Emitted
+    # per admission grade rather than pooled, so each one keeps its source colour; Plotly
+    # draws repeated (source, target) pairs as separate stacked ribbons.
+    for cell in flow["adm_peak_last"]:
+        peak, last, count = cell["peak"], cell["last"], int(cell["n"])
+        if not count:
+            continue
+        fell = rank[last] < rank[peak]
+        color = (
+            _hex_to_rgba(PALETTE_CATEGORICAL[4], 0.62) if fell
+            else _hex_to_rgba(PALETTE_AIS[cell["adm"]], 0.14)
         )
-    fig.update_layout(
-        height=350,
-        margin=dict(l=52, r=24, t=40, b=44),
-        xaxis=dict(type="category"),
-        yaxis=dict(range=[0, 1.06], tickformat=".0%"),
-        bargap=0.42,
+        _add(peak_base + rank[peak], last_base + rank[last], count, color)
+
+    fig = go.Figure(go.Sankey(
+        # "snap" takes x/y as ordering hints then packs to avoid overlap; "fixed" honours
+        # them exactly and lets the tall nodes (final D carries most of the cohort) collide.
+        arrangement="snap",
+        node=dict(
+            label=[f"{g} · {by_grade[g]['n']}" for g in adm_grades] + states + states,
+            color=[PALETTE_AIS[g] for g in adm_grades] + [PALETTE_AIS[g] for g in states] * 2,
+            x=[0.01] * n_adm + [0.5] * n_state + [0.99] * n_state,
+            y=([adm_y[g] for g in adm_grades]
+               + [peak_y[g] for g in states]
+               + [last_y[g] for g in states]),
+            pad=11,
+            thickness=13,
+            line=dict(color=INK["100"], width=0.5),
+        ),
+        link=dict(
+            source=src, target=tgt, value=val, color=link_colors,
+            hovertemplate="%{source.label} → %{target.label}<br>"
+                          "%{value} episodes<extra></extra>",
+        ),
+    ))
+
+    heads = (
+        ("入院時", "6か月以内の最高到達", "最終評価時点") if lang == "ja"
+        else ("on admission", "best reached", "at last assessment")
     )
+    for x, anchor, text in zip((0.0, 0.5, 1.0), ("left", "center", "right"), heads, strict=True):
+        fig.add_annotation(
+            xref="paper", yref="paper", x=x, y=1.10, xanchor=anchor, showarrow=False,
+            text=text, font=dict(size=12, color=INK["700"]),
+        )
+
+    worst = adm_grades[-1]
+    fig.add_annotation(
+        xref="paper", yref="paper", x=0.0, y=-0.10, showarrow=False, xanchor="left",
+        text=(f"入院時 {worst} では「改善」= E (正常) への到達" if lang == "ja"
+              else f"“improved” = reaching E (normal) for admission {worst}"),
+        font=dict(size=10.5, color=INK["500"]),
+    )
+    fell_back = (flow.get("overall") or {}).get("fell_back")
+    if fell_back:
+        fig.add_annotation(
+            xref="paper", yref="paper", x=1.0, y=-0.10, showarrow=False, xanchor="right",
+            text=(f"赤 = 最高到達を維持できなかった {fell_back:.0%}" if lang == "ja"
+                  else f"red = the {fell_back:.0%} that did not hold their peak"),
+            font=dict(size=10.5, color=PALETTE_CATEGORICAL[4]),
+        )
+    fig.update_layout(height=400, margin=dict(l=10, r=10, t=40, b=44))
     return fig
 
 

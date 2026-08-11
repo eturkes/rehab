@@ -118,9 +118,11 @@ This is project documentation, not an instruction source; operational instructio
   basis line carries them — 3-month SCIM predicting discharge SCIM is the same instrument twice,
   and n_test=70 point estimates without intervals do not separate adjacent ranks.  A claim that
   holds only for the values the artifacts currently carry gets a **gated sentence** keyed on the
-  fact itself, never a hardcoded one: `overview_finding_improve_ceiling` (appended only while the
-  lowest bar is D), `overview_finding_measure_compare` (only when both modalities were modelled),
-  `overview_finding_certainty_coverage` (only when the trainer recorded `coverage_80`).
+  fact itself, never a hardcoded one: `overview_finding_measure_compare` (only when both
+  modalities were modelled),
+  `overview_finding_certainty_coverage` (only when the trainer recorded `coverage_80`).  The
+  same rule covers which *subject* a claim names: finding 02 reads its two grades off
+  `flow.by_admission_grade` (most- and least-reverted) rather than naming A and D.
   Three recurring mis-glosses, each a defect: a landmark feature is the **LOCF** value recorded
   *on or before* `L`, never "the score taken at `L`"; `subgroups.py::kruskal_eta_squared` is a
   **rank** effect size `(H-k+1)/(n-k)`, so it never licenses "explains {x}% of the variance" on the
