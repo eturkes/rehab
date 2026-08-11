@@ -175,8 +175,12 @@ def _improve_basis_copy(flow: dict) -> dict:
     }
     peak_grade = max(reverted, key=lambda g: reverted[g])
     rest = [g for g in by_grade if g != peak_grade]
+    dips = flow["dips"]
     return {
         "n": flow["n"],
+        "n_dipped": dips["n_dipped"],
+        "n_recovered": dips["n_recovered"],
+        "median_day_fell": int(dips["median_day_fell"] or 0),
         "peak_grade": peak_grade,
         "peak_n_fell": fell[peak_grade],
         "peak_n_peaked": int(by_grade[peak_grade]["n_peaked"]),

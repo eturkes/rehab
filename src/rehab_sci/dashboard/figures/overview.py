@@ -88,6 +88,23 @@ def fig_milestone_ladder(ladder: dict, schema: Schema, lang: str) -> go.Figure:
     return fig
 
 
+# Coarse windows the drop timing is read in.  Per-slot markers would put a nine-node ruler
+# under 108 events; three keep every marker worth a label.  Boundaries land on grid slots
+# (4w | 6w–3m | 4m–6m), never between them, so no episode is placed by interpolation.
+_DIP_PHASES: tuple[tuple[str, int], ...] = (("early", 28), ("mid", 90), ("late", 10**6))
+# Spacing is set by the labels, not by the phases: each marker's label runs to the right of
+# its node, so a narrow viewport clips the middle one first.
+_DIP_X = (0.595, 0.735, 0.875)
+_DIP_LABEL = {
+    "ja": {"early": "4週まで", "mid": "6週〜3か月", "late": "4〜6か月"},
+    "en": {"early": "by 4w", "mid": "6w–3m", "late": "4–6m"},
+}
+
+
+def _dip_phase(day: int) -> str:
+    return next(name for name, upper in _DIP_PHASES if day <= upper)
+
+
 def fig_improve_flow(flow: dict, lang: str) -> go.Figure:
     """Admission → best grade reached → grade at the last in-window assessment.
 
@@ -98,10 +115,21 @@ def fig_improve_flow(flow: dict, lang: str) -> go.Figure:
     Stage 2 can only descend — the maximum includes the last observation — which is why the
     bar chart this replaces could not show reversion or decline at all.  Ribbons holding
     their grade recede so the ink tracks the episodes that moved.
+
+    Stage 2 also carries *when*.  Every episode ever recorded below its own peak is routed
+    through the time marker for the moment that record appeared, so a ribbon's break point
+    reads as the timing of the loss and the markers left to right are the window itself.
+    The colour split is what the marker makes visible: a drop that was still there at the
+    last assessment (red) and one the episode had already recovered from (amber) are the
+    same event at the moment it happens, and the amber ones are invisible everywhere else
+    in this figure — their peak and their final grade agree.  Dotted guides keep the
+    markers reading as positions on a time axis rather than as states in a chain.
     """
     adm_grades: list[str] = flow["adm_grades"]
     states: list[str] = flow["dest_grades"]
     by_grade = flow["by_admission_grade"]
+    dips = flow["dips"]
+    slot_day: dict[str, int] = dips["slot_days"]
     rank = {g: i for i, g in enumerate(states)}
     n_adm, n_state = len(adm_grades), len(states)
 
@@ -127,12 +155,18 @@ def fig_improve_flow(flow: dict, lang: str) -> go.Figure:
     tgt: list[int] = []
     val: list[int] = []
     link_colors: list[str] = []
+    link_hover: list[str] = []
+    episodes = "件" if lang == "ja" else "episodes"
 
-    def _add(s: int, t: int, n: int, color: str) -> None:
+    def _add(s: int, t: int, n: int, color: str, hover: str = "") -> None:
         src.append(s)
         tgt.append(t)
         val.append(n)
         link_colors.append(color)
+        link_hover.append(
+            (hover or "%{source.label} → %{target.label}")
+            + f"<br>%{{value}} {episodes}<extra></extra>"
+        )
 
     # Stage 1, admission -> peak: the crossing the improve head scores.
     for i, g in enumerate(adm_grades):
@@ -143,39 +177,73 @@ def fig_improve_flow(flow: dict, lang: str) -> go.Figure:
 
     # Stage 2, peak -> final: descending ribbons are crossings that did not hold.  Emitted
     # per admission grade rather than pooled, so each one keeps its source colour; Plotly
-    # draws repeated (source, target) pairs as separate stacked ribbons.
+    # draws repeated (source, target) pairs as separate stacked ribbons.  An episode with a
+    # below-peak record detours through its time marker, which is the whole of the timing
+    # axis: what is left going straight across never dropped below its peak at all.
+    phases = [name for name, _ in _DIP_PHASES]
+    dip_base = last_base + n_state
+    dip_n = dict.fromkeys(phases, 0)
+    dip_mid: dict[str, list[float]] = {name: [] for name in phases}
     for cell in flow["adm_peak_last"]:
         peak, last, count = cell["peak"], cell["last"], int(cell["n"])
         if not count:
             continue
+        routed: dict[str, int] = {}
+        for slot, n in (cell.get("drops") or {}).items():
+            routed[_dip_phase(slot_day[slot])] = routed.get(_dip_phase(slot_day[slot]), 0) + n
+        direct = count - sum(routed.values())
+        if direct:
+            _add(peak_base + rank[peak], last_base + rank[last], direct,
+                 _hex_to_rgba(PALETTE_AIS[cell["adm"]], 0.14))
         fell = rank[last] < rank[peak]
-        color = (
-            _hex_to_rgba(PALETTE_CATEGORICAL[4], 0.62) if fell
-            else _hex_to_rgba(PALETTE_AIS[cell["adm"]], 0.14)
+        color = _hex_to_rgba(
+            PALETTE_CATEGORICAL[4] if fell else PALETTE_CATEGORICAL[1], 0.58 if fell else 0.34,
         )
-        _add(peak_base + rank[peak], last_base + rank[last], count, color)
+        for name, n in routed.items():
+            hover = f"{peak} → {last} · {_DIP_LABEL[lang][name]}"
+            _add(peak_base + rank[peak], dip_base + phases.index(name), n, color, hover)
+            _add(dip_base + phases.index(name), last_base + rank[last], n, color, hover)
+            dip_n[name] += n
+            dip_mid[name] += [(peak_y[peak] + last_y[last]) / 2] * n
+
+    # A marker sits at the mean height of the ribbons it carries: anywhere else and they
+    # climb to reach it, and a rising ribbon reads as improvement in this figure.
+    dip_y = {
+        name: (float(np.mean(dip_mid[name])) if dip_mid[name] else 0.5) for name in phases
+    }
+    live = [name for name in phases if dip_n[name]]
 
     fig = go.Figure(go.Sankey(
         # "snap" takes x/y as ordering hints then packs to avoid overlap; "fixed" honours
         # them exactly and lets the tall nodes (final D carries most of the cohort) collide.
         arrangement="snap",
         node=dict(
-            label=[f"{g} · {by_grade[g]['n']}" for g in adm_grades] + states + states,
-            color=[PALETTE_AIS[g] for g in adm_grades] + [PALETTE_AIS[g] for g in states] * 2,
-            x=[0.01] * n_adm + [0.5] * n_state + [0.99] * n_state,
+            # Marker labels ride above their guide instead of on the node: a Sankey label
+            # runs rightwards from its node and the middle marker's would be overrun by the
+            # next one at the width this block actually renders at.
+            label=([f"{g} · {by_grade[g]['n']}" for g in adm_grades] + states + states
+                   + [""] * len(phases)),
+            color=([PALETTE_AIS[g] for g in adm_grades] + [PALETTE_AIS[g] for g in states] * 2
+                   + [INK["500"]] * len(phases)),
+            x=[0.01] * n_adm + [0.5] * n_state + [0.99] * n_state + list(_DIP_X),
             y=([adm_y[g] for g in adm_grades]
                + [peak_y[g] for g in states]
-               + [last_y[g] for g in states]),
+               + [last_y[g] for g in states]
+               + [dip_y[name] for name in phases]),
             pad=11,
             thickness=13,
             line=dict(color=INK["100"], width=0.5),
         ),
         link=dict(
-            source=src, target=tgt, value=val, color=link_colors,
-            hovertemplate="%{source.label} → %{target.label}<br>"
-                          "%{value} episodes<extra></extra>",
+            source=src, target=tgt, value=val, color=link_colors, hovertemplate=link_hover,
         ),
     ))
+    for name in live:
+        fig.add_shape(
+            type="line", xref="paper", yref="paper", layer="below",
+            x0=_DIP_X[phases.index(name)], x1=_DIP_X[phases.index(name)], y0=-0.02, y1=1.02,
+            line=dict(color=INK["100"], width=1, dash="dot"),
+        )
 
     heads = (
         ("入院時", "6か月以内の最高到達", "最終評価時点") if lang == "ja"
@@ -183,9 +251,23 @@ def fig_improve_flow(flow: dict, lang: str) -> go.Figure:
     )
     for x, anchor, text in zip((0.0, 0.5, 1.0), ("left", "center", "right"), heads, strict=True):
         fig.add_annotation(
-            xref="paper", yref="paper", x=x, y=1.10, xanchor=anchor, showarrow=False,
+            xref="paper", yref="paper", x=x, y=1.16, xanchor=anchor, showarrow=False,
             text=text, font=dict(size=12, color=INK["700"]),
         )
+    if live:
+        fig.add_annotation(
+            xref="paper", yref="paper", x=float(np.mean(_DIP_X)), y=1.115, xanchor="center",
+            showarrow=False,
+            text=("低下の初回記録" if lang == "ja" else "drop first recorded"),
+            font=dict(size=10, color=INK["300"]),
+        )
+        for name in live:
+            fig.add_annotation(
+                xref="paper", yref="paper", x=_DIP_X[phases.index(name)], y=1.03,
+                xanchor="center", showarrow=False,
+                text=f"{_DIP_LABEL[lang][name]} · {dip_n[name]}",
+                font=dict(size=9.5, color=INK["500"]),
+            )
 
     worst = adm_grades[-1]
     fig.add_annotation(
@@ -194,15 +276,23 @@ def fig_improve_flow(flow: dict, lang: str) -> go.Figure:
               else f"“improved” = reaching E (normal) for admission {worst}"),
         font=dict(size=10.5, color=INK["500"]),
     )
-    fell_back = (flow.get("overall") or {}).get("fell_back")
-    if fell_back:
+    if dips["n_dipped"]:
         fig.add_annotation(
             xref="paper", yref="paper", x=1.0, y=-0.10, showarrow=False, xanchor="right",
-            text=(f"赤 = 最高到達を維持できなかった {fell_back:.0%}" if lang == "ja"
-                  else f"red = the {fell_back:.0%} that did not hold their peak"),
-            font=dict(size=10.5, color=PALETTE_CATEGORICAL[4]),
+            text=(
+                f"<span style='color:{PALETTE_CATEGORICAL[4]}'>赤</span> = 最終評価時点でも"
+                f"最高到達を下回る {dips['n_fell']} 件 · "
+                f"<span style='color:{PALETTE_CATEGORICAL[1]}'>橙</span> = 最終評価時点までに"
+                f"最高到達へ戻る {dips['n_recovered']} 件"
+                if lang == "ja" else
+                f"<span style='color:{PALETTE_CATEGORICAL[4]}'>red</span> = "
+                f"{dips['n_fell']} still below their peak at the last assessment · "
+                f"<span style='color:{PALETTE_CATEGORICAL[1]}'>amber</span> = "
+                f"{dips['n_recovered']} back at it by then"
+            ),
+            font=dict(size=10.5, color=INK["500"]),
         )
-    fig.update_layout(height=400, margin=dict(l=10, r=10, t=40, b=44))
+    fig.update_layout(height=420, margin=dict(l=10, r=10, t=52, b=44))
     return fig
 
 

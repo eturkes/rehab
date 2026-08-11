@@ -194,157 +194,272 @@
         "adm": "A",
         "peak": "A",
         "last": "A",
-        "n": 46
+        "n": 46,
+        "drops": {}
       },
       {
         "adm": "A",
         "peak": "B",
         "last": "A",
-        "n": 3
+        "n": 3,
+        "drops": {
+          "3m": 1,
+          "4m": 1,
+          "6m": 1
+        }
       },
       {
         "adm": "A",
         "peak": "B",
         "last": "B",
-        "n": 11
+        "n": 11,
+        "drops": {
+          "2m": 1,
+          "3m": 1,
+          "5m": 1
+        }
       },
       {
         "adm": "A",
         "peak": "C",
         "last": "A",
-        "n": 12
+        "n": 12,
+        "drops": {
+          "2w": 2,
+          "4w": 1,
+          "6w": 2,
+          "2m": 2,
+          "3m": 1,
+          "4m": 2,
+          "6m": 2
+        }
       },
       {
         "adm": "A",
         "peak": "C",
         "last": "B",
-        "n": 8
+        "n": 8,
+        "drops": {
+          "2w": 1,
+          "6w": 1,
+          "3m": 3,
+          "4m": 1,
+          "6m": 2
+        }
       },
       {
         "adm": "A",
         "peak": "C",
         "last": "C",
-        "n": 33
+        "n": 33,
+        "drops": {
+          "2m": 1,
+          "3m": 5,
+          "4m": 1,
+          "5m": 2
+        }
       },
       {
         "adm": "A",
         "peak": "D",
         "last": "A",
-        "n": 1
+        "n": 1,
+        "drops": {
+          "2m": 1
+        }
       },
       {
         "adm": "A",
         "peak": "D",
         "last": "B",
-        "n": 3
+        "n": 3,
+        "drops": {
+          "2m": 1,
+          "3m": 1,
+          "4m": 1
+        }
       },
       {
         "adm": "A",
         "peak": "D",
         "last": "C",
-        "n": 1
+        "n": 1,
+        "drops": {
+          "6w": 1
+        }
       },
       {
         "adm": "A",
         "peak": "D",
         "last": "D",
-        "n": 10
+        "n": 10,
+        "drops": {
+          "2w": 1,
+          "2m": 1,
+          "3m": 1
+        }
       },
       {
         "adm": "B",
         "peak": "B",
         "last": "A",
-        "n": 2
+        "n": 2,
+        "drops": {
+          "72h": 2
+        }
       },
       {
         "adm": "B",
         "peak": "B",
         "last": "B",
-        "n": 6
+        "n": 6,
+        "drops": {
+          "2w": 2
+        }
       },
       {
         "adm": "B",
         "peak": "C",
         "last": "B",
-        "n": 3
+        "n": 3,
+        "drops": {
+          "4w": 1,
+          "2m": 1,
+          "6m": 1
+        }
       },
       {
         "adm": "B",
         "peak": "C",
         "last": "C",
-        "n": 29
+        "n": 29,
+        "drops": {
+          "2w": 2,
+          "3m": 1
+        }
       },
       {
         "adm": "B",
         "peak": "D",
         "last": "D",
-        "n": 19
+        "n": 19,
+        "drops": {
+          "2w": 1,
+          "4w": 2,
+          "3m": 1,
+          "5m": 1
+        }
       },
       {
         "adm": "C",
         "peak": "C",
         "last": "A",
-        "n": 3
+        "n": 3,
+        "drops": {
+          "2w": 2,
+          "4w": 1
+        }
       },
       {
         "adm": "C",
         "peak": "C",
         "last": "B",
-        "n": 3
+        "n": 3,
+        "drops": {
+          "72h": 1,
+          "4w": 2
+        }
       },
       {
         "adm": "C",
         "peak": "C",
         "last": "C",
-        "n": 47
+        "n": 47,
+        "drops": {
+          "72h": 5,
+          "2w": 6,
+          "4w": 1
+        }
       },
       {
         "adm": "C",
         "peak": "D",
         "last": "C",
-        "n": 8
+        "n": 8,
+        "drops": {
+          "4w": 2,
+          "6w": 1,
+          "4m": 1,
+          "5m": 2,
+          "6m": 2
+        }
       },
       {
         "adm": "C",
         "peak": "D",
         "last": "D",
-        "n": 144
+        "n": 144,
+        "drops": {
+          "2w": 1,
+          "4w": 1,
+          "2m": 1,
+          "3m": 2,
+          "4m": 3,
+          "5m": 1
+        }
       },
       {
         "adm": "C",
         "peak": "E",
         "last": "E",
-        "n": 5
+        "n": 5,
+        "drops": {}
       },
       {
         "adm": "D",
         "peak": "D",
         "last": "A",
-        "n": 1
+        "n": 1,
+        "drops": {
+          "2w": 1
+        }
       },
       {
         "adm": "D",
         "peak": "D",
         "last": "C",
-        "n": 4
+        "n": 4,
+        "drops": {
+          "72h": 3,
+          "4w": 1
+        }
       },
       {
         "adm": "D",
         "peak": "D",
         "last": "D",
-        "n": 241
+        "n": 241,
+        "drops": {
+          "72h": 6,
+          "2w": 1,
+          "4w": 2
+        }
       },
       {
         "adm": "D",
         "peak": "E",
         "last": "D",
-        "n": 1
+        "n": 1,
+        "drops": {
+          "6w": 1
+        }
       },
       {
         "adm": "D",
         "peak": "E",
         "last": "E",
-        "n": 42
+        "n": 42,
+        "drops": {}
       }
     ],
     "by_admission_grade": {
@@ -380,6 +495,62 @@
         "rate_last": 0.1453287197231834,
         "reverted_of_peaked": 0.023255813953488372
       }
+    },
+    "dips": {
+      "slot_days": {
+        "72h": 3,
+        "2w": 14,
+        "4w": 28,
+        "6w": 42,
+        "2m": 60,
+        "3m": 90,
+        "4m": 120,
+        "5m": 150,
+        "6m": 180
+      },
+      "n_dipped": 108,
+      "n_fell": 53,
+      "n_recovered": 55,
+      "by_slot": {
+        "72h": {
+          "fell": 6,
+          "recovered": 11
+        },
+        "2w": {
+          "fell": 6,
+          "recovered": 14
+        },
+        "4w": {
+          "fell": 8,
+          "recovered": 6
+        },
+        "6w": {
+          "fell": 6,
+          "recovered": 0
+        },
+        "2m": {
+          "fell": 5,
+          "recovered": 4
+        },
+        "3m": {
+          "fell": 6,
+          "recovered": 11
+        },
+        "4m": {
+          "fell": 6,
+          "recovered": 4
+        },
+        "5m": {
+          "fell": 2,
+          "recovered": 5
+        },
+        "6m": {
+          "fell": 8,
+          "recovered": 0
+        }
+      },
+      "median_day_fell": 60.0,
+      "median_day_recovered": 28.0
     },
     "overall": {
       "rate_best": 0.48542274052478135,

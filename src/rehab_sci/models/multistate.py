@@ -311,6 +311,13 @@ def _destination_flow(ep: pd.DataFrame, grid: pd.DataFrame) -> dict:
     the destination is what separates a threshold crossing that held from one that did not.
     ``best`` has an all-zero below-diagonal by construction (the maximum cannot fall under the
     admission grade it includes), so decline is visible in ``last`` alone.
+
+    Each triple also carries **when** the record first put the episode below its own peak.
+    The window maximum summarises the whole window, so admission -> peak -> final says
+    nothing about the moment a crossing came apart; ``drops`` and ``dips`` add that axis.
+    Two limits are structural: the recorded slot is an upper bound (the drop sits somewhere
+    between the last at-peak assessment and the one that caught it), and an episode whose
+    record stops early cannot show a late drop.
     """
     cohort = _improve_cohort(ep, grid)
     wlast = grid.ffill(axis=1).iloc[:, -1]
@@ -320,6 +327,18 @@ def _destination_flow(ep: pd.DataFrame, grid: pd.DataFrame) -> dict:
 
     ok = ~(np.isnan(adm) | np.isnan(best) | np.isnan(last))
     adm, best, last = adm[ok].astype(int), best[ok].astype(int), last[ok].astype(int)
+
+    # First slot below the peak, counted only after the peak was first reached: before that
+    # point "below the maximum" is just the climb towards it, not a loss of what was held.
+    obs = grid.reindex(cohort["KeyRecordNumber"]).reindex(columns=list(WINDOW)).to_numpy()[ok]
+    after_peak = np.arange(len(WINDOW)) > (obs == best[:, None]).argmax(axis=1)[:, None]
+    below = (obs < best[:, None]) & after_peak
+    dipped = below.any(axis=1)
+    drop_slot = np.where(dipped, np.array(WINDOW)[below.argmax(axis=1)], "")
+    # An episode ending under its peak was necessarily recorded under it: the final
+    # observation is itself the drop, at the latest.
+    assert dipped[best > last].all()
+    drop_day = np.array([WINDOW_DAYS.get(s, -1) for s in drop_slot])
 
     def _matrix(dest: np.ndarray) -> dict[str, dict[str, int]]:
         return {
@@ -346,6 +365,23 @@ def _destination_flow(ep: pd.DataFrame, grid: pd.DataFrame) -> dict:
             ),
         }
 
+    triples: list[dict] = []
+    for g in IMPROVE_ADM_GRADES:
+        for b in STATES:
+            for d in STATES:
+                m = (adm == g) & (best == b) & (last == d)
+                if not m.any():
+                    continue
+                slots = drop_slot[m & dipped]
+                triples.append({
+                    "adm": AIS_ORD_TO_LETTER[g],
+                    "peak": AIS_ORD_TO_LETTER[b],
+                    "last": AIS_ORD_TO_LETTER[d],
+                    "n": int(m.sum()),
+                    "drops": {w: int((slots == w).sum()) for w in WINDOW if (slots == w).any()},
+                })
+
+    fell, recovered = best > last, dipped & (best == last)
     return {
         "n": len(adm),
         "adm_grades": [AIS_ORD_TO_LETTER[g] for g in IMPROVE_ADM_GRADES],
@@ -364,20 +400,32 @@ def _destination_flow(ep: pd.DataFrame, grid: pd.DataFrame) -> dict:
         # Non-zero (admission, peak, final) triples.  Carrying the admission grade through
         # the second stage is what lets a descending ribbon stay attributable: aggregating
         # peak -> final alone would show that 15 episodes fell from peak C to A without
-        # showing that they were nearly all admitted at A.
-        "adm_peak_last": [
-            {
-                "adm": AIS_ORD_TO_LETTER[g],
-                "peak": AIS_ORD_TO_LETTER[b],
-                "last": AIS_ORD_TO_LETTER[d],
-                "n": int(((adm == g) & (best == b) & (last == d)).sum()),
-            }
-            for g in IMPROVE_ADM_GRADES
-            for b in STATES
-            for d in STATES
-            if ((adm == g) & (best == b) & (last == d)).any()
-        ],
+        # showing that they were nearly all admitted at A.  ``drops`` splits the triple by
+        # the slot that first recorded the episode below its peak; the rest of ``n`` never
+        # went below it at all.
+        "adm_peak_last": triples,
         "by_admission_grade": by_grade,
+        # When drops surface, over the whole cohort.  ``recovered`` episodes are invisible in
+        # every other field here — their peak and their final grade agree — yet they are the
+        # majority of the dips, so a timing axis built off ``fell`` alone would overstate how
+        # often a drop is permanent.
+        "dips": {
+            "slot_days": {w: WINDOW_DAYS[w] for w in WINDOW[1:]},
+            "n_dipped": int(dipped.sum()),
+            "n_fell": int(fell.sum()),
+            "n_recovered": int(recovered.sum()),
+            "by_slot": {
+                w: {
+                    "fell": int(((drop_slot == w) & fell).sum()),
+                    "recovered": int(((drop_slot == w) & recovered).sum()),
+                }
+                for w in WINDOW[1:]
+            },
+            "median_day_fell": float(np.median(drop_day[fell])) if fell.any() else None,
+            "median_day_recovered": (
+                float(np.median(drop_day[recovered])) if recovered.any() else None
+            ),
+        },
         "overall": {
             "rate_best": float((best > adm).mean()),
             "rate_last": float((last > adm).mean()),
